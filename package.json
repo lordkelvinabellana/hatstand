@@ -1,0 +1,46 @@
+{
+  "name": "clientdeck",
+  "version": "0.0.1",
+  "private": true,
+  "description": "An independent Windows profile launcher for Claude Desktop.",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/main.cjs",
+  "author": "ClientDeck contributors",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "probe": "node scripts/probe.mjs",
+    "build": "node scripts/build.mjs",
+    "start": "npm run build && electron .",
+    "package": "npm run build && node scripts/package.mjs",
+    "make": "npm run package && electron-forge make --skip-package",
+    "test:ui": "node scripts/verify-ui.mjs"
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "^7.11.2",
+    "@electron-forge/maker-squirrel": "^7.11.2",
+    "@electron-forge/maker-zip": "^7.11.2",
+    "@electron/packager": "^20.3.0",
+    "@types/node": "^22.20.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "electron": "^44.4.1",
+    "esbuild": "^0.28.2",
+    "playwright": "^1.63.0",
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "lucide-react": "^1.46.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "overrides": {
+    "tar": "^7.5.22",
+    "tmp": "^0.2.7",
+    "@electron/packager": "^20.3.0"
+  }
+}

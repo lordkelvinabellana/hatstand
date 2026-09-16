@@ -1,0 +1,11 @@
+node_modules/
+dist/
+out/
+.local/
+*.log
+.env*
+!.env.example
+coverage/
+.impeccable/review/
+.impeccable/cache/
+.impeccable/concept-seeds/
