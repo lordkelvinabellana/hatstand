@@ -1,7 +1,45 @@
 # Changelog
 
-## 0.0.1 — Local preview
+All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
-Profile management, separate Desktop data paths, launch/focus, exact process matching, tray, shortcuts, search, light/dark themes, metadata import/export, diagnostics, and Windows x64 installer/ZIP.
+## [Unreleased]
 
-Two client sign-ins and reopen persistence observed. Cowork/Code task isolation and reboot persistence remain unverified.
+## [0.1.0] - Unreleased
+
+First public preview.
+
+### Added
+
+- First-run setup: finds Claude, explains what stays separate, and creates the first client.
+- Open several selected profiles at once, and a startup group that opens with Windows.
+- Per-profile global shortcuts, with conflict detection and a key recorder.
+- Optional client work folder per profile.
+- Taskbar jump list with one entry per client; tray menu shows which clients are running and can close all of them.
+- Drag-and-drop reordering.
+- `--profile=` accepts a profile name as well as an ID.
+- **Check for updates** in Settings (on demand only).
+- **Settings → Local data** finds data left by removed profiles and moves it to the Recycle Bin. Removing a profile can also move its data to the Recycle Bin.
+- Warning when the installed Claude version hasn't been tested.
+- Detection of Claude's non-MSIX installer (not yet verified). A manually chosen `Claude.exe` now follows Claude's updates.
+- Multi-resolution app and tray icon.
+
+### Changed
+
+- **Profile data moved to `%LOCALAPPDATA%\ClientDeckData`.** The installer uses `%LOCALAPPDATA%\ClientDeck` and deletes it on uninstall, which would have removed every profile. Existing preview data is moved automatically on first start (renamed, never copied or deleted).
+- Desktop shortcuts, the jump list, and Start with Windows now launch through Squirrel's `Update.exe`, so they keep working after updates. Shortcuts created by 0.0.1 should be recreated.
+- Closing a profile waits for Claude to exit before reporting a result, which makes Restart reliable.
+- Status checks run every 30 seconds while ClientDeck is hidden, instead of every 8.
+- Storage safety checks ignore links above the data folder, so redirected profile folders work.
+- The profile file is now schema 2; older versions of ClientDeck refuse to open it rather than silently dropping new fields.
+
+### Fixed
+
+- The app quit immediately on its first launch after installation.
+- Move up/down did nothing when an archived profile sat next to the one being moved.
+- Diagnostics reported zero running profiles unless a profile was attached to an existing folder.
+- The Compatibility page showed an outdated tested version.
+- The global shortcut field accepted shortcuts that swallowed normal typing.
+
+## [0.0.1] - 2026-09-16
+
+Local preview: profile management, separate Desktop data paths, launch/focus, exact process matching, tray, global shortcut, search, themes, metadata import/export, diagnostics, and a Windows x64 installer/ZIP.

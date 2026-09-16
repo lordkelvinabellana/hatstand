@@ -1,50 +1,55 @@
-# Compatibility experiment
+# Compatibility
 
-Status: local preview verified for two signed-in Desktop profiles. This is not a fully verified public V1.
+ClientDeck depends on Claude Desktop behavior that Anthropic does not document. This page records only what has been **observed**, on which versions. The in-app Compatibility page reads from `src/core/compat.ts`; keep the two in sync.
 
-Host tested: Windows x64. Initial Claude MSIX package: **1.52386.6.0**; installation changed to **2.110.0.0** during testing, and profiles were reopened on that build.
+**Host tested:** Windows 11 x64.
+**Claude Desktop tested:** MSIX 1.52386.6.0 and 2.110.0.0.
 
-## Observed evidence
+## How it works
 
-- The installed application contains a `CLAUDE_USER_DATA_DIR` override that sets Electron's userData location. This is an implementation detail, not a public compatibility guarantee.
-- Launching the installed executable with a new `CLAUDE_USER_DATA_DIR`, a matching `--user-data-dir` argument, and a separate `CLAUDE_CONFIG_DIR` created a fresh Claude instance.
-- Three main processes ran simultaneously with three separate profile directories and windows. The pre-existing default Claude process remained running.
-- Each fresh directory contained its own browser storage and Desktop configuration files. Only directory entry names were inspected, not session contents or credentials.
-- The user signed into different client accounts in test-b and test-c and deferred the third account. Both windows showed the authenticated Chat/Cowork/Code interface.
-- Both profiles were reopened as new processes on 2.110.0.0 and remained signed in. No credentials or cookie contents were read.
-- The packaged launcher detected and focused both adopted profiles by reusing their existing processes. Exiting ClientDeck preserved both running Claude sessions.
+Claude Desktop contains an override, `CLAUDE_USER_DATA_DIR`, that sets Electron's user data folder. ClientDeck launches the installed `Claude.exe` with, for each profile:
 
-## Capability matrix
+- `CLAUDE_USER_DATA_DIR` and a matching `--user-data-dir=` argument pointing to `profiles\<id>\desktop`;
+- `CLAUDE_CONFIG_DIR` pointing to `profiles\<id>\code`;
+- a unique inert `--clientdeck-activation=` argument, so Claude's single-instance handling treats a second launch as a request to focus rather than ignoring it;
+- the parent environment without `CLAUDE_*`, `ANTHROPIC_*`, `ELECTRON_*`, and `NODE_OPTIONS`.
 
-| Capability | Result |
-|---|---|
-| MSIX installation discovery | Observed |
-| Three simultaneous main processes/windows | Observed |
-| Separate browser-data/config directory creation | Observed |
-| Two authenticated accounts | User confirmed; signed-in interfaces observed |
-| Third account | Deferred by user; Add Profile available |
-| Email/Google/SSO return routing | Two user sign-ins succeeded; each method not individually tested |
-| Session persistence after quit/reopen | Observed across new processes for both profiles |
-| Session persistence after Windows reboot | Pending; no automatic reboot |
-| Logout affects only selected account | Pending |
-| Cowork execution and state separation | Unverified |
-| Desktop Code execution and state separation | Unverified |
-| MCP, browser integration and local services | Unverified; shared components are possible |
-| Claude update compatibility | 1.52386.6.0 to 2.110.0.0 rediscovery/reopen observed; future versions unverified |
-| Packaged launch/focus and manager exit | Focus reused both processes; manager exit preserved them |
+This is an implementation detail of Claude Desktop, not a supported interface, and may change in any update.
 
-## Manual account test
+## Results
 
-1. Open the three test profiles with `npm run probe -- launch` if they are not already running.
-2. Sign into a different authorized account in each official Claude window. Do not send credentials to ClientDeck or put them in its files.
-3. Check that the intended account appears in each window. Record pass/fail without client emails or screenshots of private content.
-4. Quit and reopen one test profile; verify the account remains correct and the other profiles remain signed in.
-5. Repeat for the other profiles. Separately test the sign-in return behavior for any other authentication methods you use.
-6. At a convenient time, reboot Windows and repeat launch/account checks.
-7. Run harmless Cowork and Desktop Code tasks in separate empty client folders. Check account selection, history visibility, permissions, and connectors separately.
+| Capability | Result | Notes |
+|---|---|---|
+| MSIX installation discovery | Observed | Rediscovered after Claude updated from 1.52386.6.0 to 2.110.0.0 |
+| Non-MSIX installer discovery | **Unverified** | Looks for `%LOCALAPPDATA%\AnthropicClaude\app-*\claude.exe`; not tested against a real install |
+| Three Claude profiles running at once | Observed | Separate processes, windows, and data folders. The default Claude instance kept running |
+| Separate browser storage and config per profile | Observed | Only folder names were inspected, not contents |
+| Two different accounts signed in | User confirmed | Signed-in Chat/Cowork/Code interface seen in both windows |
+| Stays signed in after quit and reopen | Observed | Both profiles, as new processes, on 2.110.0.0 |
+| Focus reuses the running process | Observed | Packaged app, both profiles |
+| Quitting ClientDeck leaves Claude running | Observed | Packaged app |
+| Stays signed in after a Windows reboot | **Unverified** | |
+| Signing out affects only that profile | **Unverified** | |
+| Email, Google, and SSO sign-in return to the right window | Partly | Two sign-ins succeeded; each method not tested separately |
+| Cowork task execution and separation | **Unverified** | |
+| Desktop Code task execution and separation | **Unverified** | |
+| MCP servers, browser integration, local services | **Unverified** | Shared components are possible |
+| Future Claude versions | **Unverified** | ClientDeck warns when the installed version isn't in the tested list |
 
-Do not declare full isolation from a successful sign-in test. All profiles still run under the same Windows user. The launcher is not a filesystem sandbox.
+## Manual test checklist
 
-## Gate
+Use synthetic client folders and harmless content. Never paste credentials into ClientDeck, and never copy one profile's folder to create another.
 
-The user's two sign-ins and observed reopen persistence satisfied the local preview's account gate. Reboot behavior, logout isolation, authentication-method coverage, Cowork/Code tasks, and integration separation require further checks before stable public V1 claims. No account logout or reboot was performed automatically.
+1. Create two or three profiles and **Launch** each. Sign into a different authorized account in each Claude window.
+2. Confirm the intended account appears in each window. Record pass/fail without emails or screenshots of private content.
+3. Quit and reopen one profile; confirm it's still signed in to the right account and the others are unaffected.
+4. Sign out in one profile; confirm the others stay signed in.
+5. Reboot Windows, then launch each profile and confirm its account.
+6. Run harmless Cowork and Desktop Code tasks in separate empty folders. Check account, history visibility, permissions, and connectors in each profile.
+7. Repeat the sign-in check for each authentication method you use (email link, Google, SSO).
+
+Report results in an issue with the ClientDeck, Claude Desktop, and Windows versions. Don't declare isolation from a successful sign-in test alone: all profiles run as the same Windows user.
+
+## Maintainer tools
+
+`scripts/dev/probe.mjs` launches up to three fresh profiles under `.local/probe/` (ignored by Git) and reports their processes. `scripts/dev/adopt-folder.mjs` attaches such a folder to ClientDeck without moving it. Treat those folders as sensitive once you sign in.

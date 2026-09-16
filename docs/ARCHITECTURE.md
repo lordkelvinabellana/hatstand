@@ -1,0 +1,66 @@
+# Architecture
+
+ClientDeck is an Electron app written in TypeScript: a React renderer, an Electron main process, and a core library with no Electron dependency.
+
+```text
+React renderer (sandboxed, no Node)          src/ui
+        │  window.clientdeck.request(action, payload)
+        ▼
+preload: one validated IPC channel           src/main/preload.ts
+        ▼
+main process                                 src/main
+  handlers.ts ── validates payloads, dialogs, shell integration
+  tray.ts · integration.ts (shortcuts, jump list, login item) · squirrel.ts
+        ▼
+core (plain Node, unit-tested)               src/core
+  Controller ── launch / focus / close / restart lifecycle, status
+  ProfileStore ── profiles.json with atomic writes and a backup
+  windows.ts ── Claude detection, process listing, spawn, taskkill
+  launch.ts · paths.ts · storage.ts · profiles.ts · settings.ts
+        ▼
+Claude.exe per profile, with its own --user-data-dir
+```
+
+## Principles
+
+- **Measured status only.** "Running" means a Claude main process with that profile's exact `--user-data-dir` exists. ClientDeck never infers sign-in state or task progress.
+- **Preserve data by default.** Removing a profile only unregisters it. Anything that removes data goes to the Recycle Bin after path and link checks.
+- **The renderer is untrusted.** IPC accepts requests only from the app's own main frame, and every handler validates its payload.
+- **Core logic is testable.** The `Controller` receives process listing, spawning, closing, sleeping, and the clock as dependencies, so tests simulate Windows without starting Claude.
+
+## Storage
+
+```text
+%LOCALAPPDATA%\ClientDeckData\
+  profiles.json          schema 2; profiles.json.backup is the previous version
+  settings.json
+  bindings.json          optional: attached existing profile folders
+  logs\manager.log       actions and profile IDs only
+  manager\               ClientDeck's own Electron data
+  profiles\<uuid>\desktop   Claude Desktop user data (signed-in session)
+  profiles\<uuid>\code      CLAUDE_CONFIG_DIR
+```
+
+The data folder is deliberately separate from the Squirrel install folder `%LOCALAPPDATA%\ClientDeck`, which the uninstaller deletes. `migrateLegacyData` moves 0.0.1 data out of it by renaming.
+
+Profile folders are named by a stable UUID, so renaming a client never moves data. `ensurePlainDirectory` creates folders below the data root and refuses links or junctions beneath it.
+
+## Process lifecycle
+
+1. **Detect** Claude: the MSIX package through `Get-AppxPackage`, otherwise the newest `app-*` folder of a Squirrel install, or a user-chosen `Claude.exe`. Detection repeats before launches because Claude updates change its path.
+2. **Launch**: spawn `Claude.exe` detached with an argument array (see [COMPATIBILITY.md](COMPATIBILITY.md)). The profile shows *Opening…* until a matching process appears, or *Needs attention* after 20 seconds.
+3. **Focus**: launching a running profile again spawns Claude with the same data folder. Claude's single-instance lock forwards the request to the existing window, and the new process exits.
+4. **Close**: re-read the process, confirm it's still the same PID and creation time with the same ownership, run `taskkill /PID` (plus `/T /F` when forcing), then poll until it exits or the wait expires.
+5. **Status polling**: every 8 seconds while the manager is visible and every 30 seconds while it's in the tray.
+
+Process listing uses PowerShell and CIM, because Node can't read other processes' command lines.
+
+## Windows integration
+
+Squirrel installs `ClientDeck.exe` under a versioned `app-x.y.z` folder that is replaced on update. Shortcuts, jump-list entries, and the Start with Windows entry therefore run `Update.exe --processStart ClientDeck.exe --process-start-args "…"` (`stableLauncher` in `paths.ts`). Command-line `--profile=` values reach the running instance through Electron's `second-instance` event.
+
+## Testing
+
+- `npm test`: core units, including lifecycle tests with a fake process table, storage safety with real junctions, schema migration, and argument quoting.
+- `npm run test:ui`: Playwright drives the built Electron app against a temporary data folder with synthetic clients. It never launches Claude.
+- `scripts/dev/verify-packaged.mjs`: a manual smoke test of the packaged app against real profiles. It only focuses profiles that are already running.

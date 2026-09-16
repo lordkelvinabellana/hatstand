@@ -1,61 +1,113 @@
 # ClientDeck
 
-An independent, open-source Windows profile launcher for the official Claude Desktop app. **Local preview 0.0.1** supports separate persistent client profiles, with two accounts tested locally.
+[![Windows build](https://github.com/lordkelvinabellana/clientdeck/actions/workflows/windows.yml/badge.svg)](https://github.com/lordkelvinabellana/clientdeck/actions/workflows/windows.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-236553.svg)](LICENSE)
 
-The intended workflow is one persistent Claude Desktop profile per client, with convenient launch and switching controls. Claude Desktop must be installed separately. This project is not affiliated with Anthropic and does not distribute Claude.
+**Keep each client's Claude Desktop account in its own profile, and switch between them without signing out.**
 
-## Current state
+ClientDeck is a small, open-source Windows launcher for people who use Claude Desktop with several accounts, such as consultants and agencies working for multiple clients. Create a profile per client, sign in once inside the official Claude app, then launch or focus any client from a list, the tray, a keyboard shortcut, or a desktop shortcut.
 
-- Three fresh Claude instances have been observed running concurrently on the tested MSIX build.
-- Profile creation, editing, reorder, archive/restore, launch/focus, process status, tray controls, global shortcut, themes, and packaged desktop shortcuts are implemented.
-- Metadata import/export creates fresh profiles without transferring sign-ins. Diagnostics show versions and counts without client names or session contents.
-- Two different account sign-ins were confirmed by the user and both profiles reopened signed in on Claude 2.110.0.0. The packaged app reused both existing processes and left them running when it exited.
-- Cowork/Code task execution and separation, logout isolation, all authentication methods, and Windows reboot persistence remain unverified. See [compatibility results](docs/COMPATIBILITY.md).
+![ClientDeck profile list with three sample clients](docs/images/profiles.png)
 
-## Using the preview
+> [!IMPORTANT]
+> ClientDeck is an independent project. It is **not affiliated with, endorsed by, or supported by Anthropic**. Claude is a trademark of Anthropic, PBC. ClientDeck does not include or modify Claude Desktop; you install Claude separately and sign in inside it.
 
-Run the Windows x64 Setup.exe, or extract the **entire ZIP** and run ClientDeck.exe inside it. The executable needs its companion files. End users do not need Node.js. These preview binaries are unsigned; signing is not configured.
+## Status
 
-Choose **Add profile**, name the client, then **Launch** and sign in inside Claude. Repeat for a second client; add a third later with the same button. There is no minimum of three profiles or artificial account limit.
+**Preview.** It has been tested on Windows 11 x64 with Claude Desktop (MSIX) 1.52386 and 2.110, but several behaviors are not yet verified. Read [what has and hasn't been tested](docs/COMPATIBILITY.md) before relying on it for client work.
 
-Ctrl+Shift+Space opens ClientDeck; Ctrl+K focuses client search. If the global shortcut is occupied, change it in Settings. Closing the manager window minimizes it to the tray by default. Quit ClientDeck from the tray to exit while leaving Claude running.
+ClientDeck starts Claude with a separate data folder for each profile by setting `CLAUDE_USER_DATA_DIR`. **Anthropic does not document this setting**, and a Claude update could change or remove it. If that happens, ClientDeck shows the profile as failing to start. It does not touch your default Claude sign-in.
 
-New profiles live in `%LOCALAPPDATA%\ClientDeck\profiles\<id>`. The development setup adopted the user's two existing test folders through local `bindings.json`; their session data stays in `.local/probe/`. Do not delete this checkout until those profiles are deliberately migrated. Bindings and session data are never exported or packaged.
+## Features
 
-Removing a profile preserves its session folder. Permanent data deletion, grouped launch, per-profile hotkeys, client work-folder shortcuts, and GitHub update checks are deferred; see [the roadmap](docs/ROADMAP.md).
+- **One profile per client**: name, color, initials, and an optional account label you enter yourself.
+- **Launch or focus** a client's Claude window, or **open several at once**.
+- **Status you can trust**: shows whether that profile's Claude process is running. It never claims an account is signed in or a task finished.
+- **Keyboard first**: a global shortcut opens ClientDeck (Ctrl+Shift+Space by default), per-profile shortcuts jump straight to a client, and Ctrl+K searches.
+- **Windows integration**: tray menu, taskbar jump list, per-client desktop shortcuts, optional start with Windows, and profiles that open at sign-in.
+- **Client work folders**: one click to open the client's files. This is a convenience only; it doesn't restrict what Claude can access.
+- **Safe data handling**: removing a profile keeps its data by default. Leftover data can be moved to the Recycle Bin (never deleted outright), and uninstalling ClientDeck keeps every profile.
+- **Metadata export/import**: names, labels, and colors only. Sign-ins never leave your computer.
+- Light, dark, and system themes; keyboard navigation; no telemetry.
 
-Running status means a process is running, not that an account is authenticated or a task succeeded. Account labels are entered by the user. Profiles share the Windows user's filesystem, clipboard, and local services; this is not an operating-system sandbox.
+## Install
+
+1. Install [Claude Desktop for Windows](https://claude.com/download).
+2. Download `ClientDeck-<version> Setup.exe` from [Releases](https://github.com/lordkelvinabellana/clientdeck/releases) and run it. A ZIP is also available; extract the whole folder before running `ClientDeck.exe`.
+3. Optional: verify the download against `SHA256SUMS.txt` from the same release:
+
+   ```powershell
+   Get-FileHash '.\ClientDeck-0.1.0 Setup.exe' -Algorithm SHA256
+   ```
+
+Preview builds are **not code-signed** yet, so Windows SmartScreen may warn about an unknown publisher. Choose **More info → Run anyway** only if the checksum matches.
+
+## Using ClientDeck
+
+The first run walks you through three steps: finding Claude, what stays separate, and creating your first client. Then, for each client:
+
+1. Choose **Add profile**, enter the client's name, and pick a color.
+2. Choose **Launch**. A new Claude window opens with an empty profile. **Sign in there**; ClientDeck never sees your password.
+3. Next time, **Launch** reopens that client already signed in, and **Focus** brings its window forward if it's running.
+
+Other everyday actions:
+
+| To… | Do this |
+|---|---|
+| Open several clients | Tick them in the list, then **Open selected** |
+| Jump to a client from any app | Set a **Profile shortcut** in its details |
+| Open clients when Windows starts | Turn on **Start with Windows** in Settings, then **Open when Windows starts** on each profile |
+| Reorder clients | Drag the handle, or use **Move up/down** in the ⋯ menu |
+| Open from a script | `ClientDeck.exe --profile="North Studio"` (a name or profile ID) |
+| Close a client's Claude | ⋯ → **Close Claude**. If Claude only hides in its tray, use File → Exit in that window, or **Force close** |
+
+Closing the ClientDeck window keeps it in the tray. **Quit ClientDeck** from the tray to exit; your Claude windows keep running.
+
+## What stays separate, and what doesn't
+
+Each profile gets its own Claude Desktop data folder, so each keeps its own sign-in, chats, and Desktop settings.
+
+Profiles still run as **the same Windows user**. They share your files, clipboard, network, and anything else your account can reach. ClientDeck is **not a security sandbox**. For strict separation between clients, use separate Windows accounts or virtual machines.
+
+Cowork and Desktop Code separation, sign-out isolation, and staying signed in after a reboot are **not verified yet**. See [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md).
+
+## Where your data lives
+
+| What | Location |
+|---|---|
+| Profiles, settings, logs | `%LOCALAPPDATA%\ClientDeckData\` |
+| Each profile's Claude session | `%LOCALAPPDATA%\ClientDeckData\profiles\<profile-id>\` |
+| The installed app | `%LOCALAPPDATA%\ClientDeck\` (replaced on update, removed on uninstall) |
+
+Profile folders contain signed-in sessions: **treat them like passwords** and never share or upload them. Uninstalling ClientDeck leaves `ClientDeckData` in place. Remove that folder yourself if you want everything gone.
+
+Removing a profile keeps its data unless you tick **Also move this profile's local Claude data to the Recycle Bin**. **Settings → Local data** finds data left behind by removed profiles. Removing a profile doesn't sign out of or delete the Claude account, or any conversations stored by Claude.
+
+ClientDeck logs actions with profile IDs only (no names, labels, or paths) and makes no network requests except **Check for updates** in Settings, which contacts the GitHub API when you ask.
 
 ## Development
 
-Requires Node.js 24 or newer. The final packaged launcher is intended to include its own runtime.
+Requires Windows x64 and Node.js 24.
 
 ```powershell
 npm ci
-npm test
+npm run lint        # Biome formatting and lint checks
 npm run typecheck
+npm test            # unit tests (node:test)
 npm run build
-npm run test:ui
-npm run make
+npm run test:ui     # Electron UI tests with synthetic clients; never launches Claude
+npm start           # run the app from source
+npm run make        # installer and ZIP in out/make/
 ```
 
-On a Windows machine with the Claude MSIX package installed:
+`npm start` uses your real `%LOCALAPPDATA%\ClientDeckData`. The UI tests use a temporary folder.
 
-```powershell
-npm run probe -- launch
-npm run probe -- status
-```
+See [CONTRIBUTING.md](CONTRIBUTING.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), and [docs/RELEASING.md](docs/RELEASING.md). Planned work is in [docs/ROADMAP.md](docs/ROADMAP.md).
 
-The launch experiment creates three fresh profiles below `.local/probe/`, which is excluded from Git. Sign in yourself inside the official Claude app. Treat those directories as sensitive once authenticated; never upload them.
+## Security
 
-The experimental profile mechanism is undocumented by Anthropic and may change. Separate app data does not isolate access to the Windows user's files, clipboard, or services.
-
-`npm start` runs the development app. Installer/ZIP outputs are under `out/make/`. UI tests use an isolated temporary store with sample clients. CI builds unsigned artifacts and does not publish releases automatically.
-
-Packaging uses patched Electron Packager 20 directly followed by Forge's makers with `--skip-package`: Forge 7's internal hooks use the older callback API. The package allowlist contains only compiled code, the original icon, package metadata, and LICENSE. No client data enters the executable. Run `node scripts/verify-artifacts.mjs` to verify the allowlist and generate SHA256SUMS.txt.
+Please report vulnerabilities privately, as described in [SECURITY.md](SECURITY.md). Never post profile folders, cookies, account emails, or client content in issues.
 
 ## License
 
-MIT for ClientDeck's original code. Claude Desktop remains subject to its own terms and license.
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md). Public GitHub publication and signing are still separate steps.
+[MIT](LICENSE) for ClientDeck's code. Claude Desktop is Anthropic's software and is subject to Anthropic's terms. Using several Claude accounts must comply with those terms and with your clients' agreements.

@@ -193,7 +193,7 @@ components:
 
 ClientDeck is a calm Windows working surface. Its identity comes from purposeful Segoe UI typography, warm neutral surfaces, restrained teal actions, and compact client rows. Clear client names, initials, and written status keep the utility readable during everyday switching.
 
-The approved compact utility direction governs the system. Group separation gives controls room without turning each record into a large card. Light and dark themes share the same geometry and hierarchy; color changes the material, not the meaning. This document captures the shipped interface in `src/ui/style.css` and `src/ui/index.tsx`; the north-star name describes the already selected direction.
+A compact utility direction governs the system. Group separation gives controls room without turning each record into a large card. Light and dark themes share the same geometry and hierarchy; color changes the material, not the meaning. This document describes the shipped interface in `src/ui/style.css` and `src/ui/components/`.
 
 **Key Characteristics:**
 
@@ -205,7 +205,7 @@ The approved compact utility direction governs the system. Group separation give
 
 ## Colors
 
-The palette pairs warm paper and dark green ink with a quiet teal accent. Frontmatter preserves the exact CSS values; unprefixed surface tokens describe light mode and `dark-` tokens describe its theme overrides. The sidecar's eight-step OKLCH ramps are synthesized preview aids, not additional application tokens.
+The palette pairs warm paper and dark green ink with a quiet teal accent. Frontmatter preserves the exact CSS values; unprefixed surface tokens describe light mode and `dark-` tokens describe its theme overrides.
 
 ### Primary
 
@@ -312,5 +312,5 @@ The editor stays in the workspace flow, has a larger initials preview (52px), vi
 
 - **Don't** use color alone to identify a client or process state.
 - **Don't** add resting shadows to list rows or permanent panels.
-- **Don't** replace the approved compact utility surface with a marketing hero or metric tiles.
+- **Don't** replace the compact utility surface with a marketing hero or metric tiles.
 - **Don't** infer account identity, task completion, or Cowork compatibility from visual process status.

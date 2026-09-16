@@ -1,9 +1,31 @@
-# Security
+# Security policy
 
-ClientDeck is a session-profile launcher, not an operating-system sandbox. Profiles still share Windows-user permissions, clipboard, and services. See the README.
+## Reporting a vulnerability
 
-Do not post credentials, cookies, profile folders, private client names, or conversation content in issues. Diagnostics export only versions and counts. Configure a private reporting channel when publishing the repository; until then, report vulnerabilities directly to the owner without session data.
+Please **do not open a public issue** for security problems.
 
-This unsigned preview has not had an independent security audit. Its renderer uses sandboxing, context isolation, disabled Node integration, and restrictive CSP. IPC validates the originating frame. Packaging is allowlisted and excludes local profiles.
+Report them privately through GitHub: go to the repository's **Security** tab and choose **Report a vulnerability** ([direct link](https://github.com/lordkelvinabellana/clientdeck/security/advisories/new)). Include the ClientDeck version, Windows version, and steps to reproduce.
 
-Run `npm audit` before release. Patched dependency overrides avoid older archive dependencies in the Forge graph. Verify distributed artifacts against SHA256SUMS.txt.
+Never include profile folders, cookies, tokens, account emails, client names, or conversation content, even in private reports. Synthetic reproductions are enough.
+
+You should get an acknowledgement within 7 days. Fixes are released as soon as practical and credited in the advisory unless you'd rather stay anonymous.
+
+## Supported versions
+
+Only the latest release receives security fixes during the preview.
+
+## Security model
+
+ClientDeck is a **profile launcher, not a sandbox**. Every profile runs as the same Windows user, with the same access to files, clipboard, network, and local services. Someone who can run code as that user can read every profile's data.
+
+Within that boundary, ClientDeck:
+
+- runs its renderer sandboxed, with context isolation, no Node integration, and a restrictive Content Security Policy;
+- accepts IPC only from its own main frame and validates every payload in the main process;
+- identifies Claude processes by exact executable path and a single `--user-data-dir` before focusing or closing them, and only closes that process tree;
+- starts Claude with argument arrays and removes `CLAUDE_*`, `ANTHROPIC_*`, `ELECTRON_*`, and `NODE_OPTIONS` variables from its environment;
+- refuses to create or remove profile storage through links or junctions, and moves data to the Recycle Bin instead of deleting it;
+- exports only names, labels, colors, and initials;
+- makes network requests only when you choose **Check for updates**, and only opens release links on this repository.
+
+It has not had an independent security audit. Preview binaries are not yet code-signed. Verify downloads against the `SHA256SUMS.txt` published with each release.

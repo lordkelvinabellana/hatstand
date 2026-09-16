@@ -6,10 +6,13 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   build:
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
@@ -17,15 +20,22 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
-      - run: npm audit
-      - run: npm test
+      - run: npm audit --audit-level=high
+      - run: npm run lint
       - run: npm run typecheck
+      - run: npm test
       - run: npm run build
       - run: npm run test:ui
       - run: npm run make
       - run: node scripts/verify-artifacts.mjs
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: ClientDeck-windows-x64-preview
+          name: ClientDeck-windows-x64-${{ github.sha }}
           path: out/make/
           retention-days: 14
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: failure()
+        with:
+          name: ui-screenshots
+          path: .local/ui-screenshots/
+          retention-days: 7

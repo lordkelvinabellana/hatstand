@@ -1,0 +1,57 @@
+name: Bug report
+description: Something in ClientDeck doesn't work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Never include** profile folders, cookies, tokens, account emails, client names, or conversation content. Use synthetic names such as "Client A".
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Create profile "Client A"
+        2. Choose Launch
+        3. …
+    validations:
+      required: true
+  - type: input
+    id: clientdeck
+    attributes:
+      label: ClientDeck version
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: claude
+    attributes:
+      label: Claude Desktop version and install type
+      placeholder: 2.110.0.0 (MSIX)
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: Windows 11 24H2 x64
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostic summary
+      description: In ClientDeck, open Compatibility → Save this summary. It contains versions and counts only.
+      render: json

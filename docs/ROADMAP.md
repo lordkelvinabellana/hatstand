@@ -1,16 +1,31 @@
-# Remaining roadmap
+# Roadmap
 
-Before stable public V1: verify reboot persistence, logout isolation, individual authentication flows, Cowork/Code tasks and shared integrations; test clean-machine install, installed upgrade, and uninstall preserving data; configure signing and the public GitHub repository.
+Priorities can change based on compatibility findings and feedback. Open an issue to discuss anything here before starting work.
 
-Planned convenience features beyond this preview:
+## Before a stable 1.0
 
-- Launch a selected group of profiles.
-- Per-profile hotkeys and optional launch at Windows startup.
-- Client work-folder association separate from session storage.
-- General existing-folder adoption and deliberate storage migration.
-- On-demand GitHub update checks after publication.
-- Explicit permanent local data deletion with resolved-path and recovery safeguards.
+- Verify reboot persistence, sign-out isolation, each authentication method, and Cowork/Desktop Code separation (see [COMPATIBILITY.md](COMPATIBILITY.md)).
+- Test a clean-machine install, upgrade from each previous release, and uninstall on a fresh Windows VM.
+- Verify detection of Claude's non-MSIX installer against a real installation.
+- Code-sign releases (see [RELEASING.md](RELEASING.md)).
 
-Later, conditional on compatibility: MCP editor, separate Code terminals, task notifications, window identity/grouping and layout restoration, resource summaries, automatic updates, ARM64, and macOS.
+## Next
 
-Adding the third account already works through Add Profile and requires no code change.
+- **Window identity**: make it obvious which client a Claude window belongs to. Candidate approaches and their risks are in [WINDOW-IDENTITY.md](WINDOW-IDENTITY.md); each needs a proof of concept first.
+- Attach an existing profile folder from the UI (today: `scripts/dev/adopt-folder.mjs`), and move profile data to another drive deliberately.
+- Per-profile environment presets for Desktop Code, only where separate configuration paths are verified.
+- Localization.
+
+## Later, only if compatibility allows
+
+- Per-profile MCP configuration editor with validation and backup.
+- Terminals that open with a profile's Code configuration.
+- Task and notification indicators through a reliable integration, never inferred from process state.
+- Window layout restore across clients.
+- Resource usage per profile, where process ownership is certain.
+- Automatic updates with a verified pipeline and explicit user control.
+- ARM64 builds; macOS evaluated separately.
+
+## Done in 0.1.0
+
+First-run setup, open several profiles at once, startup group, per-profile shortcuts, work folders, jump list, tray status and Close all, drag-and-drop reordering, launching by name, on-demand update checks, leftover-data cleanup through the Recycle Bin, and a data folder that survives uninstall.
