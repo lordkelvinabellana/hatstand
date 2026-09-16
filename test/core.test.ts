@@ -14,7 +14,7 @@ import {
 } from '../src/core/launch.ts';
 
 async function temporary(t: { after: (fn: () => Promise<void>) => void }) {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'clientdeck-test-'));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'hatstand-test-'));
   t.after(async () => {
     await fs.rm(root, { recursive: true, force: true });
   });
@@ -82,14 +82,14 @@ test('imports reject executable commands, paths, unknown versions and oversize i
     assert.throws(() =>
       parseImport(
         JSON.stringify({
-          format: 'clientdeck-profile-metadata',
+          format: 'hatstand-profile-metadata',
           version: 1,
           profiles: [{ name: 'A', ...extra }],
         }),
       ),
     );
   }
-  assert.throws(() => parseImport('{"format":"clientdeck-profile-metadata","version":2,"profiles":[]}'));
+  assert.throws(() => parseImport('{"format":"hatstand-profile-metadata","version":2,"profiles":[]}'));
   assert.throws(() => parseImport(' '.repeat(1_000_001)));
 });
 test('profile identifiers reject path traversal', () => {

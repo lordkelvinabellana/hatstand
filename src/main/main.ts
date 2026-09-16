@@ -16,11 +16,11 @@ import type { HotkeyResult } from './integration.ts';
 import { handleSquirrelEvent } from './squirrel.ts';
 import { createTray, updateTray } from './tray.ts';
 
-const testMode = process.env.CLIENTDECK_TEST_MODE === '1' && !app.isPackaged;
+const testMode = process.env.HATSTAND_TEST_MODE === '1' && !app.isPackaged;
 const localAppData = process.env.LOCALAPPDATA ?? path.join(app.getPath('appData'), '..', 'Local');
 const root =
-  testMode && process.env.CLIENTDECK_TEST_ROOT
-    ? path.resolve(process.env.CLIENTDECK_TEST_ROOT)
+  testMode && process.env.HATSTAND_TEST_ROOT
+    ? path.resolve(process.env.HATSTAND_TEST_ROOT)
     : dataRoot(localAppData);
 app.setPath('userData', path.join(root, 'manager'));
 const html = path.join(__dirname, 'index.html');
@@ -56,7 +56,7 @@ const controller = new Controller({
 });
 
 function notify() {
-  if (window && !window.isDestroyed()) window.webContents.send('clientdeck:changed');
+  if (window && !window.isDestroyed()) window.webContents.send('hatstand:changed');
 }
 function show() {
   if (!window) return;
@@ -145,7 +145,7 @@ async function start() {
   const profiles = (await store.load()).profiles;
   nativeTheme.themeSource = controller.settings.theme;
   await controller.detect();
-  app.setAppUserModelId('com.squirrel.ClientDeck.ClientDeck');
+  app.setAppUserModelId('com.squirrel.Hatstand.Hatstand');
   // Re-applying keeps the login item pointed at the current launcher after updates.
   if (controller.settings.startWithWindows) applyLoginItem(true);
 
@@ -155,8 +155,8 @@ async function start() {
     minWidth: 760,
     minHeight: 580,
     show: false,
-    title: 'ClientDeck',
-    icon: path.join(__dirname, '..', 'resources', 'clientdeck.ico'),
+    title: 'Hatstand',
+    icon: path.join(__dirname, '..', 'resources', 'hatstand.ico'),
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#1c2320' : '#f7f7f2',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -180,7 +180,7 @@ async function start() {
       app.quit();
     }
   });
-  ipcMain.handle('clientdeck:request', async (event, request: unknown) => {
+  ipcMain.handle('hatstand:request', async (event, request: unknown) => {
     if (
       !window ||
       event.sender !== window.webContents ||
@@ -228,7 +228,7 @@ if (!handleSquirrelEvent()) {
       try {
         await start();
       } catch (error) {
-        dialog.showErrorBox('ClientDeck could not start', (error as Error).message);
+        dialog.showErrorBox('Hatstand could not start', (error as Error).message);
         quitting = true;
         app.quit();
       }

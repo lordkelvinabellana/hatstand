@@ -59,7 +59,7 @@ export function SettingsPage() {
           <h2>Daily workflow</h2>
           <label className="setting-row">
             <span>
-              Keep ClientDeck in the tray
+              Keep Hatstand in the tray
               <small>Closing this window keeps switching available.</small>
             </span>
             <input
@@ -89,7 +89,7 @@ export function SettingsPage() {
             label="Global shortcut"
             value={settings.hotkey}
             onChange={(hotkey) => setSettings({ ...settings, hotkey })}
-            hint="Opens ClientDeck from another app. Backspace clears it."
+            hint="Opens Hatstand from another app. Backspace clears it."
             error={data.hotkeyError}
           />
         </section>
@@ -97,7 +97,7 @@ export function SettingsPage() {
           <h2>Claude Desktop</h2>
           <p>
             {data.installation
-              ? `${data.installation.kind} installation · ${data.installation.version}${data.installationTested ? '' : ' · not yet tested with ClientDeck'}`
+              ? `${data.installation.kind} installation · ${data.installation.version}${data.installationTested ? '' : ' · not yet tested with Hatstand'}`
               : 'No installation detected'}
           </p>
           <div className="path-picker">
@@ -146,7 +146,7 @@ export function SettingsPage() {
 
       <section className="setting-section transfer">
         <h2>Updates</h2>
-        <p>ClientDeck {data.version}. Checking contacts GitHub only when you ask.</p>
+        <p>Hatstand {data.version}. Checking contacts GitHub only when you ask.</p>
         <div className="button-row">
           <button
             type="button"
@@ -168,7 +168,7 @@ export function SettingsPage() {
               <p>No public releases are available yet.</p>
             ) : update.newer ? (
               <>
-                <h3>ClientDeck {update.latest.version} is available</h3>
+                <h3>Hatstand {update.latest.version} is available</h3>
                 {update.latest.notes && <pre className="release-notes">{update.latest.notes}</pre>}
                 <button
                   type="button"
@@ -243,7 +243,7 @@ export function SettingsPage() {
         <h2>Local data</h2>
         <p>
           Profiles are stored in <span className="path-text inline">{data.dataFolder}</span>. Uninstalling
-          ClientDeck keeps this folder.
+          Hatstand keeps this folder.
         </p>
         <div className="button-row">
           <button type="button" className="secondary" disabled={!!pending} onClick={loadStorage}>

@@ -1,10 +1,10 @@
 # Architecture
 
-ClientDeck is an Electron app written in TypeScript: a React renderer, an Electron main process, and a core library with no Electron dependency.
+Hatstand is an Electron app written in TypeScript: a React renderer, an Electron main process, and a core library with no Electron dependency.
 
 ```text
 React renderer (sandboxed, no Node)          src/ui
-        │  window.clientdeck.request(action, payload)
+        │  window.hatstand.request(action, payload)
         ▼
 preload: one validated IPC channel           src/main/preload.ts
         ▼
@@ -23,7 +23,7 @@ Claude.exe per profile, with its own --user-data-dir
 
 ## Principles
 
-- **Measured status only.** "Running" means a Claude main process with that profile's exact `--user-data-dir` exists. ClientDeck never infers sign-in state or task progress.
+- **Measured status only.** "Running" means a Claude main process with that profile's exact `--user-data-dir` exists. Hatstand never infers sign-in state or task progress.
 - **Preserve data by default.** Removing a profile only unregisters it. Anything that removes data goes to the Recycle Bin after path and link checks.
 - **The renderer is untrusted.** IPC accepts requests only from the app's own main frame, and every handler validates its payload.
 - **Core logic is testable.** The `Controller` receives process listing, spawning, closing, sleeping, and the clock as dependencies, so tests simulate Windows without starting Claude.
@@ -31,17 +31,17 @@ Claude.exe per profile, with its own --user-data-dir
 ## Storage
 
 ```text
-%LOCALAPPDATA%\ClientDeckData\
+%LOCALAPPDATA%\HatstandData\
   profiles.json          schema 2; profiles.json.backup is the previous version
   settings.json
   bindings.json          optional: attached existing profile folders
   logs\manager.log       actions and profile IDs only
-  manager\               ClientDeck's own Electron data
+  manager\               Hatstand's own Electron data
   profiles\<uuid>\desktop   Claude Desktop user data (signed-in session)
   profiles\<uuid>\code      CLAUDE_CONFIG_DIR
 ```
 
-The data folder is deliberately separate from the Squirrel install folder `%LOCALAPPDATA%\ClientDeck`, which the uninstaller deletes. `migrateLegacyData` moves 0.0.1 data out of it by renaming.
+The data folder is deliberately separate from the Squirrel install folder `%LOCALAPPDATA%\Hatstand`, which the uninstaller deletes. `migrateLegacyData` moves 0.0.1 data out of it by renaming.
 
 Profile folders are named by a stable UUID, so renaming a client never moves data. `ensurePlainDirectory` creates folders below the data root and refuses links or junctions beneath it.
 
@@ -57,7 +57,7 @@ Process listing uses PowerShell and CIM, because Node can't read other processes
 
 ## Windows integration
 
-Squirrel installs `ClientDeck.exe` under a versioned `app-x.y.z` folder that is replaced on update. Shortcuts, jump-list entries, and the Start with Windows entry therefore run `Update.exe --processStart ClientDeck.exe --process-start-args "…"` (`stableLauncher` in `paths.ts`). Command-line `--profile=` values reach the running instance through Electron's `second-instance` event.
+Squirrel installs `Hatstand.exe` under a versioned `app-x.y.z` folder that is replaced on update. Shortcuts, jump-list entries, and the Start with Windows entry therefore run `Update.exe --processStart Hatstand.exe --process-start-args "…"` (`stableLauncher` in `paths.ts`). Command-line `--profile=` values reach the running instance through Electron's `second-instance` event.
 
 ## Testing
 

@@ -45,7 +45,7 @@ if (operation === 'launch') {
 } else if (operation === 'status') {
   const processes = JSON.parse(
     powershell(
-      "@(Get-CimInstance Win32_Process -Filter \"Name='Claude.exe'\" | Where-Object { $_.CommandLine -like '*clientdeck*probe*' } | ForEach-Object { $w = Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue; [PSCustomObject]@{pid=$_.ProcessId; parent=$_.ParentProcessId; window=($w.MainWindowHandle -ne 0); profile=if($_.CommandLine -match 'test-([abc])'){ $Matches[0] }else{'unknown'}; main=($_.CommandLine -notmatch '--type=')} }) | ConvertTo-Json -Compress",
+      "@(Get-CimInstance Win32_Process -Filter \"Name='Claude.exe'\" | Where-Object { $_.CommandLine -like '*.localprobe*' } | ForEach-Object { $w = Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue; [PSCustomObject]@{pid=$_.ProcessId; parent=$_.ParentProcessId; window=($w.MainWindowHandle -ne 0); profile=if($_.CommandLine -match 'test-([abc])'){ $Matches[0] }else{'unknown'}; main=($_.CommandLine -notmatch '--type=')} }) | ConvertTo-Json -Compress",
     ) || '[]',
   );
   const profiles = labels.map((label) => {

@@ -1,6 +1,6 @@
-# Contributing to ClientDeck
+# Contributing to Hatstand
 
-Thanks for helping. ClientDeck is small on purpose: a trustworthy launcher that makes separate Claude Desktop profiles easy to use, without overstating what it can guarantee.
+Thanks for helping. Hatstand is small on purpose: a trustworthy launcher that makes separate Claude Desktop profiles easy to use, without overstating what it can guarantee.
 
 ## Before you start
 

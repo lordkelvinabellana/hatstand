@@ -5,7 +5,6 @@ import {
   ArrowUp,
   ArrowUpRight,
   GripVertical,
-  Layers2,
   MoreHorizontal,
   Play,
   Plus,
@@ -15,6 +14,7 @@ import {
 import type { ProfileView } from '../../shared.ts';
 import { formatShortcut, useApp } from '../api.ts';
 import { moveByStep, moveToIndex } from '../order.ts';
+import { HatMark } from './HatMark.tsx';
 import { ProfileEditor } from './ProfileEditor.tsx';
 
 const statusLabels: Record<ProfileView['status'], string> = {
@@ -126,7 +126,7 @@ export const ProfilesPage = forwardRef<HTMLInputElement, Props>(function Profile
       {data.installation && !data.installationTested && (
         <div className="banner warning">
           <span>
-            Claude {data.installation.version} hasn’t been tested with ClientDeck yet. Profiles usually keep
+            Claude {data.installation.version} hasn’t been tested with Hatstand yet. Profiles usually keep
             working; report anything unusual.
           </span>
           <button type="button" onClick={() => navigate('about')}>
@@ -205,7 +205,7 @@ export const ProfilesPage = forwardRef<HTMLInputElement, Props>(function Profile
           </div>
           {visible.length === 0 ? (
             <div className="empty">
-              <Layers2 size={32} />
+              <HatMark size={32} />
               <h2>
                 {props.query
                   ? 'No matching profiles'
@@ -430,7 +430,7 @@ export const ProfilesPage = forwardRef<HTMLInputElement, Props>(function Profile
               <ShieldCheck size={15} />
               Sign in happens in Claude.
             </span>
-            <span>ClientDeck never asks for your password.</span>
+            <span>Hatstand never asks for your password.</span>
           </div>
         </section>
         {props.editing && (

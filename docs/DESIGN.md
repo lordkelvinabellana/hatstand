@@ -1,5 +1,5 @@
 ---
-name: ClientDeck
+name: Hatstand
 description: A compact Windows utility for keeping client profiles legible and easy to switch.
 colors:
   accent: "#236553"
@@ -185,13 +185,13 @@ components:
     height: "43px"
 ---
 
-# Design System: ClientDeck
+# Design System: Hatstand
 
 ## Overview
 
 **Creative North Star: "The Compact Client Desk"**
 
-ClientDeck is a calm Windows working surface. Its identity comes from purposeful Segoe UI typography, warm neutral surfaces, restrained teal actions, and compact client rows. Clear client names, initials, and written status keep the utility readable during everyday switching.
+Hatstand is a calm Windows working surface. Its identity comes from purposeful Segoe UI typography, warm neutral surfaces, restrained teal actions, and compact client rows. Clear client names, initials, and written status keep the utility readable during everyday switching.
 
 A compact utility direction governs the system. Group separation gives controls room without turning each record into a large card. Light and dark themes share the same geometry and hierarchy; color changes the material, not the meaning. This document describes the shipped interface in `src/ui/style.css` and `src/ui/components/`.
 

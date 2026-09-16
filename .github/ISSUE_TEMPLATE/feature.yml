@@ -4,7 +4,7 @@ labels: [enhancement]
 body:
   - type: markdown
     attributes:
-      value: Please check the [roadmap](https://github.com/lordkelvinabellana/clientdeck/blob/main/docs/ROADMAP.md) first.
+      value: Please check the [roadmap](https://github.com/lordkelvinabellana/hatstand/blob/main/docs/ROADMAP.md) first.
   - type: textarea
     id: problem
     attributes:

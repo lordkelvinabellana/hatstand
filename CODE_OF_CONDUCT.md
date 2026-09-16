@@ -1,6 +1,6 @@
 # Code of Conduct
 
-ClientDeck adopts the [Contributor Covenant, version 2.1](https://www.contributor-covenant.org/version/2/1/code_of_conduct/) as its code of conduct.
+Hatstand adopts the [Contributor Covenant, version 2.1](https://www.contributor-covenant.org/version/2/1/code_of_conduct/) as its code of conduct.
 
 In short: be respectful and constructive, assume good intent, and keep discussions focused on the project. Harassment, personal attacks, and publishing other people's private information are not tolerated, including client or account details you come across.
 

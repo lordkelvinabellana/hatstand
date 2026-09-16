@@ -6,6 +6,7 @@ import os from 'node:os';
 import { ensurePlainDirectory, splitWindowsCommandLine } from '../src/core/launch.ts';
 import {
   dataRoot,
+  installRoot,
   joinWindowsCommandLine,
   legacyDataRoot,
   migrateLegacyData,
@@ -14,17 +15,19 @@ import {
 } from '../src/core/paths.ts';
 
 async function temporary(t: { after: (fn: () => Promise<void>) => void }) {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'clientdeck-paths-'));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'hatstand-paths-'));
   t.after(async () => {
     await fs.rm(root, { recursive: true, force: true });
   });
   return root;
 }
 
-test('data folder is not the Squirrel install folder', () => {
+test('data folder is outside both the current and the preview install folders', () => {
   const local = 'C:\\Users\\A\\AppData\\Local';
-  assert.notEqual(dataRoot(local), legacyDataRoot(local));
-  assert.equal(path.relative(legacyDataRoot(local), dataRoot(local)).startsWith('..'), true);
+  for (const install of [installRoot(local), legacyDataRoot(local)]) {
+    assert.notEqual(dataRoot(local), install);
+    assert.equal(path.relative(install, dataRoot(local)).startsWith('..'), true);
+  }
 });
 
 test('preview data moves out of the install folder by rename, keeping session files', async (t) => {
@@ -76,23 +79,23 @@ test('Windows argument quoting round-trips through the command-line parser', () 
 });
 
 test('installed launches go through Squirrel Update.exe so they survive updates', () => {
-  const exe = 'C:\\Users\\A\\AppData\\Local\\ClientDeck\\app-0.1.0\\ClientDeck.exe';
+  const exe = 'C:\\Users\\A\\AppData\\Local\\Hatstand\\app-0.1.0\\Hatstand.exe';
   const present = new Set([
-    'C:\\Users\\A\\AppData\\Local\\ClientDeck\\Update.exe',
-    'C:\\Users\\A\\AppData\\Local\\ClientDeck\\app.ico',
+    'C:\\Users\\A\\AppData\\Local\\Hatstand\\Update.exe',
+    'C:\\Users\\A\\AppData\\Local\\Hatstand\\app.ico',
   ]);
   const launcher = stableLauncher(exe, (file) => present.has(file));
-  assert.equal(launcher.target, 'C:\\Users\\A\\AppData\\Local\\ClientDeck\\Update.exe');
-  assert.equal(launcher.icon, 'C:\\Users\\A\\AppData\\Local\\ClientDeck\\app.ico');
+  assert.equal(launcher.target, 'C:\\Users\\A\\AppData\\Local\\Hatstand\\Update.exe');
+  assert.equal(launcher.icon, 'C:\\Users\\A\\AppData\\Local\\Hatstand\\app.ico');
   assert.doesNotMatch(launcher.target, /app-0\.1\.0/);
   const args = launcher.args(['--profile=0f8fad5b-d9cb-469f-a165-70867728950e']);
   assert.deepEqual(args, [
     '--processStart',
-    'ClientDeck.exe',
+    'Hatstand.exe',
     '--process-start-args',
     '--profile=0f8fad5b-d9cb-469f-a165-70867728950e',
   ]);
-  const portable = stableLauncher('D:\\Tools\\ClientDeck\\ClientDeck.exe', () => false);
+  const portable = stableLauncher('D:\\Tools\\Hatstand\\Hatstand.exe', () => false);
   assert.deepEqual(portable.args(['--background']), ['--background']);
 });
 

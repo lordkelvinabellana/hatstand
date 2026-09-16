@@ -9,7 +9,7 @@ import { defaults, readSettings, validateSettings } from '../src/core/settings.t
 import { ProfileStore } from '../src/core/store.ts';
 
 test('preview (schema 1) profile files load with defaults and are saved as schema 2', async (t) => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'clientdeck-schema-'));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'hatstand-schema-'));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
   const legacy = {
     id: '0f8fad5b-d9cb-469f-a165-70867728950e',
@@ -38,7 +38,7 @@ test('preview (schema 1) profile files load with defaults and are saved as schem
 });
 
 test('files from a newer, unknown schema are refused rather than rewritten', () => {
-  assert.throws(() => validateState({ schemaVersion: 3, profiles: [] }), /newer ClientDeck/);
+  assert.throws(() => validateState({ schemaVersion: 3, profiles: [] }), /newer Hatstand/);
 });
 
 test('accelerators are normalized and unsafe ones rejected', () => {
@@ -77,7 +77,7 @@ test('--profile accepts an identifier or a unique active profile name', () => {
 });
 
 test('settings from older versions gain new defaults; invalid values are rejected', async (t) => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'clientdeck-settings-'));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'hatstand-settings-'));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
   await fs.writeFile(
     path.join(root, 'settings.json'),
@@ -94,4 +94,14 @@ test('settings from older versions gain new defaults; invalid values are rejecte
   assert.equal(settings.setupComplete, false);
   assert.throws(() => validateSettings({ ...defaults, executable: 'relative\\Claude.exe' }));
   assert.throws(() => validateSettings({ ...defaults, hotkey: 'A' }));
+});
+
+test('metadata exported by the 0.0.1 preview (ClientDeck) still imports', async () => {
+  const { parseImport } = await import('../src/core/profiles.ts');
+  const legacy = JSON.stringify({
+    format: 'clientdeck-profile-metadata',
+    version: 1,
+    profiles: [{ name: 'Client A', accountLabel: '', color: 'amber', icon: 'CA' }],
+  });
+  assert.equal(parseImport(legacy)[0].name, 'Client A');
 });

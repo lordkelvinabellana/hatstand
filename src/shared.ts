@@ -10,7 +10,7 @@ export interface ProfileView extends Profile {
   status: ProfileStatus;
   message?: string;
   directory: string;
-  /** Attached existing folder: ClientDeck never removes its data. */
+  /** Attached existing folder: Hatstand never removes its data. */
   bound: boolean;
   hotkeyError?: string;
 }

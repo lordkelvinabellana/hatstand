@@ -12,9 +12,9 @@ body:
     validations:
       required: true
   - type: input
-    id: clientdeck
+    id: hatstand
     attributes:
-      label: ClientDeck version
+      label: Hatstand version
     validations:
       required: true
   - type: textarea

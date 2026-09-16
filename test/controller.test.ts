@@ -27,7 +27,7 @@ async function harness(
   t: { after: (fn: () => Promise<void>) => void },
   options: { exitAfter?: number } = {},
 ) {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'clientdeck-controller-'));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'hatstand-controller-'));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
   let clock = 0;
   let pid = 100;

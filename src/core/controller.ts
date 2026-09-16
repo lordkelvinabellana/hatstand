@@ -48,7 +48,7 @@ export interface ProfileDirectories {
   code: string;
   /** Links and junctions are rejected below this folder. */
   trusted: string;
-  /** Attached through bindings.json rather than created by ClientDeck. */
+  /** Attached through bindings.json rather than created by Hatstand. */
   bound: boolean;
 }
 

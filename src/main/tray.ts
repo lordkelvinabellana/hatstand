@@ -13,9 +13,9 @@ export interface TrayActions {
 
 export function createTray(onClick: () => void): Tray {
   // The .ico carries 16–256 px images, so Windows picks a sharp size for the current DPI.
-  const icon = nativeImage.createFromPath(path.join(__dirname, '..', 'resources', 'clientdeck.ico'));
+  const icon = nativeImage.createFromPath(path.join(__dirname, '..', 'resources', 'hatstand.ico'));
   const tray = new Tray(icon);
-  tray.setToolTip('ClientDeck');
+  tray.setToolTip('Hatstand');
   tray.on('click', onClick);
   return tray;
 }
@@ -24,10 +24,10 @@ export function updateTray(tray: Tray, profiles: Profile[], controller: Controll
   const active = profiles.filter((p) => !p.archived);
   const running = active.filter((p) => controller.owned(p.id));
   const startup = active.filter((p) => p.openAtStartup);
-  tray.setToolTip(running.length ? `ClientDeck · ${running.length} running` : 'ClientDeck');
+  tray.setToolTip(running.length ? `Hatstand · ${running.length} running` : 'Hatstand');
   tray.setContextMenu(
     Menu.buildFromTemplate([
-      { label: 'Open ClientDeck', click: actions.show },
+      { label: 'Open Hatstand', click: actions.show },
       { type: 'separator' },
       ...active.map((p) => {
         const isRunning = running.includes(p);
@@ -47,7 +47,7 @@ export function updateTray(tray: Tray, profiles: Profile[], controller: Controll
       },
       { label: 'Close all Claude profiles…', enabled: running.length > 0, click: actions.closeAll },
       { type: 'separator' },
-      { label: 'Quit ClientDeck', click: actions.quit },
+      { label: 'Quit Hatstand', click: actions.quit },
     ]),
   );
 }

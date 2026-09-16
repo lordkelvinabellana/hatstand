@@ -175,7 +175,7 @@ export function ProfileEditor(props: { editing: string; onClose(): void }) {
             Open when Windows starts
             <small>
               {data.settings.startWithWindows
-                ? 'Opens with ClientDeck at sign-in.'
+                ? 'Opens with Hatstand at sign-in.'
                 : 'Also turn on Start with Windows in Settings.'}
             </small>
           </span>
@@ -194,7 +194,7 @@ export function ProfileEditor(props: { editing: string; onClose(): void }) {
           </button>
           <p>
             {existing.bound
-              ? 'An existing folder attached to this profile. ClientDeck never removes it.'
+              ? 'An existing folder attached to this profile. Hatstand never removes it.'
               : 'Contains this profile’s signed-in session. Keep it private.'}
           </p>
         </details>

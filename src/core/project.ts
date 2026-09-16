@@ -1,5 +1,5 @@
 // Public project locations. Update these if the repository moves.
-export const repository = 'lordkelvinabellana/clientdeck';
+export const repository = 'lordkelvinabellana/hatstand';
 export const repositoryUrl = `https://github.com/${repository}`;
 export const releasesUrl = `${repositoryUrl}/releases`;
 export const issuesUrl = `${repositoryUrl}/issues`;

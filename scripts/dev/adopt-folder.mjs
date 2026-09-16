@@ -1,9 +1,9 @@
 // Attach an existing Claude profile folder (one containing `desktop` and `code`, such as
-// those created by scripts/dev/probe.mjs) as a ClientDeck profile. Nothing is moved or
-// copied; ClientDeck will never remove an attached folder.
+// those created by scripts/dev/probe.mjs) as a Hatstand profile. Nothing is moved or
+// copied; Hatstand will never remove an attached folder.
 //
 // Usage: node scripts/dev/adopt-folder.mjs --name "Client A" <folder>
-// Quit ClientDeck first; it reads attached folders when it starts.
+// Quit Hatstand first; it reads attached folders when it starts.
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { parseArgs } from 'node:util';

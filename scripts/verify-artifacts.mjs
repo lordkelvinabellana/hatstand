@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { listPackage } from '@electron/asar';
-const entries = listPackage('out/ClientDeck-win32-x64/resources/app.asar').map((name) =>
+const entries = listPackage('out/Hatstand-win32-x64/resources/app.asar').map((name) =>
   name.replaceAll('\\', '/'),
 );
 const allowed = ['/dist', '/resources', '/package.json', '/LICENSE'];

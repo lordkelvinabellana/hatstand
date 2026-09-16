@@ -4,7 +4,7 @@
 
 Please **do not open a public issue** for security problems.
 
-Report them privately through GitHub: go to the repository's **Security** tab and choose **Report a vulnerability** ([direct link](https://github.com/lordkelvinabellana/clientdeck/security/advisories/new)). Include the ClientDeck version, Windows version, and steps to reproduce.
+Report them privately through GitHub: go to the repository's **Security** tab and choose **Report a vulnerability** ([direct link](https://github.com/lordkelvinabellana/hatstand/security/advisories/new)). Include the Hatstand version, Windows version, and steps to reproduce.
 
 Never include profile folders, cookies, tokens, account emails, client names, or conversation content, even in private reports. Synthetic reproductions are enough.
 
@@ -16,9 +16,9 @@ Only the latest release receives security fixes during the preview.
 
 ## Security model
 
-ClientDeck is a **profile launcher, not a sandbox**. Every profile runs as the same Windows user, with the same access to files, clipboard, network, and local services. Someone who can run code as that user can read every profile's data.
+Hatstand is a **profile launcher, not a sandbox**. Every profile runs as the same Windows user, with the same access to files, clipboard, network, and local services. Someone who can run code as that user can read every profile's data.
 
-Within that boundary, ClientDeck:
+Within that boundary, Hatstand:
 
 - runs its renderer sandboxed, with context isolation, no Node integration, and a restrictive Content Security Policy;
 - accepts IPC only from its own main frame and validates every payload in the main process;

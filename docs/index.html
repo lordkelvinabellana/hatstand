@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hatstand · One hat per client</title>
+<meta name="description" content="Hatstand is a free, open-source Windows launcher that keeps each client's Claude Desktop account in its own profile, so you can switch clients without signing out.">
+<meta property="og:title" content="Hatstand: one hat per client">
+<meta property="og:description" content="Keep each client's Claude Desktop account in its own profile and switch without signing out. Free and open source for Windows.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://lordkelvinabellana.github.io/hatstand/">
+<meta property="og:image" content="https://lordkelvinabellana.github.io/hatstand/images/profiles.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%23236553'/%3E%3Cpath fill='%23f1f8f0' d='M7.2 5.6h9.6l-.7 6.8H7.9zM7.9 13.5h8.2v1.9H7.9z'/%3E%3Crect fill='%23f1f8f0' x='3.8' y='15.4' width='16.4' height='2.6' rx='1.3'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #f7f7f2;
+    --surface: #ffffff;
+    --sunk: #eeefe8;
+    --ink: #1f2724;
+    --muted: #5b655e;
+    --line: #dfe3da;
+    --accent: #236553;
+    --accent-strong: #174c3e;
+    --accent-soft: #e2eee7;
+    --on-accent: #ffffff;
+    --warn-bg: #f5ecd8;
+    --warn-ink: #6b501a;
+    --shadow: 0 24px 60px -28px rgba(21, 45, 36, 0.35);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #161c19;
+      --surface: #1f2723;
+      --sunk: #1b221e;
+      --ink: #e8ede5;
+      --muted: #aab6ab;
+      --line: #334037;
+      --accent: #94d4b6;
+      --accent-strong: #b1e2ca;
+      --accent-soft: #283d33;
+      --on-accent: #142219;
+      --warn-bg: #3d3422;
+      --warn-ink: #edd6a7;
+      --shadow: 0 24px 60px -28px rgba(0, 0, 0, 0.7);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #161c19; --surface: #1f2723; --sunk: #1b221e; --ink: #e8ede5; --muted: #aab6ab; --line: #334037;
+    --accent: #94d4b6; --accent-strong: #b1e2ca; --accent-soft: #283d33; --on-accent: #142219;
+    --warn-bg: #3d3422; --warn-ink: #edd6a7; --shadow: 0 24px 60px -28px rgba(0, 0, 0, 0.7); color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+    font-size: 17px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-underline-offset: 3px; }
+  a:focus-visible, .button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 8px; }
+  img { max-width: 100%; display: block; }
+  .wrap { width: min(1120px, 100% - 32px); margin-inline: auto; }
+  .skip { position: absolute; left: -999px; top: 8px; background: var(--surface); padding: 8px 12px; border-radius: 8px; }
+  .skip:focus { left: 16px; z-index: 10; }
+
+  /* Header */
+  header.site { position: sticky; top: 0; z-index: 5; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+  header.site .wrap { display: flex; align-items: center; justify-content: space-between; height: 64px; gap: 16px; }
+  .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 650; font-size: 19px; letter-spacing: -0.02em; color: var(--ink); text-decoration: none; }
+  .brand svg { color: var(--accent); }
+  nav.links { display: flex; align-items: center; gap: 22px; font-size: 15px; }
+  nav.links a { color: var(--muted); text-decoration: none; }
+  nav.links a:hover { color: var(--ink); }
+  @media (max-width: 720px) { nav.links a:not(.button) { display: none; } }
+
+  .button {
+    display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+    padding: 12px 20px; border-radius: 9px; font-weight: 600; font-size: 16px;
+    text-decoration: none; border: 1px solid transparent; transition: background 0.15s ease-out;
+    white-space: nowrap;
+  }
+  .button.primary { background: var(--accent); color: var(--on-accent); }
+  .button.primary:hover { background: var(--accent-strong); }
+  .button.secondary { background: var(--surface); color: var(--ink); border-color: var(--line); }
+  .button.secondary:hover { background: var(--sunk); }
+  .button.small { padding: 8px 14px; font-size: 14px; }
+
+  /* Hero */
+  .hero { padding: 72px 0 40px; text-align: center; }
+  .eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--accent); background: var(--accent-soft); padding: 6px 12px; border-radius: 999px; }
+  .hero h1 { font-size: clamp(38px, 6.4vw, 68px); line-height: 1.05; letter-spacing: -0.035em; margin: 22px auto 18px; max-width: 14ch; font-weight: 700; }
+  .hero p.lede { font-size: clamp(18px, 2.2vw, 21px); color: var(--muted); max-width: 40rem; margin: 0 auto 30px; }
+  .cta { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+  .fine { font-size: 14px; color: var(--muted); margin-top: 16px; }
+  .shot { margin: 56px auto 0; max-width: 1040px; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); box-shadow: var(--shadow); background: var(--surface); }
+  .shot img { width: 100%; height: auto; }
+  .shot .dark-shot { display: none; }
+  @media (prefers-color-scheme: dark) { .shot .light-shot { display: none; } .shot .dark-shot { display: block; } }
+
+  section { padding: 84px 0; }
+  section + section { border-top: 1px solid var(--line); }
+  .section-head { max-width: 46rem; margin-bottom: 44px; }
+  .section-head h2 { font-size: clamp(28px, 3.6vw, 40px); line-height: 1.15; letter-spacing: -0.025em; margin: 0 0 12px; }
+  .section-head p { color: var(--muted); margin: 0; }
+  .kicker { font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
+
+  /* Problem */
+  .problem { display: grid; grid-template-columns: 1.1fr 1fr; gap: 56px; align-items: center; }
+  .problem ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; }
+  .problem li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; display: flex; gap: 14px; }
+  .problem li b { display: block; }
+  .problem li span { color: var(--muted); font-size: 15px; }
+  .dot { flex: none; width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; font-size: 13px; font-weight: 700; }
+  .teal { background: #dbeae4; color: #245a49; } .amber { background: #f4e6c8; color: #755616; } .violet { background: #e7e0f2; color: #61458a; }
+  @media (max-width: 860px) { .problem { grid-template-columns: 1fr; gap: 32px; } }
+
+  /* Steps */
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; counter-reset: step; }
+  .step { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 26px; }
+  .step::before { counter-increment: step; content: counter(step); display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: var(--on-accent); font-weight: 700; font-size: 15px; margin-bottom: 16px; }
+  .step h3 { margin: 0 0 6px; font-size: 19px; }
+  .step p { margin: 0; color: var(--muted); font-size: 15px; }
+  @media (max-width: 860px) { .steps { grid-template-columns: 1fr; } }
+
+  /* Features */
+  .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  .feature { background: var(--surface); padding: 26px; }
+  .feature svg { color: var(--accent); margin-bottom: 12px; }
+  .feature h3 { margin: 0 0 6px; font-size: 17px; }
+  .feature p { margin: 0; color: var(--muted); font-size: 15px; }
+  @media (max-width: 900px) { .features { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 600px) { .features { grid-template-columns: 1fr; } }
+
+  /* Gallery */
+  .gallery { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .gallery figure { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .gallery figcaption { padding: 12px 16px; font-size: 14px; color: var(--muted); border-top: 1px solid var(--line); }
+  @media (max-width: 760px) { .gallery { grid-template-columns: 1fr; } }
+
+  /* Honesty */
+  .honest { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 24px; }
+  .card h3 { margin: 0 0 10px; font-size: 17px; display: flex; align-items: center; gap: 8px; }
+  .card ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 15px; }
+  .card li + li { margin-top: 6px; }
+  .tag { font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 6px; }
+  .tag.yes { background: var(--accent-soft); color: var(--accent); }
+  .tag.no { background: var(--sunk); color: var(--muted); border: 1px solid var(--line); }
+  .tag.wait { background: var(--warn-bg); color: var(--warn-ink); }
+  @media (max-width: 900px) { .honest { grid-template-columns: 1fr; } }
+
+  /* FAQ */
+  .faq { max-width: 50rem; }
+  details { border-bottom: 1px solid var(--line); padding: 18px 0; }
+  details:first-of-type { border-top: 1px solid var(--line); }
+  summary { cursor: pointer; font-weight: 600; font-size: 18px; list-style: none; display: flex; justify-content: space-between; gap: 16px; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: "+"; color: var(--accent); font-size: 22px; line-height: 1; }
+  details[open] summary::after { content: "−"; }
+  details p { color: var(--muted); margin: 10px 0 0; }
+  summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 6px; }
+
+  /* Final CTA */
+  .final { text-align: center; }
+  .final .panel { background: var(--accent-soft); border-radius: 20px; padding: 56px 24px; }
+  .final h2 { font-size: clamp(28px, 4vw, 42px); letter-spacing: -0.025em; margin: 0 0 12px; }
+  .final p { color: var(--muted); margin: 0 auto 26px; max-width: 36rem; }
+  .platforms { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 18px; font-size: 14px; color: var(--muted); }
+  .platforms span { border: 1px solid var(--line); background: var(--surface); padding: 4px 10px; border-radius: 999px; }
+
+  footer { border-top: 1px solid var(--line); padding: 36px 0 48px; font-size: 14px; color: var(--muted); }
+  footer .wrap { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+  footer nav { display: flex; gap: 18px; flex-wrap: wrap; }
+  footer a { color: var(--muted); }
+  footer .legal { max-width: 38rem; }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="Hatstand home">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7.2 5.6h9.6l-.7 6.8H7.9z"/><path d="M7.9 13.5h8.2v1.9H7.9z"/><rect x="3.8" y="15.4" width="16.4" height="2.6" rx="1.3"/></svg>
+      Hatstand
+    </a>
+    <nav class="links" aria-label="Page">
+      <a href="#how">How it works</a>
+      <a href="#features">Features</a>
+      <a href="#honest">What's separate</a>
+      <a href="#faq">FAQ</a>
+      <a href="https://github.com/lordkelvinabellana/hatstand">GitHub</a>
+      <a class="button primary small" href="https://github.com/lordkelvinabellana/hatstand/releases/latest">Download</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+  <div class="hero wrap" id="top">
+    <span class="eyebrow">Free &amp; open source · Windows</span>
+    <h1>One hat per client.</h1>
+    <p class="lede">Hatstand keeps each client's Claude Desktop account in its own profile. Switch between clients in a keystroke, and never sign out and back in again.</p>
+    <div class="cta">
+      <a class="button primary" href="https://github.com/lordkelvinabellana/hatstand/releases/latest">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+        Download for Windows
+      </a>
+      <a class="button secondary" href="https://github.com/lordkelvinabellana/hatstand">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+        View on GitHub
+      </a>
+    </div>
+    <p class="fine">Windows 11 x64 · Requires the official Claude Desktop app · Preview release</p>
+    <div class="shot">
+      <img class="light-shot" src="images/profiles.png" width="1104" height="741" alt="Hatstand's client list with three sample clients, each with a colored avatar, status, and a Launch button">
+      <img class="dark-shot" src="images/dark.png" width="1104" height="741" alt="" aria-hidden="true">
+    </div>
+  </div>
+
+  <section>
+    <div class="wrap problem">
+      <div class="section-head">
+        <div class="kicker">The problem</div>
+        <h2>Three clients. Three Claude accounts. One sign-in at a time.</h2>
+        <p>If you're a consultant, freelancer, or agency, each client may give you their own Claude account. Claude Desktop holds one account at a time, so switching means signing out, signing in, and hoping you're typing into the right one.</p>
+      </div>
+      <ul aria-label="Example client profiles">
+        <li><span class="dot teal" aria-hidden="true">NS</span><div><b>North Studio</b><span>Signed in and ready. Ctrl+Alt+1 brings it forward.</span></div></li>
+        <li><span class="dot amber" aria-hidden="true">A&amp;</span><div><b>Acorn &amp; Co.</b><span>Running in its own window, with its own chats.</span></div></li>
+        <li><span class="dot violet" aria-hidden="true">RL</span><div><b>Riverline</b><span>Opens automatically when Windows starts.</span></div></li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="how">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="kicker">How it works</div>
+        <h2>Set up each client once.</h2>
+        <p>Hatstand starts the official Claude Desktop app with a separate data folder for each client, so every client keeps its own sign-in.</p>
+      </div>
+      <div class="steps">
+        <div class="step"><h3>Add a client</h3><p>Give it a name, a color, and optionally a keyboard shortcut and a work folder.</p></div>
+        <div class="step"><h3>Launch and sign in</h3><p>A fresh Claude window opens. Sign in with that client's account, inside Claude itself.</p></div>
+        <div class="step"><h3>Switch any time</h3><p>Launch or focus from the list, the tray, a shortcut, or the taskbar. You stay signed in.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="features">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="kicker">Features</div>
+        <h2>Small, fast, and built for switching all day.</h2>
+      </div>
+      <div class="features">
+        <div class="feature">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M6 12h12M8 16h8"/></svg>
+          <h3>Keyboard first</h3><p>A global shortcut opens Hatstand, per-client shortcuts jump straight to a client, and Ctrl+K searches.</p>
+        </div>
+        <div class="feature">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 17.5h7M17.5 14v7"/></svg>
+          <h3>Open several at once</h3><p>Tick the clients you need today, or mark a startup group that opens when Windows starts.</p>
+        </div>
+        <div class="feature">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg>
+          <h3>Status you can trust</h3><p>Shows whether a client's Claude is running, and never pretends to know more than that.</p>
+        </div>
+        <div class="feature">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg>
+          <h3>Client work folders</h3><p>One click opens the client's files, from the list or the tray.</p>
+        </div>
+        <div class="feature">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/><path d="M10 11v5M14 11v5"/></svg>
+          <h3>Careful with your data</h3><p>Removing a client keeps its data by default. Cleanup goes to the Recycle Bin, never straight to deletion.</p>
+        </div>
+        <div class="feature">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+          <h3>Private by design</h3><p>No accounts, no telemetry, and it never sees your password. It only goes online when you check for updates.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="section-head">
+        <div class="kicker">A closer look</div>
+        <h2>Looks at home on Windows, in light or dark.</h2>
+      </div>
+      <div class="gallery">
+        <figure><img src="images/editor.png" width="1104" height="741" loading="lazy" alt="Profile details panel with name, color, work folder, and a recorded Ctrl+Alt+Shift+F11 shortcut"><figcaption>Per-client color, shortcut, work folder, and startup options.</figcaption></figure>
+        <figure><img src="images/setup.png" width="1104" height="741" loading="lazy" alt="First-run setup confirming Claude Desktop was found"><figcaption>A short first-run setup finds Claude and explains what stays separate.</figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+  <section id="honest">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="kicker">No fine print</div>
+        <h2>What stays separate, and what doesn't.</h2>
+        <p>Hatstand is honest about its limits. It's a profile launcher, not a security sandbox. See the full <a href="https://github.com/lordkelvinabellana/hatstand/blob/main/docs/COMPATIBILITY.md">compatibility results</a>.</p>
+      </div>
+      <div class="honest">
+        <div class="card">
+          <h3><span class="tag yes">Separate</span></h3>
+          <ul><li>Each client's Claude sign-in</li><li>Chats and Desktop settings</li><li>Staying signed in after quitting and reopening</li></ul>
+        </div>
+        <div class="card">
+          <h3><span class="tag no">Shared</span></h3>
+          <ul><li>Your Windows user account</li><li>Files, clipboard, and network</li><li>Local services on your computer</li></ul>
+        </div>
+        <div class="card">
+          <h3><span class="tag wait">Not yet verified</span></h3>
+          <ul><li>Cowork and Desktop Code separation</li><li>Signing out of one client only</li><li>Staying signed in after a reboot</li></ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="faq">
+    <div class="wrap faq">
+      <div class="section-head">
+        <div class="kicker">FAQ</div>
+        <h2>Questions</h2>
+      </div>
+      <details>
+        <summary>Is Hatstand made by Anthropic?</summary>
+        <p>No. Hatstand is an independent open-source project and isn't affiliated with, endorsed by, or supported by Anthropic. You install Claude Desktop from Anthropic and sign in inside it; Hatstand only starts it with a separate profile folder.</p>
+      </details>
+      <details>
+        <summary>Does Hatstand see my password or chats?</summary>
+        <p>No. Sign-in happens entirely inside Claude. Hatstand stores client names, colors, and preferences on your computer, and its logs contain only profile IDs.</p>
+      </details>
+      <details>
+        <summary>Could a Claude update break it?</summary>
+        <p>Possibly. Hatstand relies on a Claude Desktop setting that Anthropic doesn't document. If an update changes it, Hatstand shows the client as failing to start and leaves your default Claude sign-in untouched. It also warns when your Claude version hasn't been tested yet.</p>
+      </details>
+      <details>
+        <summary>Is it safe to keep clients apart this way?</summary>
+        <p>It keeps accounts and chats apart, but every profile runs as the same Windows user, with access to the same files and clipboard. If a client requires strict isolation, use a separate Windows account or virtual machine.</p>
+      </details>
+      <details>
+        <summary>Why does Windows warn me when I install it?</summary>
+        <p>Preview builds aren't code-signed yet, so SmartScreen may show an "unknown publisher" warning. Each release includes SHA-256 checksums so you can verify the download first.</p>
+      </details>
+      <details>
+        <summary>Is there a Mac version?</summary>
+        <p>Not yet. A macOS version is planned; you can follow the <a href="https://github.com/lordkelvinabellana/hatstand/blob/main/docs/MACOS.md">plan on GitHub</a>.</p>
+      </details>
+      <details>
+        <summary>What does it cost?</summary>
+        <p>Nothing. Hatstand is free and MIT-licensed. Contributions, bug reports, and compatibility results are welcome on GitHub.</p>
+      </details>
+    </div>
+  </section>
+
+  <section class="final">
+    <div class="wrap">
+      <div class="panel">
+        <h2>Hang up the sign-out routine.</h2>
+        <p>Download Hatstand, add your first client, and switch between accounts the way you switch between windows.</p>
+        <a class="button primary" href="https://github.com/lordkelvinabellana/hatstand/releases/latest">Download for Windows</a>
+        <div class="platforms"><span>Windows 11 x64</span><span>macOS: planned</span></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p class="legal">Hatstand is an independent open-source project, not affiliated with or endorsed by Anthropic. Claude is a trademark of Anthropic, PBC. MIT License.</p>
+    <nav aria-label="Footer">
+      <a href="https://github.com/lordkelvinabellana/hatstand">Source</a>
+      <a href="https://github.com/lordkelvinabellana/hatstand/releases">Releases</a>
+      <a href="https://github.com/lordkelvinabellana/hatstand/issues">Issues</a>
+      <a href="https://github.com/lordkelvinabellana/hatstand/blob/main/SECURITY.md">Security</a>
+    </nav>
+  </div>
+</footer>
+</body>
+</html>

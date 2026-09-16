@@ -1,4 +1,4 @@
-// Original geometric "C" mark rendered at every size Windows asks for (tray, taskbar,
+// Original geometric top-hat mark rendered at every size Windows asks for (tray, taskbar,
 // Explorer, installer). Each size is supersampled from the same vector description.
 import fs from 'node:fs/promises';
 import { deflateSync } from 'node:zlib';
@@ -12,9 +12,13 @@ function coverage(x, y) {
   const cx = Math.min(Math.max(x, radius), 64 - radius);
   const cy = Math.min(Math.max(y, radius), 64 - radius);
   const inTile = (x - cx) ** 2 + (y - cy) ** 2 <= radius ** 2 && x >= 2 && y >= 2 && x <= 62 && y <= 62;
-  const inMark =
-    (x >= 17 && x < 25 && y >= 16 && y < 48) ||
-    (x >= 25 && x < 47 && ((y >= 16 && y < 24) || (y >= 40 && y < 48)));
+  // A top hat: crown flaring slightly toward the top, a thin band, and a rounded brim.
+  const flare = (41 - y) * 0.07;
+  const inCrown = y >= 15 && y < 41 && x >= 21 - flare && x < 43 + flare;
+  const inBand = y >= 33 && y < 36;
+  const brimEnd = (cx) => (x - cx) ** 2 / 16 + (y - 44.5) ** 2 / 12.25 <= 1;
+  const inBrim = y >= 41 && y < 48 && ((x >= 14 && x < 50) || brimEnd(14) || brimEnd(50));
+  const inMark = (inCrown && !inBand) || inBrim;
   return { inTile, inMark };
 }
 
@@ -117,5 +121,5 @@ sizes.forEach((size, index) => {
   offset += images[index].length;
 });
 await fs.mkdir('resources', { recursive: true });
-await fs.writeFile('resources/clientdeck.ico', Buffer.concat([directory, ...images]));
-await fs.writeFile('resources/clientdeck.png', png(256, render(256)));
+await fs.writeFile('resources/hatstand.ico', Buffer.concat([directory, ...images]));
+await fs.writeFile('resources/hatstand.png', png(256, render(256)));

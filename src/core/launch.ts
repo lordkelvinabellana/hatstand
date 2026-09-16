@@ -18,7 +18,7 @@ function isInside(base: string, target: string) {
 export async function ensurePlainDirectory(directory: string, base: string): Promise<void> {
   const absolute = path.resolve(directory);
   const trusted = path.resolve(base);
-  if (!isInside(trusted, absolute)) throw new Error('Profile storage is outside ClientDeck’s data folder.');
+  if (!isInside(trusted, absolute)) throw new Error('Profile storage is outside Hatstand’s data folder.');
   await fs.mkdir(trusted, { recursive: true });
   let current = trusted;
   for (const segment of path.relative(trusted, absolute).split(path.sep).filter(Boolean)) {
@@ -47,7 +47,7 @@ export function launchEnvironment(
 export function launchArguments(desktop: string): string[] {
   // A unique inert argument prevents Claude's second-instance argv deduplication
   // from swallowing a subsequent explicit Focus action.
-  return [`--user-data-dir=${desktop}`, `--clientdeck-activation=${randomUUID()}`];
+  return [`--user-data-dir=${desktop}`, `--hatstand-activation=${randomUUID()}`];
 }
 
 // Windows command-line quoting, sufficient for exact argument matching. No execution.

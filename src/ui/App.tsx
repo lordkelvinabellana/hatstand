@@ -1,22 +1,13 @@
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Archive,
-  Check,
-  ChevronRight,
-  CircleHelp,
-  Layers2,
-  LayoutList,
-  RefreshCw,
-  Settings2,
-  X,
-} from 'lucide-react';
+import { Archive, Check, ChevronRight, CircleHelp, LayoutList, RefreshCw, Settings2, X } from 'lucide-react';
 import type { Snapshot } from '../shared.ts';
 import { api, AppContext } from './api.ts';
 import type { AppContextValue, Page } from './api.ts';
 import { CompatibilityPage } from './components/CompatibilityPage.tsx';
 import { ProfilesPage } from './components/ProfilesPage.tsx';
 import { SettingsPage } from './components/SettingsPage.tsx';
+import { HatMark } from './components/HatMark.tsx';
 import { SetupPage } from './components/SetupPage.tsx';
 
 const titles: Record<Page, string> = {
@@ -120,8 +111,8 @@ export function App() {
   if (!data || !context)
     return (
       <main className="loading">
-        <Layers2 size={36} />
-        <h1>Opening ClientDeck</h1>
+        <HatMark size={36} />
+        <h1>Opening Hatstand</h1>
         <p>{error || 'Loading your client profiles…'}</p>
         {error && (
           <button type="button" onClick={() => void refresh()}>
@@ -187,12 +178,12 @@ export function App() {
             type="button"
             className="brand"
             onClick={() => navigate('profiles')}
-            aria-label="ClientDeck home"
+            aria-label="Hatstand home"
           >
             <span className="brand-mark">
-              <Layers2 size={23} />
+              <HatMark size={23} />
             </span>
-            <span>ClientDeck</span>
+            <span>Hatstand</span>
           </button>
           <nav className="nav-group" aria-label="Workspace">
             <p className="nav-caption">Workspace</p>
@@ -206,7 +197,7 @@ export function App() {
               <span className="status-dot" />
               <span>Stored on this computer</span>
             </div>
-            <span className="version">ClientDeck {data.version} · Preview</span>
+            <span className="version">Hatstand {data.version} · Preview</span>
           </div>
         </aside>
         <main className="workspace">

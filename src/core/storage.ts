@@ -42,7 +42,7 @@ export async function measureFolder(folder: string, maxEntries = 200_000) {
   return { bytes, partial: false };
 }
 
-/** Lists ClientDeck-managed profile folders, including ones left behind by removed profiles. */
+/** Lists Hatstand-managed profile folders, including ones left behind by removed profiles. */
 export async function listProfileFolders(root: string, registered: Set<string>): Promise<StorageFolder[]> {
   const parent = path.join(root, 'profiles');
   let entries: import('node:fs').Dirent[];
@@ -75,7 +75,7 @@ export async function listProfileFolders(root: string, registered: Set<string>):
 
 /**
  * Returns the exact managed folder for `id` after checking that neither it nor its
- * parents inside `root` are links or junctions. Only folders ClientDeck created under
+ * parents inside `root` are links or junctions. Only folders Hatstand created under
  * `root\profiles` can be removed; attached (bound) folders never are.
  */
 export async function resolveRemovableFolder(root: string, id: string): Promise<string> {

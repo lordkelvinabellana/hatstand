@@ -79,7 +79,7 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
       controller.settings.hotkey &&
       acceleratorKey(values.hotkey) === acceleratorKey(controller.settings.hotkey)
     )
-      throw new Error('That shortcut already opens ClientDeck. Choose another.');
+      throw new Error('That shortcut already opens Hatstand. Choose another.');
   }
 
   async function diagnostics() {
@@ -151,7 +151,7 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
         buttons: ['Cancel', 'Remove profile'],
         defaultId: 0,
         cancelId: 0,
-        message: `Remove ${profile.name} from ClientDeck?`,
+        message: `Remove ${profile.name} from Hatstand?`,
         detail: directories.bound
           ? `Its attached folder stays in place:\n${directories.base}\n\nThis does not delete the Claude account or cloud conversations.`
           : `By default its Claude data stays on this computer. This does not delete the Claude account or cloud conversations.\n\n${directories.base}`,
@@ -213,7 +213,7 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
         buttons: ['Cancel', 'Close all'],
         defaultId: 0,
         cancelId: 0,
-        message: 'Close every Claude profile opened by ClientDeck?',
+        message: 'Close every Claude profile opened by Hatstand?',
         detail:
           'Each Claude window is asked to close normally. Your default Claude instance is not affected.',
       });
@@ -285,7 +285,7 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
     async export() {
       const result = await dialog.showSaveDialog(context.window(), {
         title: 'Export profile labels and colors',
-        defaultPath: 'clientdeck-profiles.json',
+        defaultPath: 'hatstand-profiles.json',
         filters: [{ name: 'JSON', extensions: ['json'] }],
       });
       if (result.canceled || !result.filePath) return;
@@ -314,7 +314,7 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
     async exportDiagnostics() {
       const result = await dialog.showSaveDialog(context.window(), {
         title: 'Save the displayed diagnostic summary',
-        defaultPath: 'clientdeck-diagnostics.json',
+        defaultPath: 'hatstand-diagnostics.json',
       });
       if (!result.canceled && result.filePath)
         await fs.writeFile(result.filePath, JSON.stringify(await diagnostics(), null, 2));
@@ -346,7 +346,7 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
     async checkUpdates(): Promise<UpdateCheck> {
       const current = app.getVersion();
       const response = await net.fetch(`https://api.github.com/repos/${repository}/releases/latest`, {
-        headers: { Accept: 'application/vnd.github+json', 'User-Agent': `ClientDeck/${current}` },
+        headers: { Accept: 'application/vnd.github+json', 'User-Agent': `Hatstand/${current}` },
         signal: AbortSignal.timeout(10_000),
       });
       if (response.status === 404) return { current, latest: null, newer: false };

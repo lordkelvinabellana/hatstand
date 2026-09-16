@@ -6,12 +6,12 @@ import path from 'node:path';
 import os from 'node:os';
 import assert from 'node:assert/strict';
 
-const root = await fs.mkdtemp(path.join(os.tmpdir(), 'clientdeck-ui-'));
+const root = await fs.mkdtemp(path.join(os.tmpdir(), 'hatstand-ui-'));
 const screenshotFolder = path.resolve(
   process.argv.includes('--docs') ? 'docs/images' : '.local/ui-screenshots',
 );
 await fs.mkdir(screenshotFolder, { recursive: true });
-const env = { ...process.env, CLIENTDECK_TEST_MODE: '1', CLIENTDECK_TEST_ROOT: root };
+const env = { ...process.env, HATSTAND_TEST_MODE: '1', HATSTAND_TEST_ROOT: root };
 delete env.ELECTRON_RUN_AS_NODE;
 const instance = await electron.launch({ args: ['.'], env, timeout: 30_000 });
 const errors = [];
@@ -19,7 +19,7 @@ const errors = [];
 async function scrubPaths(page) {
   await page.evaluate((temporary) => {
     const neutral = (value) =>
-      value.replaceAll(temporary, String.raw`C:\Users\you\AppData\Local\ClientDeckData`);
+      value.replaceAll(temporary, String.raw`C:\Users\you\AppData\Local\HatstandData`);
     for (const input of document.querySelectorAll('input')) input.value = neutral(input.value);
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     while (walker.nextNode()) walker.currentNode.nodeValue = neutral(walker.currentNode.nodeValue);
@@ -118,7 +118,7 @@ try {
   // Stored order: North, Acorn, Middle(archived). Put the archived one between them first.
   const ids = (await readProfiles()).map((p) => p.id);
   await page.evaluate(
-    (order) => window.clientdeck.request('reorder', { ids: order }),
+    (order) => window.hatstand.request('reorder', { ids: order }),
     [ids[0], ids[2], ids[1]],
   );
   await page.getByRole('button', { name: 'Actions for Acorn & Co.', exact: true }).click();
@@ -193,7 +193,7 @@ try {
   });
   await page.evaluate(
     async (ids) => {
-      for (const id of ids) await window.clientdeck.request('remove', { id });
+      for (const id of ids) await window.hatstand.request('remove', { id });
     },
     imported.slice(3).map((p) => p.id),
   );
@@ -214,6 +214,7 @@ try {
   await page.getByRole('button', { name: 'Save preferences', exact: true }).click();
   await page.getByText('Settings saved.', { exact: true }).waitFor();
   await page.getByRole('button', { name: /Client profiles/ }).click();
+  await page.getByRole('button', { name: 'Dismiss notification' }).click();
   await instance.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1120, 780));
   await page.screenshot({ path: path.join(screenshotFolder, 'dark.png') });
   const prefs = await instance.evaluate(({ BrowserWindow }) => {
@@ -229,6 +230,6 @@ try {
 } finally {
   await instance.close();
   // Test root was created by mkdtemp and contains synthetic data only.
-  if (root.startsWith(path.join(os.tmpdir(), 'clientdeck-ui-')))
+  if (root.startsWith(path.join(os.tmpdir(), 'hatstand-ui-')))
     await fs.rm(root, { recursive: true, force: true, maxRetries: 4, retryDelay: 200 });
 }

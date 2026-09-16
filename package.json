@@ -1,5 +1,5 @@
 {
-  "name": "clientdeck",
+  "name": "hatstand",
   "version": "0.1.0",
   "private": true,
   "description": "Open-source Windows launcher that keeps each client's Claude Desktop account in its own profile.",
@@ -11,16 +11,16 @@
     "electron",
     "launcher"
   ],
-  "homepage": "https://github.com/lordkelvinabellana/clientdeck#readme",
+  "homepage": "https://github.com/lordkelvinabellana/hatstand#readme",
   "bugs": {
-    "url": "https://github.com/lordkelvinabellana/clientdeck/issues"
+    "url": "https://github.com/lordkelvinabellana/hatstand/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/lordkelvinabellana/clientdeck.git"
+    "url": "git+https://github.com/lordkelvinabellana/hatstand.git"
   },
   "license": "MIT",
-  "author": "ClientDeck contributors",
+  "author": "Hatstand contributors",
   "type": "module",
   "main": "dist/main.cjs",
   "engines": {

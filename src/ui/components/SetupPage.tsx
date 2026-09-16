@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ArrowUpRight, Check, Layers2, ShieldCheck } from 'lucide-react';
+import { ArrowUpRight, Check, ShieldCheck } from 'lucide-react';
+import { HatMark } from './HatMark.tsx';
 import type { Color } from '../../core/profiles.ts';
 import type { Profile } from '../../core/profiles.ts';
 import { useApp } from '../api.ts';
@@ -26,9 +27,9 @@ export function SetupPage() {
       <div className="setup-card">
         <div className="setup-brand">
           <span className="brand-mark">
-            <Layers2 size={26} />
+            <HatMark size={26} />
           </span>
-          <span>ClientDeck</span>
+          <span>Hatstand</span>
         </div>
         <ol className="setup-steps" aria-label="Setup progress">
           {steps.map((label, index) => (
@@ -42,20 +43,19 @@ export function SetupPage() {
         {step === 0 && (
           <section>
             <h1>Let’s find Claude Desktop.</h1>
-            <p>ClientDeck opens the official Claude Desktop app with a separate profile for each client.</p>
+            <p>Hatstand opens the official Claude Desktop app with a separate profile for each client.</p>
             {data.installation ? (
               <div className="banner success">
                 <Check size={16} />
                 <span>
                   Found Claude {data.installation.version} ({data.installation.kind}).
-                  {data.installationTested ? '' : ' This version hasn’t been tested with ClientDeck yet.'}
+                  {data.installationTested ? '' : ' This version hasn’t been tested with Hatstand yet.'}
                 </span>
               </div>
             ) : (
               <div className="banner warning">
                 <span>
-                  {data.installationError ||
-                    'Claude Desktop isn’t installed, or ClientDeck couldn’t find it.'}
+                  {data.installationError || 'Claude Desktop isn’t installed, or Hatstand couldn’t find it.'}
                 </span>
               </div>
             )}
@@ -129,7 +129,7 @@ export function SetupPage() {
               </li>
             </ul>
             <p className="setup-note">
-              <ShieldCheck size={15} /> You sign in inside Claude. ClientDeck never sees your password.
+              <ShieldCheck size={15} /> You sign in inside Claude. Hatstand never sees your password.
             </p>
             <div className="setup-footer">
               <button type="button" className="text-button" onClick={() => setStep(0)}>

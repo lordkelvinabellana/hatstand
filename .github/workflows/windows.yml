@@ -30,7 +30,7 @@ jobs:
       - run: node scripts/verify-artifacts.mjs
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: ClientDeck-windows-x64-${{ github.sha }}
+          name: Hatstand-windows-x64-${{ github.sha }}
           path: out/make/
           retention-days: 14
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

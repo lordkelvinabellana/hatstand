@@ -1,5 +1,5 @@
 name: Bug report
-description: Something in ClientDeck doesn't work as expected
+description: Something in Hatstand doesn't work as expected
 labels: [bug]
 body:
   - type: markdown
@@ -29,9 +29,9 @@ body:
     validations:
       required: true
   - type: input
-    id: clientdeck
+    id: hatstand
     attributes:
-      label: ClientDeck version
+      label: Hatstand version
       placeholder: 0.1.0
     validations:
       required: true
@@ -53,5 +53,5 @@ body:
     id: diagnostics
     attributes:
       label: Diagnostic summary
-      description: In ClientDeck, open Compatibility → Save this summary. It contains versions and counts only.
+      description: In Hatstand, open Compatibility → Save this summary. It contains versions and counts only.
       render: json

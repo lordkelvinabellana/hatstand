@@ -24,7 +24,11 @@ Priorities can change based on compatibility findings and feedback. Open an issu
 - Window layout restore across clients.
 - Resource usage per profile, where process ownership is certain.
 - Automatic updates with a verified pipeline and explicit user control.
-- ARM64 builds; macOS evaluated separately.
+- ARM64 Windows builds.
+
+## macOS
+
+A Mac version is planned. The approach, open questions, and work breakdown are in [MACOS.md](MACOS.md).
 
 ## Done in 0.1.0
 

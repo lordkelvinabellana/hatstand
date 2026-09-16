@@ -3,10 +3,10 @@ import type { Api, Snapshot } from '../shared.ts';
 
 declare global {
   interface Window {
-    clientdeck: Api;
+    hatstand: Api;
   }
 }
-export const api = window.clientdeck;
+export const api = window.hatstand;
 
 export type Page = 'profiles' | 'archive' | 'settings' | 'about';
 

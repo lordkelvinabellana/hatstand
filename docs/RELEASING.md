@@ -16,7 +16,7 @@ Releases are built by GitHub Actions and published by a maintainer.
    ```
 
 6. The **Release** workflow builds the installer and ZIP, verifies the package allowlist, writes `SHA256SUMS.txt`, and creates a **draft** GitHub release with those files.
-7. Download the draft's installer on a clean Windows VM. Install it, upgrade from the previous release, launch, and uninstall. Confirm `%LOCALAPPDATA%\ClientDeckData` survives the uninstall.
+7. Download the draft's installer on a clean Windows VM. Install it, upgrade from the previous release, launch, and uninstall. Confirm `%LOCALAPPDATA%\HatstandData` survives the uninstall.
 8. Edit the release notes (copy the changelog section), then publish.
 
 The in-app **Check for updates** reads the latest published, non-draft release. Tags must look like `v1.2.3` or `v1.2.3-beta.1`.
@@ -28,7 +28,7 @@ Preview releases are unsigned. Before 1.0, set up one of:
 - **[SignPath Foundation](https://signpath.org/)**: free code signing for qualifying open-source projects, integrated with GitHub Actions.
 - **[Azure Trusted Signing](https://learn.microsoft.com/azure/trusted-signing/)**: low-cost managed certificates; requires identity validation.
 
-Sign `ClientDeck.exe` before packaging, and `Setup.exe` after `electron-forge make`. Keep signing credentials in GitHub environment secrets with required reviewers, never in the repository. Signing doesn't grant SmartScreen reputation immediately.
+Sign `Hatstand.exe` before packaging, and `Setup.exe` after `electron-forge make`. Keep signing credentials in GitHub environment secrets with required reviewers, never in the repository. Signing doesn't grant SmartScreen reputation immediately.
 
 ## Artifact contents
 

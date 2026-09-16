@@ -2,13 +2,18 @@ import * as fs from 'node:fs/promises';
 import path from 'node:path';
 
 /**
- * ClientDeck's data lives beside, not inside, its install folder. Squirrel.Windows
- * installs to %LOCALAPPDATA%\ClientDeck and deletes that entire folder on uninstall,
+ * Hatstand's data lives beside, not inside, its install folder. Squirrel.Windows
+ * installs to %LOCALAPPDATA%\Hatstand and deletes that entire folder on uninstall,
  * which would otherwise take every signed-in profile with it.
  */
 export function dataRoot(localAppData: string) {
-  return path.join(localAppData, 'ClientDeckData');
+  return path.join(localAppData, 'HatstandData');
 }
+/** Where Squirrel.Windows installs the app; replaced on update and deleted on uninstall. */
+export function installRoot(localAppData: string) {
+  return path.join(localAppData, 'Hatstand');
+}
+/** The 0.0.1 preview, released as ClientDeck, kept its data inside its own install folder. */
 export function legacyDataRoot(localAppData: string) {
   return path.join(localAppData, 'ClientDeck');
 }
@@ -47,7 +52,7 @@ export async function migrateLegacyData(legacy: string, next: string): Promise<b
       await fs.rename(source, target);
     } catch (error) {
       throw new Error(
-        `ClientDeck needs to move its data to ${next}, but ${source} is in use. Close the Claude windows ClientDeck opened, then start ClientDeck again. (${(error as NodeJS.ErrnoException).code})`,
+        `Hatstand needs to move its data to ${next}, but ${source} is in use. Close the Claude windows Hatstand opened, then start Hatstand again. (${(error as NodeJS.ErrnoException).code})`,
       );
     }
   }
@@ -77,13 +82,13 @@ export function joinWindowsCommandLine(values: string[]): string {
 export interface Launcher {
   /** Executable that survives app updates. */
   target: string;
-  /** Arguments that start ClientDeck with `extra` passed through. */
+  /** Arguments that start Hatstand with `extra` passed through. */
   args(extra: string[]): string[];
   icon: string;
 }
 /**
  * Shortcuts, jump-list entries and the Windows login item must not point at
- * `app-<version>\ClientDeck.exe`: Squirrel removes that folder on update.
+ * `app-<version>\Hatstand.exe`: Squirrel removes that folder on update.
  * Squirrel's own Update.exe --processStart always starts the current version.
  */
 export function stableLauncher(execPath: string, existsSync: (file: string) => boolean): Launcher {

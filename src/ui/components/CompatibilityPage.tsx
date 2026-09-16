@@ -54,8 +54,8 @@ export function CompatibilityPage() {
           access the same files, clipboard, and local services. This app does not create a security sandbox.
         </p>
         <p>
-          ClientDeck is independent of Anthropic. You install and authenticate with the official Claude
-          Desktop app. It relies on an undocumented Claude Desktop setting that a future update could change.
+          Hatstand is independent of Anthropic. You install and authenticate with the official Claude Desktop
+          app. It relies on an undocumented Claude Desktop setting that a future update could change.
         </p>
       </section>
       <section className="setting-section">
