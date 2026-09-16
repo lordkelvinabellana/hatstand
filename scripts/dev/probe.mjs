@@ -1,10 +1,12 @@
-// Disposable compatibility experiment. No account data is copied or inspected.
+// Disposable compatibility experiment for maintainers: launches up to three fresh Claude
+// profiles under .local/probe (ignored by Git). No account data is copied or inspected.
+// Usage: node scripts/dev/probe.mjs launch [test-a|test-b|test-c] | status
 import { spawn, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { launchEnvironment } from '../src/core/launch.ts';
-const project = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+import { launchEnvironment } from '../../src/core/launch.ts';
+const project = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const root = path.join(project, '.local', 'probe');
 fs.mkdirSync(root, { recursive: true });
 function powershell(script) {

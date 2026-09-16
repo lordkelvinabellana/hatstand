@@ -1,12 +1,16 @@
 import * as fs from 'node:fs/promises';
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { isRecord, assertId } from './profiles.ts';
+import { normalizeAccelerator } from './accelerator.ts';
 export interface Settings {
   theme: 'system' | 'light' | 'dark';
   minimizeToTray: boolean;
   startWithWindows: boolean;
   hotkey: string;
   executable: string;
+  /** First-run setup was completed or skipped. */
+  setupComplete: boolean;
 }
 export const defaults: Settings = {
   theme: 'system',
@@ -14,24 +18,29 @@ export const defaults: Settings = {
   startWithWindows: false,
   hotkey: 'CommandOrControl+Shift+Space',
   executable: '',
+  setupComplete: false,
 };
-export function validateSettings(value: unknown): Settings {
+/** Missing keys take their defaults so settings files from older versions keep loading. */
+export function validateSettings(input: unknown): Settings {
+  if (!isRecord(input)) throw new Error('Invalid settings.');
+  const value = { ...defaults, ...input };
   if (
-    !isRecord(value) ||
     !['system', 'light', 'dark'].includes(String(value.theme)) ||
     typeof value.minimizeToTray !== 'boolean' ||
     typeof value.startWithWindows !== 'boolean' ||
-    typeof value.hotkey !== 'string' ||
-    value.hotkey.length > 80 ||
-    typeof value.executable !== 'string'
+    typeof value.setupComplete !== 'boolean' ||
+    typeof value.executable !== 'string' ||
+    value.executable.length > 1000 ||
+    (value.executable !== '' && !path.win32.isAbsolute(value.executable))
   )
     throw new Error('Invalid settings.');
   return {
     theme: value.theme as Settings['theme'],
     minimizeToTray: value.minimizeToTray,
     startWithWindows: value.startWithWindows,
-    hotkey: value.hotkey,
+    hotkey: normalizeAccelerator(value.hotkey),
     executable: value.executable,
+    setupComplete: value.setupComplete,
   };
 }
 export async function readSettings(root: string): Promise<Settings> {
@@ -45,11 +54,17 @@ export async function readSettings(root: string): Promise<Settings> {
 export async function saveSettings(root: string, settings: Settings) {
   await fs.mkdir(root, { recursive: true });
   const file = path.join(root, 'settings.json');
-  await fs.writeFile(file + '.tmp', JSON.stringify(validateSettings(settings), null, 2));
-  await fs.rename(file + '.tmp', file);
+  const temporary = `${file}.${randomUUID()}.tmp`;
+  try {
+    await fs.writeFile(temporary, JSON.stringify(validateSettings(settings), null, 2), { flag: 'wx' });
+    await fs.rename(temporary, file);
+  } finally {
+    await fs.rm(temporary, { force: true });
+  }
 }
-// Local bindings adopt the same existing test profiles, without moving or copying
-// credentials. They never participate in metadata export or normal imports.
+// Bindings attach existing profile folders (for example, ones created by the
+// compatibility probe) without moving or copying credentials. They never
+// participate in metadata export or imports.
 export async function readBindings(root: string): Promise<Record<string, string>> {
   try {
     const values: unknown = JSON.parse(await fs.readFile(path.join(root, 'bindings.json'), 'utf8'));

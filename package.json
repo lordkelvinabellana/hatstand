@@ -1,19 +1,35 @@
 {
   "name": "clientdeck",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "private": true,
-  "description": "An independent Windows profile launcher for Claude Desktop.",
+  "description": "Open-source Windows launcher that keeps each client's Claude Desktop account in its own profile.",
+  "keywords": [
+    "claude",
+    "claude-desktop",
+    "profiles",
+    "windows",
+    "electron",
+    "launcher"
+  ],
+  "homepage": "https://github.com/lordkelvinabellana/clientdeck#readme",
+  "bugs": {
+    "url": "https://github.com/lordkelvinabellana/clientdeck/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lordkelvinabellana/clientdeck.git"
+  },
   "license": "MIT",
+  "author": "ClientDeck contributors",
   "type": "module",
   "main": "dist/main.cjs",
-  "author": "ClientDeck contributors",
   "engines": {
     "node": ">=24"
   },
   "scripts": {
     "test": "node --test test/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "probe": "node scripts/probe.mjs",
+    "probe": "node scripts/dev/probe.mjs",
     "build": "node scripts/build.mjs",
     "start": "npm run build && electron .",
     "package": "npm run build && node scripts/package.mjs",
@@ -28,7 +44,7 @@
     "@electron-forge/maker-squirrel": "^7.11.2",
     "@electron-forge/maker-zip": "^7.11.2",
     "@electron/packager": "^20.3.0",
-    "@types/node": "^22.20.3",
+    "@types/node": "^24.0.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "electron": "^44.4.1",

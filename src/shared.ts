@@ -1,22 +1,37 @@
+import type { ProfileStatus } from './core/controller.ts';
 import type { Profile } from './core/profiles.ts';
 import type { Settings } from './core/settings.ts';
 import type { Installation } from './core/windows.ts';
-export type ProfileStatus = 'stopped' | 'starting' | 'running' | 'closing' | 'error' | 'unknown';
+import type { ReleaseInfo } from './core/project.ts';
+import type { StorageFolder } from './core/storage.ts';
+export type { ProfileStatus };
+
 export interface ProfileView extends Profile {
   status: ProfileStatus;
   message?: string;
   directory: string;
+  /** Attached existing folder: ClientDeck never removes its data. */
+  bound: boolean;
+  hotkeyError?: string;
 }
 export interface Snapshot {
   profiles: ProfileView[];
   settings: Settings;
   installation: Installation | null;
+  installationTested: boolean;
   installationError?: string;
   processError?: string;
   hotkeyError?: string;
   version: string;
   packaged: boolean;
+  dataFolder: string;
 }
+export interface UpdateCheck {
+  current: string;
+  latest: ReleaseInfo | null;
+  newer: boolean;
+}
+export type { ReleaseInfo, StorageFolder };
 export interface Api {
   request(action: string, payload?: unknown): Promise<unknown>;
   onChange(callback: () => void): () => void;

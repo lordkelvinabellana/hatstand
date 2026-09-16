@@ -8,12 +8,20 @@ export function profilePaths(root: string, id: string) {
   const base = path.resolve(root, 'profiles', id);
   return { base, desktop: path.join(base, 'desktop'), code: path.join(base, 'code') };
 }
-// Reject redirection through any pre-existing parent, including directory junctions.
-export async function ensurePlainDirectory(directory: string): Promise<void> {
+function isInside(base: string, target: string) {
+  const relative = path.relative(base, target);
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+}
+// Creates `directory` below `base`, rejecting redirection through links or junctions
+// under `base`. The base itself and its parents are the user's own choice (for example
+// a redirected AppData folder) and are not second-guessed.
+export async function ensurePlainDirectory(directory: string, base: string): Promise<void> {
   const absolute = path.resolve(directory);
-  const parsed = path.parse(absolute);
-  let current = parsed.root;
-  for (const segment of absolute.slice(parsed.root.length).split(path.sep).filter(Boolean)) {
+  const trusted = path.resolve(base);
+  if (!isInside(trusted, absolute)) throw new Error('Profile storage is outside ClientDeck’s data folder.');
+  await fs.mkdir(trusted, { recursive: true });
+  let current = trusted;
+  for (const segment of path.relative(trusted, absolute).split(path.sep).filter(Boolean)) {
     current = path.join(current, segment);
     try {
       await fs.mkdir(current);

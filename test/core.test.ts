@@ -48,7 +48,7 @@ test('removing a profile preserves its local data', async (t) => {
   const store = new ProfileStore(root);
   const profile = await store.create({ name: 'Client' });
   const directories = profilePaths(root, profile.id);
-  await ensurePlainDirectory(directories.desktop);
+  await ensurePlainDirectory(directories.desktop, root);
   const marker = path.join(directories.desktop, 'test-marker');
   await fs.writeFile(marker, 'retained');
   await store.remove(profile.id);
@@ -104,7 +104,7 @@ test('storage rejects junctions pointing outside its tree', async (t) => {
   const root = await temporary(t);
   const outside = await temporary(t);
   await fs.symlink(outside, path.join(root, 'redirect'), 'junction');
-  await assert.rejects(ensurePlainDirectory(path.join(root, 'redirect', 'client')));
+  await assert.rejects(ensurePlainDirectory(path.join(root, 'redirect', 'client'), root));
   await assert.rejects(fs.access(path.join(outside, 'client')));
 });
 test('launch environment does not inherit Claude credentials or developer overrides', () => {
@@ -152,6 +152,6 @@ test('Windows argument parsing handles quoted spaces and escaped quotes', () => 
     ['C:\\Program Files\\Claude.exe', '--user-data-dir=C:\\Client A'],
   );
   assert.deepEqual(splitWindowsCommandLine('app "" abc'), ['app', '', 'abc']);
-  assert.deepEqual(splitWindowsCommandLine('app "a\\\"b"'), ['app', 'a"b']);
+  assert.deepEqual(splitWindowsCommandLine('app "a\\"b"'), ['app', 'a"b']);
   assert.throws(() => splitWindowsCommandLine('app "unfinished'));
 });

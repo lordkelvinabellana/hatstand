@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { assertId, newProfile, validateInput, validateState } from './profiles.ts';
+import { assertId, newProfile, schemaVersion, validateInput, validateState } from './profiles.ts';
 import type { Profile, ProfileState } from './profiles.ts';
 
 export class ProfileStore {
@@ -19,7 +19,7 @@ export class ProfileStore {
       if (stats.size > 1_000_000) throw new Error('Profile file is too large.');
       return validateState(JSON.parse(await fs.readFile(this.filename, 'utf8')));
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { schemaVersion: 1, profiles: [] };
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { schemaVersion, profiles: [] };
       // Never silently replace damaged metadata with an empty store.
       throw error;
     }
