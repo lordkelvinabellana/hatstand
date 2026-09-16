@@ -21,11 +21,24 @@ try {
         const buffer = Buffer.alloc(item.size);
         fs.readSync(fd, buffer, 0, item.size, 8 + headerSize + Number(item.offset));
         const source = buffer.toString();
-        const needles = ['user-data-dir', 'requestSingleInstanceLock', 'setPath("userData"', "setPath('userData'", 'CLAUDE_CONFIG_DIR'];
+        const needles = [
+          'user-data-dir',
+          'requestSingleInstanceLock',
+          'setPath("userData"',
+          "setPath('userData'",
+          'CLAUDE_CONFIG_DIR',
+        ];
         for (const needle of needles) {
-          let start = 0, count = 0;
+          let start = 0,
+            count = 0;
           while ((start = source.indexOf(needle, start)) !== -1 && count++ < 6) {
-            console.log(JSON.stringify({file:path, needle, context:source.slice(Math.max(0,start-180),start+250)}));
+            console.log(
+              JSON.stringify({
+                file: path,
+                needle,
+                context: source.slice(Math.max(0, start - 180), start + 250),
+              }),
+            );
             start += needle.length;
           }
         }
@@ -34,4 +47,6 @@ try {
   }
   walk(header);
   console.log('Top-level entries:', Object.keys(header.files));
-} finally { fs.closeSync(fd); }
+} finally {
+  fs.closeSync(fd);
+}
