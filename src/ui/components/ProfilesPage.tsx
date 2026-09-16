@@ -119,7 +119,7 @@ export const ProfilesPage = forwardRef<HTMLInputElement, Props>(function Profile
               'Claude Desktop wasn’t found. Install it or choose its location in Settings.'}
           </span>
           <button type="button" onClick={() => navigate('settings')}>
-            Settings <ArrowUpRight size={15} />
+            Open Settings <ArrowUpRight size={15} />
           </button>
         </div>
       )}

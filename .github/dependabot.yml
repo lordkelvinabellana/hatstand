@@ -5,6 +5,10 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    ignore:
+      # Types must match the Node.js major version the app targets (see engines).
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
     groups:
       electron-forge:
         patterns: ['@electron-forge/*', '@electron/*']

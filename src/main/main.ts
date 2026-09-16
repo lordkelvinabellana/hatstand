@@ -45,7 +45,9 @@ const controller = new Controller({
   root,
   store,
   listProcesses: listClaudeProcesses,
-  detectInstallation,
+  // Tests can simulate a machine without Claude Desktop, as on CI runners.
+  detectInstallation: (override) =>
+    testMode && process.env.HATSTAND_TEST_NO_CLAUDE === '1' ? Promise.resolve(null) : detectInstallation(override),
   launchProcess: launchClaude,
   closeProcess: closeOwnedProcess,
   ensureDirectory: ensurePlainDirectory,
