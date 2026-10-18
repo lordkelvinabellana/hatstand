@@ -8,11 +8,14 @@ import {
   drawPet,
   encodePng,
   hookScript,
+  modelName,
   parseSession,
   petMood,
   petSound,
+  summarizeTranscript,
   withPetHooks,
 } from '../src/core/pets.ts';
+import { validateInput, validateState } from '../src/core/profiles.ts';
 
 test('pet mood: asking beats done beats working, and stale sessions age out', () => {
   const now = 10 * 60 * 60_000;
@@ -80,4 +83,66 @@ test('pets render as PNGs and sounds as WAVs', () => {
   assert.equal(drawPet(1, 'rose', 'idle', 0)[0].length, 16);
   assert.equal(encodePng(grid, 2).subarray(1, 4).toString(), 'PNG');
   assert.equal(petSound('done', 2).subarray(0, 4).toString(), 'RIFF');
+});
+
+test('transcript summary replays the task list and counts each response once', () => {
+  const line = (value: unknown) => JSON.stringify(value);
+  const plan = (input: unknown) => ({
+    type: 'assistant',
+    cwd: '/work/hatstand',
+    message: {
+      id: 'm1',
+      model: 'claude-opus-5-5',
+      usage: {
+        input_tokens: 2,
+        cache_read_input_tokens: 1000,
+        cache_creation_input_tokens: 8,
+        output_tokens: 50,
+      },
+      content: [{ type: 'tool_use', name: 'mcp__ccd_turn__update_plan', input }],
+    },
+  });
+  const text = [
+    line({ type: 'custom-title', customTitle: 'Pets' }),
+    line({ type: 'user', message: { content: 'Add pets' } }),
+    line(
+      plan({
+        items: [
+          { content: 'A', status: 'in_progress' },
+          { content: 'B', status: 'pending' },
+          { content: 'C', status: 'pending' },
+        ],
+      }),
+    ),
+    line(plan({ advance: true })),
+    'not json',
+    line({ ...plan({ done: [3] }), isSidechain: true }),
+  ].join('\n');
+  const summary = summarizeTranscript(text);
+  assert.equal(summary.title, 'Pets');
+  assert.equal(summary.prompt, 'Add pets');
+  assert.equal(summary.cwd, '/work/hatstand');
+  assert.deepEqual(
+    summary.plan.map((s) => s.status),
+    ['completed', 'in_progress', 'pending'],
+  );
+  assert.equal(summary.output, 50);
+  assert.equal(summary.context, 1010);
+  assert.equal(modelName(summary.model), 'Opus 5.5');
+});
+
+test('profiles get a pet: saved ones in order, unknown pets are rejected', () => {
+  const base = { name: 'A', archived: false, createdAt: new Date(0).toISOString() };
+  const state = validateState({
+    schemaVersion: 2,
+    profiles: [
+      { ...base, id: '0f8fad5b-d9cb-469f-a165-70867728950e' },
+      { ...base, id: '1f8fad5b-d9cb-469f-a165-70867728950e', pet: '' },
+    ],
+  });
+  assert.deepEqual(
+    state.profiles.map((p) => p.pet),
+    ['cat', ''],
+  );
+  assert.throws(() => validateInput({ name: 'A', pet: 'dragon' }), /Invalid pet/);
 });

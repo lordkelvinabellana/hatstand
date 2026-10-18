@@ -15,6 +15,7 @@ import type { ProfileView } from '../../shared.ts';
 import { formatShortcut, useApp } from '../api.ts';
 import { moveByStep, moveToIndex } from '../order.ts';
 import { HatMark } from './HatMark.tsx';
+import { PetAvatar } from './PetAvatar.tsx';
 import { ProfileEditor } from './ProfileEditor.tsx';
 
 const statusLabels: Record<ProfileView['status'], string> = {
@@ -280,7 +281,7 @@ export const ProfilesPage = forwardRef<HTMLInputElement, Props>(function Profile
                       className="profile-identity"
                       onClick={() => props.onEdit(profile.id)}
                     >
-                      <span className={`avatar ${profile.color}`}>{profile.icon}</span>
+                      <PetAvatar pet={profile.pet} color={profile.color} icon={profile.icon} />
                       <span className="profile-name">
                         <strong>{profile.name}</strong>
                         <span>

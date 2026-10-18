@@ -504,6 +504,30 @@ small {
   font-weight: 400;
   color: var(--muted);
 }
+.pet-avatar svg {
+  width: 72%;
+  height: 72%;
+}
+.pet-options {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+.pet-option {
+  padding: 3px;
+  border: 2px solid transparent;
+  border-radius: 13px;
+  background: transparent;
+  display: flex;
+  justify-content: center;
+}
+.pet-option.chosen {
+  border-color: currentColor;
+}
+.pet-option:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
 .editor-avatar {
   width: 52px;
   height: 52px;

@@ -16,7 +16,7 @@ export function SetupPage() {
 
   async function finish(launch: boolean) {
     try {
-      const profile = (await run('create', { name, icon: initials(name), color })) as Profile;
+      const profile = (await run('create', { name, icon: initials(name), color, pet: 'cat' })) as Profile;
       await run('completeSetup');
       if (launch) await run('launch', { id: profile.id }, 'Sign in inside the Claude window that opened.');
     } catch {}

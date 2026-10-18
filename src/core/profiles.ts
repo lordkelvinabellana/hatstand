@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { acceleratorKey, normalizeAccelerator } from './accelerator.ts';
+import { speciesNames } from './sprites.ts';
 
 export const colors = ['teal', 'amber', 'violet', 'blue', 'rose', 'slate'] as const;
 export type Color = (typeof colors)[number];
@@ -10,6 +11,8 @@ export interface Profile {
   accountLabel: string;
   color: Color;
   icon: string;
+  /** Pixel pet used as the avatar and menu-bar pet; '' shows the initials. */
+  pet: string;
   /** Global shortcut that launches or focuses this profile; '' when unset. */
   hotkey: string;
   /** Optional client work folder. Convenience only: it does not restrict Claude's file access. */
@@ -24,6 +27,7 @@ export interface ProfileInput {
   accountLabel?: string;
   color?: Color;
   icon?: string;
+  pet?: string;
   hotkey?: string;
   workFolder?: string;
   openAtStartup?: boolean;
@@ -61,6 +65,8 @@ export function validateInput(input: unknown): Required<ProfileInput> {
   if (!isRecord(input)) throw new Error('Invalid profile.');
   const color = input.color ?? 'teal';
   if (!colors.includes(color as Color)) throw new Error('Invalid profile color.');
+  const pet = input.pet ?? '';
+  if (pet !== '' && !speciesNames.includes(pet as string)) throw new Error('Invalid pet.');
   const openAtStartup = input.openAtStartup ?? false;
   if (typeof openAtStartup !== 'boolean') throw new Error('Invalid startup preference.');
   return {
@@ -68,6 +74,7 @@ export function validateInput(input: unknown): Required<ProfileInput> {
     accountLabel: text(input.accountLabel ?? '', 'account label', 160),
     color: color as Color,
     icon: text(input.icon ?? 'C', 'icon', 8, true),
+    pet: pet as string,
     hotkey: normalizeAccelerator(input.hotkey ?? ''),
     workFolder: folder(input.workFolder ?? ''),
     openAtStartup,
@@ -87,7 +94,7 @@ export function validateState(input: unknown): ProfileState {
   if (input.profiles.length > 1000) throw new Error('Profile file is too large.');
   const seen = new Set<string>();
   const hotkeys = new Set<string>();
-  const profiles = input.profiles.map((value: unknown): Profile => {
+  const profiles = input.profiles.map((value: unknown, index): Profile => {
     if (!isRecord(value)) throw new Error('Invalid saved profile.');
     assertId(value.id);
     if (seen.has(value.id)) throw new Error('Duplicate profile identifiers.');
@@ -99,7 +106,8 @@ export function validateState(input: unknown): ProfileState {
     )
       throw new Error('Invalid profile metadata.');
     const profile = {
-      ...validateInput(value),
+      // Profiles saved before pets existed get one each, in order.
+      ...validateInput({ pet: speciesNames[index % speciesNames.length], ...value }),
       id: value.id,
       archived: value.archived,
       createdAt: value.createdAt,
@@ -126,6 +134,7 @@ export function exportMetadata(state: ProfileState): string {
         accountLabel: p.accountLabel,
         color: p.color,
         icon: p.icon,
+        pet: p.pet,
       })),
     },
     null,
@@ -147,7 +156,7 @@ export function parseImport(source: string): Required<ProfileInput>[] {
   return data.profiles.map((profile) => {
     if (
       !isRecord(profile) ||
-      Object.keys(profile).some((key) => !['name', 'accountLabel', 'color', 'icon'].includes(key))
+      Object.keys(profile).some((key) => !['name', 'accountLabel', 'color', 'icon', 'pet'].includes(key))
     )
       throw new Error('Import contains unsupported fields.');
     return validateInput(profile);

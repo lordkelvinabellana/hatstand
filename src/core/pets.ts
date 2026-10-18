@@ -1,15 +1,18 @@
 import { crc32, deflateSync } from 'node:zlib';
-import type { Color } from './profiles.ts';
+import { type Mood, type RGBA, speciesNames } from './sprites.ts';
+
+export { drawPet, type Mood, speciesNames } from './sprites.ts';
 
 /**
  * Menu-bar pets: one pixel pet per profile that shows what that account's Claude Code
  * sessions are doing. Claude Code hooks (pet-hook.sh) write one small JSON file per
  * session into `<profile>/pet/`; Hatstand reads them, draws the pet and plays a sound.
  */
-export type Mood = 'sleep' | 'idle' | 'working' | 'ask' | 'done';
 export interface SessionState {
   state: 'working' | 'ask' | 'done';
   at: number;
+  /** The session's Claude Code transcript (.jsonl), read for the hover panel. */
+  transcript?: string;
 }
 
 const minute = 60_000;
@@ -32,187 +35,110 @@ export function parseSession(text: string): SessionState | null {
   return null;
 }
 
-// Sprites are drawn as a left half and mirrored. o outline, b body, d shade, w white, k eye, p pink.
-const species: string[][] = [
-  // cat
-  [
-    '........',
-    '........',
-    '..o.....',
-    '.obo....',
-    '.obbo...',
-    '.obbboooo',
-    '.obbbbbbb',
-    'obbbbbbbb',
-    'obbkkbbbb',
-    'obbkkbbbb',
-    'obpbbbbbp',
-    'obbbbbbob',
-    '.obbbbbbb',
-    '..ooooooo',
-    '........',
-    '........',
-  ],
-  // frog
-  [
-    '........',
-    '........',
-    '.oooo...',
-    'owwwwo..',
-    'owkkwo..',
-    'owkkwooo',
-    'obbbbbbb',
-    'obpbbbbb',
-    'obbbbbbb',
-    'obbooooo',
-    'obbbbbbb',
-    '.obbbbbb',
-    '..oooooo',
-    '........',
-    '........',
-    '........',
-  ],
-  // ghost
-  [
-    '........',
-    '....oooo',
-    '...obbbb',
-    '..obbbbb',
-    '.obbbbbb',
-    '.obkkbbb',
-    'obbkkbbb',
-    'obbbbbbb',
-    'obpbbbbb',
-    'obbbbbbb',
-    'obbbbbbb',
-    'obbbbbbb',
-    'obobbobb',
-    'o.o..o.o',
-    '........',
-    '........',
-  ],
-  // bunny
-  [
-    '...oo...',
-    '..obbo..',
-    '..obpo..',
-    '..obpo..',
-    '..obbo..',
-    '.obbbbooo',
-    'obbbbbbbb',
-    'obbkkbbbb',
-    'obbkkbbbb',
-    'obpbbbbbp',
-    'obbbbbbob',
-    '.obbbbbbb',
-    '..ooooooo',
-    '........',
-    '........',
-    '........',
-  ],
-];
-export const speciesNames = ['cat', 'frog', 'ghost', 'bunny'];
-
-function mirror(half: string[]): string[] {
-  return half.map((row) => {
-    const left = row.padEnd(8, '.').slice(0, 8);
-    return left + [...left].reverse().join('');
-  });
+export interface PlanStep {
+  content: string;
+  status: 'pending' | 'in_progress' | 'completed';
 }
-const sprites = species.map(mirror);
-
-const bubble = [
-  '..oooooo..',
-  '.owwwwwwo.',
-  'owwwwwwwwo',
-  'owwwwwwwwo',
-  'owwwwwwwwo',
-  'owwwwwwwwo',
-  '.owwwwwwo.',
-  '..oooooo..',
-  '.oo.......',
-  'o.........',
-];
-const glyphs: Record<string, string[]> = {
-  ask: ['..rr..', '..rr..', '..rr..', '......', '..rr..'],
-  done: ['.....g', '....gg', 'g..gg.', 'gggg..', '.gg...'],
-  dots0: ['......', '......', 'k.....', '......', '......'],
-  dots1: ['......', '......', 'k.k...', '......', '......'],
-  dots2: ['......', '......', 'k.k.k.', '......', '......'],
-};
-
-const bodies: Record<Color, string> = {
-  teal: '#3fbf92',
-  amber: '#f2ad35',
-  violet: '#a586ea',
-  blue: '#5fa2ea',
-  rose: '#ea7395',
-  slate: '#98aca3',
-};
-type RGBA = [number, number, number, number];
-function hex(value: string, alpha = 255): RGBA {
-  const n = Number.parseInt(value.slice(1), 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255, alpha];
-}
-function shade([r, g, b, a]: RGBA, by: number): RGBA {
-  return [Math.round(r * by), Math.round(g * by), Math.round(b * by), a];
-}
-function gray([r, g, b, a]: RGBA): RGBA {
-  const v = Math.round(0.3 * r + 0.59 * g + 0.11 * b);
-  return [v, v, v, Math.round(a * 0.75)];
+export interface SessionSummary {
+  title: string;
+  prompt: string;
+  cwd: string;
+  model: string;
+  plan: PlanStep[];
+  /** Tokens in the latest request: the session's current context size. */
+  context: number;
+  output: number;
 }
 
-export const petWidth = 16;
-export const fullWidth = 26;
-export const petHeight = 16;
-
-/** Draws one animation frame as a grid of RGBA pixels. */
-export function drawPet(speciesIndex: number, color: Color, mood: Mood, frame: number): RGBA[][] {
-  const sprite = sprites[speciesIndex % sprites.length];
-  const withBubble = mood === 'ask' || mood === 'done' || mood === 'working';
-  const width = withBubble ? fullWidth : petWidth;
-  const grid: RGBA[][] = Array.from({ length: petHeight }, () =>
-    Array.from({ length: width }, () => [0, 0, 0, 0] as RGBA),
-  );
-  const body = hex(bodies[color] ?? bodies.slate);
-  const palette: Record<string, RGBA> = {
-    o: [24, 24, 28, 255],
-    b: body,
-    d: shade(body, 0.7),
-    w: [255, 255, 255, 255],
-    k: [24, 24, 28, 255],
-    p: hex('#ff9fb8'),
-    r: hex('#ff5a36'),
-    g: hex('#22b35e'),
+/** Reads what the hover panel shows out of a Claude Code transcript (.jsonl). */
+export function summarizeTranscript(text: string): SessionSummary {
+  const summary: SessionSummary = {
+    title: '',
+    prompt: '',
+    cwd: '',
+    model: '',
+    plan: [],
+    context: 0,
+    output: 0,
   };
-  const blink = mood === 'sleep' || (mood === 'idle' && frame % 12 === 11);
-  // Working pets bob; pets asking for you hop.
-  const lift = (mood === 'working' && frame % 2 === 1) || (mood === 'ask' && frame % 4 < 2) ? 1 : 0;
-  stamp(grid, sprite, 0, -lift, (ch, x, y) => {
-    // Closed eyes: the eye's lower row becomes a line, the rest becomes skin.
-    const key = blink && ch === 'k' ? (sprite[y + 1]?.[x] === 'k' ? 'b' : 'o') : ch;
-    return mood === 'sleep' ? gray(palette[key]) : palette[key];
-  });
-  if (withBubble) {
-    const glyph = mood === 'working' ? glyphs[`dots${frame % 3}`] : glyphs[mood];
-    // The bubble blinks while the pet is asking, so it catches the eye.
-    const showGlyph = mood !== 'ask' || frame % 4 !== 3;
-    stamp(grid, bubble, petWidth, 0, (ch) => palette[ch]);
-    if (showGlyph) stamp(grid, glyph, petWidth + 2, 2, (ch) => palette[ch]);
+  const counted = new Set<string>();
+  for (const line of text.split('\n')) {
+    let entry: any;
+    try {
+      entry = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (!entry || entry.isSidechain) continue;
+    if (entry.type === 'custom-title' && typeof entry.customTitle === 'string')
+      summary.title = entry.customTitle;
+    if (entry.type === 'last-prompt' && typeof entry.lastPrompt === 'string')
+      summary.prompt = entry.lastPrompt;
+    if (
+      entry.type === 'user' &&
+      typeof entry.message?.content === 'string' &&
+      !entry.message.content.startsWith('<')
+    )
+      summary.prompt = entry.message.content;
+    if (entry.type !== 'assistant' || !entry.message) continue;
+    const message = entry.message;
+    if (typeof entry.cwd === 'string') summary.cwd = entry.cwd;
+    if (typeof message.model === 'string') summary.model = message.model;
+    const usage = message.usage;
+    // One API response is split over several lines that repeat the same usage.
+    if (usage && !counted.has(message.id)) {
+      counted.add(message.id);
+      summary.output += usage.output_tokens ?? 0;
+      summary.context =
+        (usage.input_tokens ?? 0) +
+        (usage.cache_read_input_tokens ?? 0) +
+        (usage.cache_creation_input_tokens ?? 0);
+    }
+    for (const block of Array.isArray(message.content) ? message.content : []) {
+      if (block?.type !== 'tool_use') continue;
+      if (block.name === 'TodoWrite' && Array.isArray(block.input?.todos))
+        summary.plan = steps(block.input.todos);
+      if (typeof block.name === 'string' && block.name.endsWith('update_plan'))
+        applyPlan(summary.plan, block.input, summary);
+    }
   }
-  return grid;
+  return summary;
+}
+function steps(items: unknown[]): PlanStep[] {
+  return items.map((item: any) => ({
+    content: String(item?.content ?? ''),
+    status: ['pending', 'in_progress', 'completed'].includes(item?.status) ? item.status : 'pending',
+  }));
+}
+/** Replays the desktop app's task-list updates: a whole list, `advance`, or `done`/`start` by 1-based step. */
+function applyPlan(plan: PlanStep[], input: any, summary: SessionSummary) {
+  if (Array.isArray(input?.items)) {
+    summary.plan = steps(input.items);
+    return;
+  }
+  const at = (n: unknown) => (Number.isInteger(n) ? plan[(n as number) - 1] : undefined);
+  if (input?.advance) {
+    const current = plan.find((s) => s.status === 'in_progress');
+    if (current) current.status = 'completed';
+    const next = plan.find((s) => s.status === 'pending');
+    if (next) next.status = 'in_progress';
+  }
+  for (const n of Array.isArray(input?.done) ? input.done : []) {
+    const step = at(n);
+    if (step) step.status = 'completed';
+  }
+  const start = at(input?.start);
+  if (start) start.status = 'in_progress';
 }
 
-function stamp(
-  grid: RGBA[][],
-  rows: string[],
-  dx: number,
-  dy: number,
-  pixel: (ch: string, x: number, y: number) => RGBA,
-) {
-  for (const [y, row] of rows.entries())
-    for (const [x, ch] of [...row].entries())
-      if (ch !== '.' && grid[y + dy]?.[x + dx]) grid[y + dy][x + dx] = pixel(ch, x, y);
+/** "claude-opus-5-5" → "Opus 5.5". */
+export function modelName(id: string): string {
+  const parts = id
+    .replace(/^claude-/, '')
+    .replace(/-\d{8}$/, '')
+    .split('-');
+  const name = parts.filter((p) => !/^\d+$/.test(p)).map((p) => p[0].toUpperCase() + p.slice(1));
+  return [...name, parts.filter((p) => /^\d+$/.test(p)).join('.')].filter(Boolean).join(' ');
 }
 
 /** Encodes an RGBA grid as a PNG, scaled up by `scale` with hard pixel edges. */
@@ -250,7 +176,7 @@ export function encodePng(grid: RGBA[][], scale: number): Buffer {
  */
 export function petSound(kind: 'ask' | 'done', speciesIndex: number): Buffer {
   const rate = 22050;
-  const transpose = [0, 3, 5, -2][speciesIndex % 4];
+  const transpose = [0, 3, 5, -2, 2, 7, -4, 4][speciesIndex % 8];
   // [semitones above A4, seconds]; null is a rest.
   const notes: [number | null, number][] =
     kind === 'ask'
@@ -303,12 +229,15 @@ export function petSound(kind: 'ask' | 'done', speciesIndex: number): Buffer {
 export const hookScript = `#!/bin/sh
 # Hatstand menu-bar pet hook (written by Hatstand). Usage: pet-hook.sh working|ask|done|end
 [ -n "$CLAUDE_CONFIG_DIR" ] || exit 0
-sid=$(grep -o '"session_id" *: *"[^"]*"' | head -n 1 | sed 's/.*"\\([^"]*\\)"$/\\1/')
+input=$(cat)
+sid=$(printf '%s' "$input" | grep -o '"session_id" *: *"[^"]*"' | head -n 1 | sed 's/.*"\\([^"]*\\)"$/\\1/')
 case "$sid" in '' | *[!A-Za-z0-9_-]*) exit 0 ;; esac
+log=$(printf '%s' "$input" | grep -o '"transcript_path" *: *"[^"]*"' | head -n 1 | sed 's/.*"\\([^"]*\\)"$/\\1/')
+case "$log" in *\\\\*) log= ;; *.jsonl) ;; *) log= ;; esac
 dir="$(dirname "$CLAUDE_CONFIG_DIR")/pet"
 mkdir -p "$dir" || exit 0
 if [ "$1" = end ]; then rm -f "$dir/$sid.json"; exit 0; fi
-printf '{"state":"%s","at":%s000}\\n' "$1" "$(date +%s)" > "$dir/$sid.tmp" && mv -f "$dir/$sid.tmp" "$dir/$sid.json"
+printf '{"state":"%s","at":%s000,"transcript":"%s"}\\n' "$1" "$(date +%s)" "$log" > "$dir/$sid.tmp" && mv -f "$dir/$sid.tmp" "$dir/$sid.json"
 `;
 
 /** Returns `settings` with the pet hooks added (replacing any earlier pet hooks), leaving other hooks alone. */
