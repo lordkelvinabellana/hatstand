@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ArrowUpRight, Download } from 'lucide-react';
-import { compatibilityChecks, testedClaudeVersions } from '../../core/compat.ts';
+import { checksFor, testedVersionsFor } from '../../core/compat.ts';
 import { issuesUrl } from '../../core/project.ts';
 import { useApp } from '../api.ts';
 
@@ -30,7 +30,7 @@ export function CompatibilityPage() {
       </div>
       <section className="compatibility">
         <h2>Current verification</h2>
-        {compatibilityChecks.map((check) => (
+        {checksFor(data.platform).map((check) => (
           <div className="check-row" key={check.key}>
             <span>{check.label}</span>
             <span className={check.result === 'unverified' ? '' : 'verified'}>
@@ -39,7 +39,8 @@ export function CompatibilityPage() {
           </div>
         ))}
         <p>
-          Tested with Claude Desktop {testedClaudeVersions.join(' and ')} (MSIX).{' '}
+          Tested with Claude Desktop {testedVersionsFor(data.platform).join(' and ')} (
+          {data.platform === 'darwin' ? 'macOS' : 'MSIX'}).{' '}
           {data.installation
             ? data.installationTested
               ? `Your installed version, ${data.installation.version}, is one of them.`
@@ -50,7 +51,7 @@ export function CompatibilityPage() {
       <section className="setting-section">
         <h2>Separate sessions, shared computer</h2>
         <p>
-          Each profile has its own Desktop data location. Profiles still run as the same Windows user and may
+          Each profile has its own Desktop data location. Profiles still run as the same computer user and may
           access the same files, clipboard, and local services. This app does not create a security sandbox.
         </p>
         <p>

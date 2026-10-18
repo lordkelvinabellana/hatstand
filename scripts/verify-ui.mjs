@@ -6,6 +6,8 @@ import path from 'node:path';
 import os from 'node:os';
 import assert from 'node:assert/strict';
 
+const mac = process.platform === 'darwin';
+const primaryKey = mac ? 'Meta' : 'Control';
 const root = await fs.mkdtemp(path.join(os.tmpdir(), 'hatstand-ui-'));
 const screenshotFolder = path.resolve(
   process.argv.includes('--docs') ? 'docs/images' : '.local/ui-screenshots',
@@ -74,7 +76,7 @@ try {
   assert.equal(await page.getByLabel('Profile shortcut').inputValue(), 'Ctrl+Alt+Shift+F11');
   await page.getByRole('button', { name: 'Browse', exact: true }).click();
   await page.waitForFunction(() => document.querySelector('input[aria-label="Work folder"]')?.value);
-  await page.getByLabel('Open when Windows starts').check();
+  await page.getByLabel(mac ? 'Open at login' : 'Open when Windows starts').check();
   await scrubPaths(page);
   await page.screenshot({ path: path.join(screenshotFolder, 'editor.png') });
   await page.getByRole('button', { name: 'Save changes', exact: true }).click();
@@ -82,7 +84,7 @@ try {
   const north = (await readProfiles())[0];
   assert.deepEqual(
     { hotkey: north.hotkey, workFolder: north.workFolder, openAtStartup: north.openAtStartup },
-    { hotkey: 'CommandOrControl+Alt+Shift+F11', workFolder, openAtStartup: true },
+    { hotkey: `${mac ? 'Control' : 'CommandOrControl'}+Alt+Shift+F11`, workFolder, openAtStartup: true },
   );
   await page.getByRole('button', { name: 'Open startup group (1)' }).waitFor();
 
@@ -134,14 +136,14 @@ try {
   await page.locator('.profile-row').nth(2).waitFor();
 
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await page.keyboard.press('Control+k');
+  await page.keyboard.press(`${primaryKey}+k`);
   assert.equal(
     await page.getByLabel('Search profiles').evaluate((el) => el === document.activeElement),
     true,
   );
   await page.getByRole('button', { name: 'Compatibility', exact: true }).click();
   await page.getByText('Stays signed in after quit and reopen').waitFor();
-  await page.keyboard.press('Control+k');
+  await page.keyboard.press(`${primaryKey}+k`);
   assert.equal(
     await page.getByLabel('Search profiles').evaluate((el) => el === document.activeElement),
     true,
@@ -199,7 +201,7 @@ try {
   );
   await page.getByRole('button', { name: 'Find leftover data', exact: true }).click();
   await page.getByText('1 belongs to removed profiles').waitFor();
-  await page.getByRole('button', { name: 'Move to Recycle Bin…' }).waitFor();
+  await page.getByRole('button', { name: mac ? 'Move to Trash…' : 'Move to Recycle Bin…' }).waitFor();
   await fs.access(path.join(root, 'profiles', leftover, 'desktop', 'sample'));
 
   await page.getByRole('button', { name: /Client profiles/ }).click();
@@ -222,6 +224,30 @@ try {
     return { sandbox: p.sandbox, contextIsolation: p.contextIsolation, nodeIntegration: p.nodeIntegration };
   });
   assert.deepEqual(prefs, { sandbox: true, contextIsolation: true, nodeIntegration: false });
+  if (mac) {
+    const native = await instance.evaluate(({ app, Menu }) => ({
+      dock: app.dock.getMenu()?.items.map((item) => item.label),
+      menu: Menu.getApplicationMenu()?.items.map((item) => item.role),
+    }));
+    assert.ok(native.dock.includes('Open Hatstand'));
+    assert.ok(native.dock.some((label) => label.includes('North Studio')));
+    assert.ok(native.menu.includes('appmenu'));
+    await page.locator('.profile-identity').first().click();
+    await page.getByLabel('Profile shortcut').focus();
+    await page.keyboard.press('Meta+Alt+F10');
+    assert.equal(await page.getByLabel('Profile shortcut').inputValue(), 'Cmd+Alt+F10');
+    await page.getByRole('button', { name: 'Save changes', exact: true }).click();
+    await page.getByText('Profile saved.', { exact: true }).waitFor();
+    assert.ok((await readProfiles()).some((p) => p.hotkey === 'Command+Alt+F10'));
+    await instance.evaluate(({ app, BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0].hide();
+      app.emit('activate');
+    });
+    assert.equal(
+      await instance.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isVisible()),
+      true,
+    );
+  }
   assert.deepEqual(errors, []);
   console.log(
     'UI checks passed: setup, create, search, selection, shortcuts, work folder, menu keyboard, reorder past archived, archive/restore, settings, export/import, leftover data, compact layout, dark theme, sandbox.',

@@ -172,11 +172,11 @@ export function ProfileEditor(props: { editing: string; onClose(): void }) {
             onChange={(e) => setForm({ ...form, openAtStartup: e.target.checked })}
           />
           <span>
-            Open when Windows starts
+            {data.platform === 'darwin' ? 'Open at login' : 'Open when Windows starts'}
             <small>
               {data.settings.startWithWindows
                 ? 'Opens with Hatstand at sign-in.'
-                : 'Also turn on Start with Windows in Settings.'}
+                : 'Also enable startup in Settings.'}
             </small>
           </span>
         </label>

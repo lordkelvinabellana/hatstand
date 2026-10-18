@@ -2,6 +2,8 @@
 // https://www.electronjs.org/docs/latest/api/accelerator
 
 const modifierAliases: Record<string, string> = {
+  command: 'Command',
+  cmd: 'Command',
   commandorcontrol: 'CommandOrControl',
   cmdorctrl: 'CommandOrControl',
   control: 'Control',
@@ -56,16 +58,22 @@ export function normalizeAccelerator(value: unknown): string {
   }
   // A global shortcut without Ctrl/Alt/Super would swallow ordinary typing everywhere.
   if (!modifiers.some((modifier) => modifier !== 'Shift') && !/^F\d+$/.test(key)) {
-    throw new Error('Shortcuts need Ctrl, Alt, or the Windows key, so normal typing keeps working.');
+    throw new Error('Shortcuts need Ctrl, Alt, Cmd, or the Windows key, so normal typing keeps working.');
   }
   return [...modifiers, key].join('+');
 }
 
 /** Case-insensitive identity, treating Ctrl and CommandOrControl as the same key on Windows. */
-export function acceleratorKey(value: string): string {
+export function acceleratorKey(value: string, platform: string = process.platform): string {
   return value
     .split('+')
-    .map((part) => (part === 'CommandOrControl' ? 'Control' : part).toLowerCase())
+    .map((part) => {
+      const key = part.toLowerCase();
+      if (key === 'commandorcontrol' || key === 'cmdorctrl')
+        return platform === 'darwin' ? 'command' : 'control';
+      if (key === 'cmd' || (platform === 'darwin' && ['super', 'meta'].includes(key))) return 'command';
+      return key === 'ctrl' ? 'control' : key;
+    })
     .sort()
     .join('+');
 }

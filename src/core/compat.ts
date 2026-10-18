@@ -14,6 +14,23 @@ export const compatibilityChecks: { key: string; label: string; result: CheckRes
   { key: 'desktopCode', label: 'Desktop Code task execution and separation', result: 'unverified' },
 ];
 
-export function isTestedVersion(version: string | undefined) {
-  return !!version && testedClaudeVersions.includes(version);
+export const macTestedClaudeVersions = ['2.2553.1'];
+export function checksFor(platform: string) {
+  return compatibilityChecks.map((check) =>
+    platform === 'darwin'
+      ? {
+          ...check,
+          label: check.label.replace('a Windows reboot', 'a Mac reboot'),
+          result: ['twoAccountSignIn', 'reopenPersistence', 'logoutIsolation'].includes(check.key)
+            ? ('user-confirmed' as const)
+            : check.result,
+        }
+      : check,
+  );
+}
+export function testedVersionsFor(platform: string) {
+  return platform === 'darwin' ? macTestedClaudeVersions : testedClaudeVersions;
+}
+export function isTestedVersion(version: string | undefined, platform = process.platform) {
+  return !!version && testedVersionsFor(platform).includes(version);
 }

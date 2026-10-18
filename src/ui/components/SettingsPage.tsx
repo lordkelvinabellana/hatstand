@@ -3,7 +3,7 @@ import { ArrowUpRight, Download, RefreshCw, Trash2, Upload } from 'lucide-react'
 import type { Settings } from '../../core/settings.ts';
 import type { ProfileInput } from '../../core/profiles.ts';
 import type { StorageFolder, UpdateCheck } from '../../shared.ts';
-import { formatBytes, useApp } from '../api.ts';
+import { formatBytes, useApp, isMac, trashName } from '../api.ts';
 import { ShortcutInput } from './ShortcutInput.tsx';
 
 const downloadUrl = 'https://claude.com/download';
@@ -42,7 +42,7 @@ export function SettingsPage() {
           <div className="setting-row">
             <div>
               <label htmlFor="theme">Theme</label>
-              <p>Follow Windows or choose your own.</p>
+              <p>Follow your system or choose your own.</p>
             </div>
             <select
               id="theme"
@@ -59,7 +59,7 @@ export function SettingsPage() {
           <h2>Daily workflow</h2>
           <label className="setting-row">
             <span>
-              Keep Hatstand in the tray
+              Keep Hatstand in the {isMac ? 'menu bar' : 'tray'}
               <small>Closing this window keeps switching available.</small>
             </span>
             <input
@@ -70,10 +70,10 @@ export function SettingsPage() {
           </label>
           <label className="setting-row">
             <span>
-              Start with Windows
+              {isMac ? 'Start at login' : 'Start with Windows'}
               <small>
                 {data.packaged
-                  ? 'Opens the manager in the tray, plus any profiles marked “Open when Windows starts”.'
+                  ? 'Opens Hatstand in the background, plus your startup profiles.'
                   : 'Available in the installed app.'}
               </small>
             </span>
@@ -284,7 +284,7 @@ export function SettingsPage() {
                       }
                     >
                       <Trash2 size={15} />
-                      Move to Recycle Bin…
+                      Move to {trashName}…
                     </button>
                   </li>
                 ))}

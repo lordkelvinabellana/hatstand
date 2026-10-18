@@ -6,3 +6,7 @@ out/
 .env*
 !.env.example
 coverage/
+
+resources/bin/
+resources/hatstand.icns
+resources/trayTemplate*.png

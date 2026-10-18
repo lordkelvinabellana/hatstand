@@ -6,6 +6,7 @@ import { normalizeAccelerator } from './accelerator.ts';
 export interface Settings {
   theme: 'system' | 'light' | 'dark';
   minimizeToTray: boolean;
+  /** Legacy key retained for compatibility; on macOS this means start at login. */
   startWithWindows: boolean;
   hotkey: string;
   executable: string;

@@ -5,11 +5,8 @@ import path from 'node:path';
 import { launchArguments, launchEnvironment, ownsProcess } from './launch.ts';
 import type { ProcessObservation } from './launch.ts';
 const execute = promisify(execFile);
-export interface Installation {
-  executable: string;
-  version: string;
-  kind: 'MSIX' | 'Squirrel' | 'Manual';
-}
+import type { Installation } from './platform.ts';
+export type { Installation } from './platform.ts';
 async function ps(script: string) {
   const result = await execute(
     'powershell.exe',

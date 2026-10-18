@@ -1,18 +1,25 @@
-// Windows shell integration: login item, desktop shortcuts, jump list and global shortcuts.
-import { app, globalShortcut, shell } from 'electron';
+// Platform shell integration: login items, Dock/jump lists and global shortcuts.
+import { app, globalShortcut, shell, Menu } from 'electron';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { acceleratorKey } from '../core/accelerator.ts';
 import { joinWindowsCommandLine, stableLauncher } from '../core/paths.ts';
 import type { Profile } from '../core/profiles.ts';
+import type { Controller } from '../core/controller.ts';
 import type { Settings } from '../core/settings.ts';
 
 export function launcher() {
-  return stableLauncher(process.execPath, existsSync);
+  return process.platform === 'darwin'
+    ? { target: process.execPath, args: (extra: string[]) => extra, icon: process.execPath }
+    : stableLauncher(process.execPath, existsSync);
 }
 
 export function applyLoginItem(openAtLogin: boolean) {
   if (!app.isPackaged) return;
+  if (process.platform === 'darwin') {
+    app.setLoginItemSettings({ openAtLogin });
+    return;
+  }
   const target = launcher();
   app.setLoginItemSettings({ openAtLogin, path: target.target, args: target.args(['--background']) });
 }
@@ -27,6 +34,8 @@ export function safeFileName(name: string) {
 }
 
 export function createDesktopShortcut(profile: Profile) {
+  if (process.platform !== 'win32')
+    throw new Error('Use the Dock menu or a profile keyboard shortcut on macOS.');
   if (!app.isPackaged) throw new Error('Shortcuts are available in the installed app.');
   const target = launcher();
   const file = path.join(
@@ -106,4 +115,25 @@ export function registerHotkeys(
     if (error) result.profileErrors.set(profile.id, error);
   }
   return result;
+}
+
+export function updateDockMenu(
+  profiles: Profile[],
+  controller: Controller,
+  show: () => void,
+  launch: (id: string) => void,
+) {
+  if (process.platform !== 'darwin') return;
+  app.dock?.setMenu(
+    Menu.buildFromTemplate([
+      { label: 'Open Hatstand', click: show },
+      { type: 'separator' },
+      ...profiles
+        .filter((p) => !p.archived)
+        .map((p) => ({
+          label: `${controller.owned(p.id) ? 'Focus' : 'Launch'} ${p.name}`,
+          click: () => launch(p.id),
+        })),
+    ]),
+  );
 }

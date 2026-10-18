@@ -7,8 +7,8 @@ const paths = await packager({
   ...config.packagerConfig,
   dir: '.',
   out: 'out',
-  platform: 'win32',
-  arch: 'x64',
+  platform: process.platform,
+  arch: process.env.HATSTAND_ARCH ?? (process.platform === 'win32' ? 'x64' : process.arch),
   overwrite: true,
   prune: false,
 });

@@ -22,7 +22,7 @@ function coverage(x, y) {
   return { inTile, inMark };
 }
 
-function render(size) {
+function render(size, template = false) {
   const samples = 4;
   const pixels = Buffer.alloc(size * size * 4);
   for (let y = 0; y < size; y++)
@@ -43,7 +43,8 @@ function render(size) {
       const m = tile ? mark / tile : 0;
       for (let channel = 0; channel < 3; channel++)
         pixels[i + channel] = Math.round(background[channel] * (1 - m) + ink[channel] * m);
-      pixels[i + 3] = Math.round((255 * tile) / total);
+      pixels[i + 3] = Math.round((255 * (template ? mark : tile)) / total);
+      if (template) pixels[i] = pixels[i + 1] = pixels[i + 2] = 0;
     }
   return pixels; // RGBA, top-down
 }
@@ -123,3 +124,26 @@ sizes.forEach((size, index) => {
 await fs.mkdir('resources', { recursive: true });
 await fs.writeFile('resources/hatstand.ico', Buffer.concat([directory, ...images]));
 await fs.writeFile('resources/hatstand.png', png(256, render(256)));
+
+// ICNS PNG representations and monochrome menu bar images share the existing mark.
+const macImages = [
+  ['icp4', 16],
+  ['icp5', 32],
+  ['icp6', 64],
+  ['ic07', 128],
+  ['ic08', 256],
+  ['ic09', 512],
+  ['ic10', 1024],
+].map(([type, size]) => {
+  const data = png(size, render(size));
+  const header = Buffer.alloc(8);
+  header.write(type);
+  header.writeUInt32BE(data.length + 8, 4);
+  return Buffer.concat([header, data]);
+});
+const macHeader = Buffer.alloc(8);
+macHeader.write('icns');
+macHeader.writeUInt32BE(8 + macImages.reduce((sum, image) => sum + image.length, 0), 4);
+await fs.writeFile('resources/hatstand.icns', Buffer.concat([macHeader, ...macImages]));
+await fs.writeFile('resources/trayTemplate.png', png(22, render(22, true)));
+await fs.writeFile('resources/trayTemplate@2x.png', png(44, render(44, true)));

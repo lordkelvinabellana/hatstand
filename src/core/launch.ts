@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { realpathSync } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { assertId } from './profiles.ts';
@@ -90,9 +91,18 @@ export interface ProcessObservation {
   executable: string;
   commandLine: string;
   createdAt: string;
+  platform?: 'darwin';
+  arguments?: string[];
 }
 export function ownsProcess(process: ProcessObservation, executable: string, desktop: string): boolean {
   if (!Number.isSafeInteger(process.pid) || process.pid <= 0 || !process.createdAt) return false;
+  if (process.platform === 'darwin') {
+    if (!sameMacPath(process.executable, executable)) return false;
+    const args = process.arguments?.slice(1);
+    if (!args || args.some((arg) => arg.startsWith('--type='))) return false;
+    const dirs = args.filter((arg) => arg.startsWith('--user-data-dir='));
+    return dirs.length === 1 && sameMacPath(dirs[0].slice('--user-data-dir='.length), desktop);
+  }
   const same = (a: string, b: string) =>
     path.win32.normalize(a).toLowerCase() === path.win32.normalize(b).toLowerCase();
   if (!same(process.executable, executable)) return false;
@@ -104,4 +114,27 @@ export function ownsProcess(process: ProcessObservation, executable: string, des
   } catch {
     return false;
   }
+}
+
+/** Resolve existing aliases without folding case on case-sensitive Mac volumes. */
+export function sameMacPath(a: string, b: string): boolean {
+  const canonical = (value: string) => {
+    try {
+      return realpathSync.native(value);
+    } catch {
+      return path.posix.normalize(value);
+    }
+  };
+  return canonical(a) === canonical(b);
+}
+export function processUsesDirectory(observation: ProcessObservation, desktop: string): boolean {
+  if (observation.platform === 'darwin')
+    return (
+      observation.arguments?.some(
+        (arg) =>
+          arg.startsWith('--user-data-dir=') && sameMacPath(arg.slice('--user-data-dir='.length), desktop),
+      ) ?? false
+    );
+  // Conservatively retain Windows folders if their path appears anywhere in the command line.
+  return observation.commandLine.toLowerCase().includes(path.win32.normalize(desktop).toLowerCase());
 }

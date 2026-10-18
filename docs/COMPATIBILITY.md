@@ -53,3 +53,13 @@ Report results in an issue with the Hatstand, Claude Desktop, and Windows versio
 ## Maintainer tools
 
 `scripts/dev/probe.mjs` launches up to three fresh profiles under `.local/probe/` (ignored by Git) and reports their processes. `scripts/dev/adopt-folder.mjs` attaches such a folder to Hatstand without moving it. Treat those folders as sensitive once you sign in.
+
+## macOS preview evidence (2026-09-22)
+
+Claude Desktop 2.2553.1 on Apple silicon: two simultaneous profile processes and
+separate data directories were observed. The user confirmed different account
+sign-ins, retention after SIGTERM/reopen, and sign-out isolation. The native Mac
+adapter focuses the existing PID without spawning another process. Reboot
+retention, all auth callback methods, Cowork/Code isolation and Intel Claude
+behavior remain unverified. These observations do not change the Windows claims
+above. See [the macOS implementation and verification record](MACOS.md).

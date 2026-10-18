@@ -27,7 +27,15 @@ export function useApp() {
   return value;
 }
 
+export const isMac = navigator.platform.toLowerCase().includes('mac');
+export const trashName = isMac ? 'Trash' : 'Recycle Bin';
 export function formatShortcut(accelerator: string) {
+  if (isMac)
+    return accelerator
+      .replace('CommandOrControl', 'Cmd')
+      .replace('Command', 'Cmd')
+      .replace('Control', 'Ctrl')
+      .replace('Super', 'Cmd');
   return accelerator.replace('CommandOrControl', 'Ctrl').replace('Control', 'Ctrl').replace('Super', 'Win');
 }
 export function formatBytes(bytes: number) {
