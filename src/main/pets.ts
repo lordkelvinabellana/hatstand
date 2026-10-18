@@ -201,6 +201,7 @@ export class Pets {
   }
 
   private play(kind: 'ask' | 'done', species: number) {
+    if (!this.controller.settings.petSounds) return;
     if (Date.now() - this.lastSound < 1500) return;
     this.lastSound = Date.now();
     execFile('/usr/bin/afplay', [path.join(this.sounds, `${kind}-${species}.wav`)], () => {});

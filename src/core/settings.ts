@@ -12,6 +12,10 @@ export interface Settings {
   executable: string;
   /** First-run setup was completed or skipped. */
   setupComplete: boolean;
+  /** macOS: one pet per profile in the menu bar instead of the Hatstand icon. */
+  pets: boolean;
+  /** macOS: pets play a sound when an account needs you or finishes. */
+  petSounds: boolean;
 }
 export const defaults: Settings = {
   theme: 'system',
@@ -20,6 +24,8 @@ export const defaults: Settings = {
   hotkey: 'CommandOrControl+Shift+Space',
   executable: '',
   setupComplete: false,
+  pets: true,
+  petSounds: true,
 };
 /** Missing keys take their defaults so settings files from older versions keep loading. */
 export function validateSettings(input: unknown): Settings {
@@ -30,6 +36,8 @@ export function validateSettings(input: unknown): Settings {
     typeof value.minimizeToTray !== 'boolean' ||
     typeof value.startWithWindows !== 'boolean' ||
     typeof value.setupComplete !== 'boolean' ||
+    typeof value.pets !== 'boolean' ||
+    typeof value.petSounds !== 'boolean' ||
     typeof value.executable !== 'string' ||
     value.executable.length > 1000 ||
     (value.executable !== '' && !path.win32.isAbsolute(value.executable))
@@ -42,6 +50,8 @@ export function validateSettings(input: unknown): Settings {
     hotkey: normalizeAccelerator(value.hotkey),
     executable: value.executable,
     setupComplete: value.setupComplete,
+    pets: value.pets,
+    petSounds: value.petSounds,
   };
 }
 export async function readSettings(root: string): Promise<Settings> {

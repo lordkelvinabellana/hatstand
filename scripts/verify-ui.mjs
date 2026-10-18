@@ -158,6 +158,14 @@ try {
   await page.keyboard.press('Backspace');
   await page.getByRole('button', { name: 'Save preferences', exact: true }).click();
   await page.getByText('Settings saved.', { exact: true }).waitFor();
+  if (mac) {
+    // Pets switch off (the Hatstand icon returns) and back on without a restart.
+    for (const checked of [false, true]) {
+      await page.getByLabel(/Show a pet for each profile/).setChecked(checked);
+      await page.getByRole('button', { name: 'Save preferences', exact: true }).click();
+      await page.getByText('Settings saved.', { exact: true }).last().waitFor();
+    }
+  }
   await page.evaluate(() => window.scrollTo(0, 0));
   await scrubPaths(page);
   await instance.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1120, 780));

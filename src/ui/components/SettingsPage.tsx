@@ -60,6 +60,34 @@ export function SettingsPage() {
             </select>
           </div>
         </section>
+        {isMac && (
+          <section className="setting-section">
+            <h2>Menu-bar pets</h2>
+            <label className="setting-row">
+              <span>
+                Show a pet for each profile
+                <small>Shows when that account’s Claude Code is working, needs you, or is done.</small>
+              </span>
+              <input
+                type="checkbox"
+                checked={settings.pets}
+                onChange={(e) => setSettings({ ...settings, pets: e.target.checked })}
+              />
+            </label>
+            <label className="setting-row">
+              <span>
+                Pet sounds
+                <small>A short jingle in each pet’s own key when an account needs you or finishes.</small>
+              </span>
+              <input
+                type="checkbox"
+                checked={settings.petSounds}
+                disabled={!settings.pets}
+                onChange={(e) => setSettings({ ...settings, petSounds: e.target.checked })}
+              />
+            </label>
+          </section>
+        )}
         <section className="setting-section">
           <h2>Daily workflow</h2>
           <label className="setting-row">
