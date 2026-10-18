@@ -14,8 +14,9 @@ const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'hatstand
 const executable = path.join(root, 'Fixture.app', 'Contents', 'MacOS', 'Claude');
 const installation = { executable, kind: 'macOS', version: 'synthetic' };
 const children = [];
+// Up to 10 s: freshly launched fixture apps can take several seconds on CI's Intel runners.
 async function waitFor(check) {
-  for (let i = 0; i < 40; i++) {
+  for (let i = 0; i < 200; i++) {
     if (await check()) return;
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
