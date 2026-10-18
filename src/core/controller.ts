@@ -1,12 +1,12 @@
 import path from 'node:path';
-import { ownsProcess, profilePaths } from './launch.ts';
+import { ownsProcess, profilePaths, processUsesDirectory } from './launch.ts';
 import type { ProcessObservation } from './launch.ts';
 import { assertId } from './profiles.ts';
 import type { Profile } from './profiles.ts';
 import { defaults } from './settings.ts';
 import type { Settings } from './settings.ts';
 import type { ProfileStore } from './store.ts';
-import type { Installation } from './windows.ts';
+import type { Installation } from './platform.ts';
 
 export type ProfileStatus = 'stopped' | 'starting' | 'running' | 'closing' | 'error' | 'unknown';
 
@@ -93,8 +93,9 @@ export class Controller {
   }
   /** Whether any observed main Claude process uses this Desktop data folder, regardless of executable. */
   usesDirectory(desktop: string): boolean {
-    const target = path.win32.normalize(desktop).toLowerCase();
-    return this.processes.some((p) => p.commandLine.toLowerCase().includes(target));
+    if (this.processError)
+      throw new Error('Could not verify whether Claude is using this folder. Refresh before removing data.');
+    return this.processes.some((p) => processUsesDirectory(p, desktop));
   }
   status(id: string): { status: ProfileStatus; message?: string } {
     if (this.processError) return { status: 'unknown' };
@@ -113,7 +114,7 @@ export class Controller {
       this.installation = null;
       this.installationError =
         (error as Error).message ||
-        'Claude installation could not be located. Choose Claude.exe in Settings.';
+        'Claude installation could not be located. Choose Claude Desktop in Settings.';
     }
     this.detectedAt = this.deps.now();
     return this.installation;
@@ -145,8 +146,7 @@ export class Controller {
       this.processError = '';
     } catch {
       this.processes = [];
-      this.processError =
-        'Could not read Claude process status. Check that Windows PowerShell is available, then refresh.';
+      this.processError = 'Could not read Claude process status. Refresh or restart Hatstand.';
     }
     for (const [id, transition] of this.transitions) {
       const running = !!this.owned(id);
@@ -183,7 +183,9 @@ export class Controller {
       // Rediscover because a Claude update can replace its path.
       const installation = await this.detect(!reuseDetection);
       if (!installation)
-        throw new Error(this.installationError || 'Install Claude Desktop or choose Claude.exe in Settings.');
+        throw new Error(
+          this.installationError || 'Install Claude Desktop or choose Claude Desktop in Settings.',
+        );
       const paths = this.directories(id);
       const focusing = !!this.owned(id);
       await this.deps.ensureDirectory(paths.desktop, paths.trusted);
@@ -258,8 +260,8 @@ export class Controller {
     if (requestError?.message === 'The process changed. Refresh and try again.') throw requestError;
     throw new Error(
       force
-        ? 'Claude is still running. Refresh in a moment; if it remains, end it from Task Manager.'
-        : 'Claude is still running, possibly in its tray. Use File → Exit in that Claude window, or choose Force close if it has no active work.',
+        ? 'Claude is still running. Refresh in a moment; if it remains, end it from your system’s process monitor.'
+        : 'Claude is still running, possibly in its tray. Quit that Claude instance, or choose Force close if it has no active work.',
     );
   }
 

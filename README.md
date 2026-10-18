@@ -7,7 +7,7 @@
 
 **[Website](https://lordkelvinabellana.github.io/hatstand/)** · **[Download](https://github.com/lordkelvinabellana/hatstand/releases/latest)** · **[Compatibility](docs/COMPATIBILITY.md)**
 
-Hatstand is a small, open-source Windows launcher for people who use Claude Desktop with several accounts, such as consultants and agencies working for multiple clients. Create a profile per client, sign in once inside the official Claude app, then launch or focus any client from a list, the tray, a keyboard shortcut, or a desktop shortcut.
+Hatstand is a small, open-source Windows and macOS launcher for people who use Claude Desktop with several accounts, such as consultants and agencies working for multiple clients. Create a profile per client, sign in once inside the official Claude app, then launch or focus any client from a list, the tray, a keyboard shortcut, or a desktop shortcut.
 
 ![Hatstand profile list with three sample clients](docs/images/profiles.png)
 
@@ -32,7 +32,22 @@ Hatstand starts Claude with a separate data folder for each profile by setting `
 - **Metadata export/import**: names, labels, and colors only. Sign-ins never leave your computer.
 - Light, dark, and system themes; keyboard navigation; no telemetry.
 
-## Install
+## macOS preview
+
+macOS support includes a menu bar icon, Dock profile actions, Cmd shortcuts,
+start at login, and `.app`/DMG/ZIP packaging. Two simultaneous accounts, retention
+after quit/reopen, and sign-out isolation were verified with user confirmation on
+Claude Desktop 2.2553.1 on Apple silicon. Reboot retention and Cowork/Code isolation
+remain unverified.
+
+Build locally with Node.js 24+ and Xcode Command Line Tools: `npm ci`, then
+`npm run make`. The app is in `out/Hatstand-darwin-arm64/` (or `x64` on Intel).
+Local previews are not Developer ID signed or notarized. See
+[Mac build, verification and signing instructions](docs/MACOS.md).
+Mac data is stored in `~/Library/Application Support/HatstandData` and survives
+removing the app. The remaining instructions below describe Windows.
+
+## Install (Windows)
 
 1. Install [Claude Desktop for Windows](https://claude.com/download).
 2. Download `Hatstand-<version> Setup.exe` from [Releases](https://github.com/lordkelvinabellana/hatstand/releases) and run it. A ZIP is also available; extract the whole folder before running `Hatstand.exe`.
@@ -89,7 +104,7 @@ Hatstand logs actions with profile IDs only (no names, labels, or paths) and mak
 
 ## Development
 
-Requires Windows x64 and Node.js 24.
+Requires Node.js 24+. Windows packaging requires Windows x64; Mac builds also require Xcode Command Line Tools. See [macOS development](docs/MACOS.md).
 
 ```powershell
 npm ci

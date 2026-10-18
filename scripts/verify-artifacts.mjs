@@ -2,9 +2,13 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { listPackage } from '@electron/asar';
-const entries = listPackage('out/Hatstand-win32-x64/resources/app.asar').map((name) =>
-  name.replaceAll('\\', '/'),
-);
+const arch = process.env.HATSTAND_ARCH ?? (process.platform === 'win32' ? 'x64' : process.arch);
+const resources =
+  process.platform === 'darwin'
+    ? `out/Hatstand-darwin-${arch}/Hatstand.app/Contents/Resources`
+    : `out/Hatstand-win32-${arch}/resources`;
+if (process.platform === 'darwin') await fs.access(path.join(resources, 'hatstand-macos'), fs.constants.X_OK);
+const entries = listPackage(path.join(resources, 'app.asar')).map((name) => name.replaceAll('\\', '/'));
 const allowed = ['/dist', '/resources', '/package.json', '/LICENSE'];
 for (const entry of entries)
   if (!allowed.some((prefix) => entry === prefix || entry.startsWith(prefix + '/')))
@@ -25,6 +29,12 @@ async function walk(folder) {
   return results;
 }
 const artifacts = await walk('out/make');
+if (!artifacts.length) throw new Error('No release artifacts found.');
+if (
+  process.platform === 'darwin' &&
+  (!artifacts.some((file) => file.endsWith('.dmg')) || !artifacts.some((file) => file.endsWith('.zip')))
+)
+  throw new Error('Mac DMG and ZIP are required.');
 const sums = [];
 for (const file of artifacts) {
   const hash = createHash('sha256')

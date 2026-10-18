@@ -1,7 +1,7 @@
 import type { ProfileStatus } from './core/controller.ts';
 import type { Profile } from './core/profiles.ts';
 import type { Settings } from './core/settings.ts';
-import type { Installation } from './core/windows.ts';
+import type { Installation } from './core/platform.ts';
 import type { ReleaseInfo } from './core/project.ts';
 import type { StorageFolder } from './core/storage.ts';
 export type { ProfileStatus };
@@ -15,6 +15,7 @@ export interface ProfileView extends Profile {
   hotkeyError?: string;
 }
 export interface Snapshot {
+  platform: 'darwin' | 'win32';
   profiles: ProfileView[];
   settings: Settings;
   installation: Installation | null;

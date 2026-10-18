@@ -2,14 +2,15 @@
   "name": "hatstand",
   "version": "0.1.0",
   "private": true,
-  "description": "Open-source Windows launcher that keeps each client's Claude Desktop account in its own profile.",
+  "description": "Open-source Windows and macOS launcher that keeps each client\u2019s Claude Desktop account in its own profile.",
   "keywords": [
     "claude",
     "claude-desktop",
     "profiles",
     "windows",
     "electron",
-    "launcher"
+    "launcher",
+    "macos"
   ],
   "homepage": "https://github.com/lordkelvinabellana/hatstand#readme",
   "bugs": {
@@ -36,7 +37,8 @@
     "make": "npm run package && electron-forge make --skip-package",
     "test:ui": "node scripts/verify-ui.mjs",
     "lint": "biome check .",
-    "format": "biome format --write ."
+    "format": "biome format --write .",
+    "test:macos": "node scripts/verify-macos.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",

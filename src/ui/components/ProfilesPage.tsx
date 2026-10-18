@@ -151,7 +151,7 @@ export const ProfilesPage = forwardRef<HTMLInputElement, Props>(function Profile
                     fire('launch', { id: visible[0].id });
                 }}
               />
-              <kbd>Ctrl K</kbd>
+              <kbd>{data.platform === 'darwin' ? '⌘ K' : 'Ctrl K'}</kbd>
             </label>
             {selectedVisible.length > 0 ? (
               <span className="selection-actions">
@@ -359,15 +359,19 @@ export const ProfilesPage = forwardRef<HTMLInputElement, Props>(function Profile
                                 Open work folder
                               </button>
                             )}
-                            <button
-                              type="button"
-                              role="menuitem"
-                              disabled={!data.packaged}
-                              title={data.packaged ? undefined : 'Available in the installed app'}
-                              onClick={() => act('shortcut', { id: profile.id }, 'Desktop shortcut created.')}
-                            >
-                              Create desktop shortcut
-                            </button>
+                            {data.platform === 'win32' && (
+                              <button
+                                type="button"
+                                role="menuitem"
+                                disabled={!data.packaged}
+                                title={data.packaged ? undefined : 'Available in the installed app'}
+                                onClick={() =>
+                                  act('shortcut', { id: profile.id }, 'Desktop shortcut created.')
+                                }
+                              >
+                                Create desktop shortcut
+                              </button>
+                            )}
                             <button type="button" role="menuitem" onClick={() => move(profile, -1)}>
                               <ArrowUp size={14} />
                               Move up

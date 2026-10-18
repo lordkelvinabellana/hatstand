@@ -92,16 +92,16 @@ export interface Launcher {
  * Squirrel's own Update.exe --processStart always starts the current version.
  */
 export function stableLauncher(execPath: string, existsSync: (file: string) => boolean): Launcher {
-  const appFolder = path.dirname(execPath);
-  const installRoot = path.dirname(appFolder);
-  const update = path.join(installRoot, 'Update.exe');
-  if (/^app-\d/i.test(path.basename(appFolder)) && existsSync(update)) {
-    const icon = path.join(installRoot, 'app.ico');
+  const appFolder = path.win32.dirname(execPath);
+  const installRoot = path.win32.dirname(appFolder);
+  const update = path.win32.join(installRoot, 'Update.exe');
+  if (/^app-\d/i.test(path.win32.basename(appFolder)) && existsSync(update)) {
+    const icon = path.win32.join(installRoot, 'app.ico');
     return {
       target: update,
       args: (extra) => [
         '--processStart',
-        path.basename(execPath),
+        path.win32.basename(execPath),
         ...(extra.length ? ['--process-start-args', joinWindowsCommandLine(extra)] : []),
       ],
       icon: existsSync(icon) ? icon : execPath,

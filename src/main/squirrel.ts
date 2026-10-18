@@ -9,6 +9,7 @@ import { applyLoginItem } from './integration.ts';
  * `--squirrel-firstrun` is the normal launch right after install and is not handled here.
  */
 export function handleSquirrelEvent(): boolean {
+  if (process.platform !== 'win32') return false;
   const event = process.argv.find((arg) => arg.startsWith('--squirrel-'));
   if (!event || event === '--squirrel-firstrun') return false;
   const finish = () => app.quit();

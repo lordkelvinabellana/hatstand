@@ -1,5 +1,5 @@
 import type React from 'react';
-import { formatShortcut } from '../api.ts';
+import { formatShortcut, isMac } from '../api.ts';
 
 const named: Record<string, string> = {
   Space: 'Space',
@@ -62,10 +62,11 @@ export function ShortcutInput(props: {
     const key = keyName(event.code);
     if (!key) return; // A modifier on its own: wait for the rest of the combination.
     const modifiers = [
-      event.ctrlKey && 'CommandOrControl',
+      event.metaKey && isMac && 'Command',
+      event.ctrlKey && (isMac ? 'Control' : 'CommandOrControl'),
       event.altKey && 'Alt',
       event.shiftKey && 'Shift',
-      event.metaKey && 'Super',
+      event.metaKey && !isMac && 'Super',
     ].filter(Boolean);
     props.onChange([...modifiers, key].join('+'));
   }

@@ -4,7 +4,7 @@ import type { BrowserWindow } from 'electron';
 import * as fs from 'node:fs/promises';
 import os from 'node:os';
 import { acceleratorKey } from '../core/accelerator.ts';
-import { compatibilityChecks, isTestedVersion } from '../core/compat.ts';
+import { checksFor, isTestedVersion } from '../core/compat.ts';
 import type { Controller } from '../core/controller.ts';
 import { assertId, exportMetadata, isRecord, parseImport, validateInput } from '../core/profiles.ts';
 import type { ProfileInput } from '../core/profiles.ts';
@@ -12,7 +12,10 @@ import { isNewerVersion, issuesUrl, parseLatestRelease, releasesUrl, repository 
 import { saveSettings, validateSettings } from '../core/settings.ts';
 import { listProfileFolders, resolveRemovableFolder } from '../core/storage.ts';
 import type { ProfileStore } from '../core/store.ts';
-import { detectInstallation } from '../core/windows.ts';
+import { platformFor } from '../core/platform.ts';
+const { detectInstallation } = platformFor(process.platform);
+const mac = process.platform === 'darwin';
+const trash = mac ? 'Trash' : 'Recycle Bin';
 import type { Snapshot, UpdateCheck } from '../shared.ts';
 import { applyLoginItem, createDesktopShortcut } from './integration.ts';
 
@@ -48,6 +51,7 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
     const state = await store.load();
     const hotkeys = context.hotkeyErrors();
     return {
+      platform: mac ? 'darwin' : 'win32',
       profiles: state.profiles.map((p) => {
         const directories = controller.directories(p.id);
         return {
@@ -88,7 +92,7 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
       appVersion: app.getVersion(),
       platform: process.platform,
       architecture: process.arch,
-      windowsRelease: os.release(),
+      osRelease: os.release(),
       claudeVersion: controller.installation?.version ?? null,
       claudeVersionTested: isTestedVersion(controller.installation?.version),
       installType: controller.installation?.kind ?? null,
@@ -97,7 +101,9 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
       runningProfileCount: controller.runningCount(profiles),
       attachedFolderCount: profiles.filter((p) => controller.directories(p.id).bound).length,
       statusReadable: !controller.processError,
-      compatibility: Object.fromEntries(compatibilityChecks.map((check) => [check.key, check.result])),
+      compatibility: Object.fromEntries(
+        checksFor(process.platform).map((check) => [check.key, check.result]),
+      ),
     };
   }
 
@@ -106,7 +112,7 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
       await shell.trashItem(folder);
     } catch {
       throw new Error(
-        `Windows could not move ${folder} to the Recycle Bin. Nothing was deleted. Close any program using it, or remove it manually.`,
+        `Could not move ${folder} to the ${trash}. Nothing was deleted. Close any program using it, or remove it manually.`,
       );
     }
   }
@@ -157,7 +163,7 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
           : `By default its Claude data stays on this computer. This does not delete the Claude account or cloud conversations.\n\n${directories.base}`,
         checkboxLabel: directories.bound
           ? undefined
-          : 'Also move this profile’s local Claude data to the Recycle Bin',
+          : `Also move this profile’s local Claude data to the ${trash}`,
       });
       if (result.response !== 1) return;
       if (result.checkboxChecked && !directories.bound) {
@@ -200,7 +206,7 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
         defaultId: 0,
         cancelId: 0,
         message: 'Force close this client’s Claude instance?',
-        detail: 'An active task may be interrupted. This targets only the selected profile’s process tree.',
+        detail: 'An active task may be interrupted. This targets only the selected profile’s Claude process.',
       });
       if (answer.response === 1) await controller.close(id, true);
     },
@@ -221,7 +227,7 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
       const failures = await controller.closeAll();
       if (failures.length)
         throw new Error(
-          `${failures.length} profile${failures.length === 1 ? '' : 's'} stayed open, possibly in Claude’s tray. Use File → Exit in those windows.`,
+          `${failures.length} profile${failures.length === 1 ? '' : 's'} stayed open, possibly in Claude’s tray. Quit those Claude instances and try again.`,
         );
     },
     async openFolder(payload) {
@@ -253,7 +259,9 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
       const result = await dialog.showOpenDialog(context.window(), {
         title: 'Choose installed Claude Desktop',
         properties: ['openFile'],
-        filters: [{ name: 'Claude executable', extensions: ['exe'] }],
+        filters: [
+          { name: mac ? 'Claude application' : 'Claude executable', extensions: [mac ? 'app' : 'exe'] },
+        ],
       });
       if (result.canceled) return null;
       await detectInstallation(result.filePaths[0]);
@@ -263,7 +271,7 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
       const next = validateSettings(payload);
       if (next.executable) await detectInstallation(next.executable);
       if (next.startWithWindows && !app.isPackaged)
-        throw new Error('Start with Windows is available in the installed app.');
+        throw new Error('Start at login is available in the installed app.');
       if (next.hotkey) {
         const key = acceleratorKey(next.hotkey);
         const clash = (await store.load()).profiles.find((p) => p.hotkey && acceleratorKey(p.hotkey) === key);
@@ -333,11 +341,11 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
         throw new Error('A Claude window is still using this folder. Close it first.');
       const answer = await dialog.showMessageBox(context.window(), {
         type: 'warning',
-        buttons: ['Cancel', 'Move to Recycle Bin'],
+        buttons: ['Cancel', `Move to ${trash}`],
         defaultId: 0,
         cancelId: 0,
-        message: 'Move this leftover Claude data to the Recycle Bin?',
-        detail: `${folder}\n\nIt may contain a signed-in session. You can restore it from the Recycle Bin until it is emptied.`,
+        message: `Move this leftover Claude data to the ${trash}?`,
+        detail: `${folder}\n\nIt may contain a signed-in session. You can restore it from the ${trash} until it is emptied.`,
       });
       if (answer.response !== 1) return false;
       await moveToRecycleBin(folder);

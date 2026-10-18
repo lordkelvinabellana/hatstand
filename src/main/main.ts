@@ -9,9 +9,12 @@ import { dataRoot, legacyDataRoot, migrateLegacyData } from '../core/paths.ts';
 import { findProfileByArgument, isRecord } from '../core/profiles.ts';
 import { readBindings, readSettings } from '../core/settings.ts';
 import { ProfileStore } from '../core/store.ts';
-import { closeOwnedProcess, detectInstallation, launchClaude, listClaudeProcesses } from '../core/windows.ts';
+import { platformFor } from '../core/platform.ts';
+const { closeOwnedProcess, detectInstallation, launchClaude, listClaudeProcesses } = platformFor(
+  process.platform,
+);
 import { createHandlers } from './handlers.ts';
-import { applyLoginItem, registerHotkeys, updateJumpList } from './integration.ts';
+import { applyLoginItem, registerHotkeys, updateJumpList, updateDockMenu } from './integration.ts';
 import type { HotkeyResult } from './integration.ts';
 import { handleSquirrelEvent } from './squirrel.ts';
 import { createTray, updateTray } from './tray.ts';
@@ -21,7 +24,7 @@ const localAppData = process.env.LOCALAPPDATA ?? path.join(app.getPath('appData'
 const root =
   testMode && process.env.HATSTAND_TEST_ROOT
     ? path.resolve(process.env.HATSTAND_TEST_ROOT)
-    : dataRoot(localAppData);
+    : dataRoot(process.platform === 'darwin' ? app.getPath('appData') : localAppData);
 app.setPath('userData', path.join(root, 'manager'));
 const html = path.join(__dirname, 'index.html');
 const store = new ProfileStore(root);
@@ -95,6 +98,7 @@ async function syncShell() {
         app.quit();
       },
     });
+  updateDockMenu(profiles, controller, show, launchFromShell);
   notify();
 }
 async function profilesChanged() {
@@ -142,14 +146,14 @@ function schedulePolling() {
 }
 
 async function start() {
-  if (!testMode) await migrateLegacyData(legacyDataRoot(localAppData), root);
+  if (!testMode && process.platform === 'win32') await migrateLegacyData(legacyDataRoot(localAppData), root);
   await fs.mkdir(root, { recursive: true });
   controller.settings = await readSettings(root);
   controller.bindings = await readBindings(root);
   const profiles = (await store.load()).profiles;
   nativeTheme.themeSource = controller.settings.theme;
   await controller.detect();
-  app.setAppUserModelId('com.squirrel.Hatstand.Hatstand');
+  if (process.platform === 'win32') app.setAppUserModelId('com.squirrel.Hatstand.Hatstand');
   // Re-applying keeps the login item pointed at the current launcher after updates.
   if (controller.settings.startWithWindows) applyLoginItem(true);
 
@@ -160,7 +164,12 @@ async function start() {
     minHeight: 580,
     show: false,
     title: 'Hatstand',
-    icon: path.join(__dirname, '..', 'resources', 'hatstand.ico'),
+    icon: path.join(
+      __dirname,
+      '..',
+      'resources',
+      process.platform === 'darwin' ? 'hatstand.png' : 'hatstand.ico',
+    ),
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#1c2320' : '#f7f7f2',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -169,7 +178,17 @@ async function start() {
       nodeIntegration: false,
     },
   });
-  Menu.setApplicationMenu(null);
+  Menu.setApplicationMenu(
+    process.platform === 'darwin'
+      ? Menu.buildFromTemplate([
+          { role: 'appMenu' },
+          { role: 'fileMenu' },
+          { role: 'editMenu' },
+          { role: 'viewMenu' },
+          { role: 'windowMenu' },
+        ])
+      : null,
+  );
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   window.webContents.on('will-navigate', (event) => event.preventDefault());
   window.on('close', (event) => {
@@ -209,7 +228,9 @@ async function start() {
   hotkeys = registerHotkeys(controller.settings, profiles, show, launchFromShell);
   updateJumpList(profiles);
   await controller.refresh();
-  const background = process.argv.includes('--background');
+  const background =
+    process.argv.includes('--background') ||
+    (process.platform === 'darwin' && app.getLoginItemSettings().wasOpenedAtLogin);
   if (!background) show();
   if (background && profiles.some((p) => p.openAtStartup && !p.archived))
     void launchStartupGroup().catch(reportError);
@@ -224,6 +245,7 @@ if (!handleSquirrelEvent()) {
       if (args.some((arg) => arg.startsWith('--profile='))) void launchArgument(args);
       else show();
     });
+    app.on('activate', show);
     app.on('will-quit', () => globalShortcut.unregisterAll());
     app.on('before-quit', () => {
       quitting = true;

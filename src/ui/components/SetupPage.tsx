@@ -83,7 +83,7 @@ export function SetupPage() {
                         .catch(() => {})
                     }
                   >
-                    Choose Claude.exe…
+                    Choose {data.platform === 'darwin' ? 'Claude.app' : 'Claude.exe'}…
                   </button>
                   <button
                     type="button"
@@ -120,7 +120,7 @@ export function SetupPage() {
                 <strong>Separate:</strong> each client’s Claude sign-in, chats, and Desktop settings.
               </li>
               <li>
-                <strong>Shared:</strong> your Windows account, files, clipboard, and local services. This
+                <strong>Shared:</strong> your computer account, files, clipboard, and local services. This
                 isn’t a security sandbox.
               </li>
               <li>

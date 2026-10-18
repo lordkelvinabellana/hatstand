@@ -1,6 +1,7 @@
 import { build } from 'esbuild';
 import fs from 'node:fs/promises';
 import './make-icon.mjs';
+import './build-macos.mjs';
 await fs.mkdir('dist', { recursive: true });
 await Promise.all([
   build({

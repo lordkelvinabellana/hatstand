@@ -156,3 +156,9 @@ test('close all reports profiles that stayed open and closes the rest', async (t
   assert.deepEqual(await controller.closeAll(), []);
   assert.equal(controller.runningCount((await store.load()).profiles), 0);
 });
+
+test('unknown process status prevents treating a profile folder as unused', async (t) => {
+  const { controller } = await harness(t);
+  controller.processError = 'Process scan failed';
+  assert.throws(() => controller.usesDirectory('/profile/desktop'), /Could not verify/);
+});

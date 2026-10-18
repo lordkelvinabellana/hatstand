@@ -1,74 +1,155 @@
-# Plan: Hatstand for macOS
+# Hatstand for macOS
 
-**Status:** planned, not started. Nothing on this page has been tested on a Mac yet.
+**Status:** implemented as an Electron Mac desktop app, sharing the React UI and
+profile lifecycle with Windows. Local Apple silicon verification is recorded
+below. Public distribution still requires signing/notarization and the remaining
+manual checks. This is not a SwiftUI rewrite.
 
-Claude Desktop for macOS is also an Electron app, so the Windows approach (a separate user data folder per profile) will probably carry over. Most of Hatstand is already platform-neutral: the React UI, profile store, validation, and the launch/close lifecycle in `Controller`. The Windows-specific parts sit behind a few functions in `src/core/windows.ts` and `src/main/`.
+## Feasibility evidence — 2026-09-22
 
-## Step 1: feasibility spike (before any product work)
+Using the unmodified Claude Desktop **2.2553.1** in `/Applications/Claude.app`:
 
-On a Mac with Claude Desktop installed, using throwaway test accounts:
+- Two fresh profiles launched simultaneously with different
+  `CLAUDE_USER_DATA_DIR`, `CLAUDE_CONFIG_DIR`, and `--user-data-dir` values.
+  Separate main processes and separate Desktop data directories were observed.
+- The user signed into different accounts and confirmed both worked concurrently.
+- Both test main processes were gracefully stopped with SIGTERM and restarted
+  with their original folders. The user confirmed both retained their accounts.
+- The user confirmed signing out of one profile left the other signed in.
+- A repeated executable launch left an extra process alive instead of reliably
+  focusing. The adapter therefore focuses the existing PID through
+  `NSRunningApplication` plus a PID-addressed Dock-style reopen event (so closing
+  the window does not leave Focus unable to restore it). Focus requests succeeded for both original processes
+  without increasing the number of main profile processes.
 
-| Question | How to check |
-|---|---|
-| Does `CLAUDE_USER_DATA_DIR` / `--user-data-dir` give a separate profile? | Start `/Applications/Claude.app/Contents/MacOS/Claude --user-data-dir=/tmp/hs-a` directly, with the environment variable set |
-| Can two or three profiles run at once? | Start a second profile the same way; confirm separate windows and processes |
-| Does focusing work? | Start the same profile again; the existing window should come forward and the new process exit |
-| Do sign-ins stay separate and persist? | Sign into different accounts, quit, reopen, reboot |
-| Is anything shared through the Keychain? | Watch for Keychain prompts; check whether signing out in one profile affects another |
-| Do sign-in links return to the right window? | Test email and Google sign-in; the `claude://` URL handler is registered once per app bundle |
-| What do Cowork and Code do? | Same checks as the Windows checklist in [COMPATIBILITY.md](COMPATIBILITY.md) |
+Test profile paths and PIDs are in ignored `.local/macos-feasibility.json` on the
+test machine only. No account identifiers or session contents are stored in Git.
+The test directories are retained outside the default Claude data directory.
 
-If separate profiles don't work, stop and record the findings. Don't work around it by copying app bundles or modifying Claude.
+Still unverified: retention after reboot, authentication callback routing across
+all sign-in methods, Keychain behavior beyond the observed sign-out check,
+Cowork/Code execution and separation, and Intel hardware compatibility with
+Claude. Separate profiles are not a filesystem or security sandbox.
 
-## Step 2: platform adapter
+## Implementation
 
-Move the OS-specific functions behind one interface so the controller and UI stay shared:
+- `src/core/platform.ts` selects the Windows or macOS adapter. The Windows
+  PowerShell/MSIX/Squirrel implementation is retained.
+- macOS discovery checks `/Applications`, `~/Applications`, and Spotlight by
+  bundle identifier. Manual selection accepts a Claude `.app` or its executable;
+  the bundle identifier, executable name, executable access and version are checked.
+- Claude launches directly, with sanitized environment variables and distinct
+  Desktop/Code folders. Existing profiles receive a PID-addressed reopen event
+  and are activated instead of spawned again.
+- `native/macos.swift` is a small helper, compiled by Xcode Command Line Tools.
+  It reads exact argv boundaries using `KERN_PROCARGS2` and process identities
+  using `proc_pidinfo`/`proc_pidpath`. `ps` output flattens arguments and cannot
+  distinguish paths with spaces safely. No process environment is emitted.
+- Close and Force close revalidate the PID, microsecond start time, executable
+  and exact data-folder argument inside the helper before SIGTERM/SIGKILL.
+  They target the profile's main process, never all processes named Claude.
+  Unreadable live Claude arguments cause an error rather than a stopped status.
+- Data lives at `~/Library/Application Support/HatstandData`, outside the app
+  bundle. Existing symlink protections and metadata-only exports remain intact.
+- The menu bar uses a template icon; the Dock menu offers Launch/Focus per client.
+  The application menu supplies standard editing and Quit commands, and clicking
+  the Dock icon reopens a hidden manager.
+- Start at login uses Electron's macOS login item API; startup detection uses
+  `wasOpenedAtLogin`. The legacy `startWithWindows` settings key is retained for
+  backward compatibility and labeled “Start at login” on Mac.
+- Cmd shortcuts are distinct from Control shortcuts, with collision detection
+  for Command, Super and CommandOrControl. Desktop `.lnk` creation remains
+  Windows-only; Mac users have Dock, menu bar and keyboard actions.
 
-```ts
-interface Platform {
-  detectInstallation(override: string): Promise<Installation | null>;
-  listProcesses(): Promise<ProcessObservation[]>;
-  launch(installation: Installation, desktop: string, code: string): Promise<number>;
-  close(installation: Installation, desktop: string, process: ProcessObservation, force: boolean): Promise<void>;
-  samePath(a: string, b: string): boolean;
-  stableLauncher(execPath: string): Launcher;
-}
+## Build and test
+
+Requires Node.js **24+**, macOS **13+**, and Xcode Command Line Tools (`xcode-select --install`).
+
+```sh
+npm ci
+npm run lint
+npm run typecheck
+npm test
+npm run build
+npm run test:macos
+npm run test:ui
+npm run make
+node scripts/verify-artifacts.mjs
 ```
 
-| Concern | Windows (today) | macOS (planned) |
-|---|---|---|
-| Find Claude | `Get-AppxPackage`, Squirrel `app-*` folders | `/Applications/Claude.app`, `~/Applications`, or via `mdfind` by bundle ID; version from `Info.plist` |
-| Start a profile | Spawn `Claude.exe` with arguments | Spawn `Claude.app/Contents/MacOS/Claude` directly. `open -n` loses control over the process and environment |
-| List processes | PowerShell + CIM | `ps -axww -o pid=,lstart=,command=` |
-| Close | `taskkill` (plus `/T /F`) | `SIGTERM`, then `SIGKILL` for Force close |
-| Path comparison | Case-insensitive | Case-sensitive by default; compare realpaths |
-| Data folder | `%LOCALAPPDATA%\HatstandData` | `~/Library/Application Support/HatstandData` |
-| Link safety | Junctions and symlinks | Symlinks (`lstat`); same `ensurePlainDirectory` rules |
-| Tray | Notification area | Menu bar icon (template image) |
-| Jump list | Taskbar jump list | Dock menu (`app.dock.setMenu`) |
-| Start at login | Login item via `Update.exe` | `app.setLoginItemSettings` (uses SMAppService on macOS 13+) |
-| Shortcuts | `.lnk` desktop shortcuts | Skip, or offer Shortcuts/Automator actions calling `hatstand://open?profile=` |
-| Shortcut keys | `CommandOrControl` means Ctrl | Means Cmd; the key recorder must use `metaKey` |
+`test:macos` compiles disposable synthetic processes and checks exact arguments,
+identity rejection, graceful/force close, and sibling isolation. `test:ui` uses
+temporary synthetic profiles; neither test starts Claude. `npm start` uses your
+real Hatstand data folder.
 
-## Step 3: packaging and release
+Outputs on Apple silicon:
 
-- Electron Forge makers: `@electron-forge/maker-dmg` and `maker-zip` for `darwin` (universal, or separate arm64 and x64 builds).
-- **Code signing and notarization are required.** Unsigned apps are blocked by Gatekeeper by default. This needs an Apple Developer Program membership, a Developer ID Application certificate, and `notarytool` credentials stored as GitHub secrets.
-- Updates: on-demand checks work as they do today. Automatic updates need signed builds and `update.electronjs.org` or a similar service.
-- CI: add a `macos-latest` job running lint, typecheck, unit tests, and the UI tests. The UI tests never start Claude, so they run on macOS as they are.
+- `out/Hatstand-darwin-arm64/Hatstand.app`
+- `out/make/Hatstand-0.1.0-arm64.dmg`
+- `out/make/zip/darwin/arm64/` (ZIP)
+- `out/make/SHA256SUMS.txt` after artifact verification
 
-## Step 4: verification before release
+Intel builds use `x64`. Build on the target architecture, or set
+`HATSTAND_ARCH=x64` for compilation/packaging and pass `--arch=x64` to Forge make.
+The helper and Electron must have matching architectures. CI uses separate
+Apple silicon and Intel runners; the Windows workflow remains in place.
 
-- Repeat the full compatibility checklist on the current Claude for macOS, on Apple silicon and (if still supported) Intel.
-- Check accessibility with VoiceOver and keyboard-only use.
-- Test install from DMG, first launch through Gatekeeper, update, and removal. Confirm the data folder survives removing the app.
+The DMG maker uses Apple's `hdiutil`, with an Applications link for drag-to-install.
+The standard Forge DMG maker was avoided because its dependency chain brought in
+an unpatched image-size vulnerability. ZIPs use the standard Forge ZIP maker.
+No additional packaging dependencies were introduced.
 
-## Rough effort
+## Signing and distribution
 
-| Work | Size |
-|---|---|
-| Feasibility spike | 1–2 days on a Mac |
-| Platform adapter refactor (Windows behavior unchanged, tests kept green) | 2–3 days |
-| macOS adapter, tray/Dock/login item, shortcut keys | 3–5 days |
-| Signing, notarization, DMG, CI | 2–3 days, plus Apple account setup |
-| Manual verification and docs | 2 days |
+Local and ordinary CI artifacts are **unsigned development previews** (any
+ad-hoc signature is not a Developer ID signature). They are not notarized releases.
+Do not advertise them as ready for Gatekeeper distribution.
+
+Install a Developer ID Application certificate in your build machine's Keychain,
+then store notarization credentials using `xcrun notarytool store-credentials`.
+No credentials belong in this repository. To produce a signed, notarized app:
+
+```sh
+HATSTAND_SIGN=1 \
+APPLE_SIGNING_IDENTITY='Developer ID Application: Your Name (TEAMID)' \
+APPLE_NOTARY_PROFILE='hatstand-notary' \
+npm run make
+```
+
+The build fails when signing is requested without both settings. Forge signs the
+app and native helper with hardened runtime and JIT entitlements, submits to
+Apple, and staples the app ticket before DMG/ZIP creation. This path is configured
+but must be verified with the maintainer's Apple credentials. If running it in CI,
+import the certificate and notarization credentials from GitHub secrets into a
+temporary Keychain on a trusted release job; never expose those secrets to pull
+requests. Ordinary CI deliberately makes unsigned artifacts and does not publish.
+
+See [Electron Forge signing documentation](https://www.electronforge.io/guides/code-signing/code-signing-macos).
+The update check still links to GitHub releases; automatic updates are not added.
+
+## Local verification result
+
+On the Apple silicon development Mac:
+
+- Lint, TypeScript checks and all **50 unit tests** passed, including the existing
+  Windows lifecycle, Squirrel launcher and command-line tests.
+- Native synthetic process checks and the Electron UI suite passed. A Cocoa
+  regression fixture also verifies reopening closed/hidden windows in front,
+  preserving the PID and leaving the other profile untouched.
+- The packaged `.app` launched, found Claude, used the correct data folder, and
+  successfully ran its bundled native helper.
+- DMG and ZIP generation and package allowlist/checksum verification passed.
+- `npm audit --audit-level=high` reported no vulnerabilities.
+
+Windows and Intel CI jobs are configured but were not run from this Mac. Signing,
+notarization and actual login/reboot behavior still require the release checks.
+
+## Before a public release
+
+- Verify the signed artifact with Gatekeeper on a different Mac, including install
+  from DMG, update and removal. Confirm removing the app preserves profile data.
+- Test menu bar appearance in light/dark modes, Dock focus, start-at-login and
+  startup profiles through an actual logout/login.
+- Repeat account retention after reboot and test authentication link routing.
+- Test Cowork/Code separately and repeat the compatibility checklist on Intel.
+- Check VoiceOver and keyboard-only operation.

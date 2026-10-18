@@ -13,10 +13,18 @@ export interface TrayActions {
 
 export function createTray(onClick: () => void): Tray {
   // The .ico carries 16–256 px images, so Windows picks a sharp size for the current DPI.
-  const icon = nativeImage.createFromPath(path.join(__dirname, '..', 'resources', 'hatstand.ico'));
+  const icon = nativeImage.createFromPath(
+    path.join(
+      __dirname,
+      '..',
+      'resources',
+      process.platform === 'darwin' ? 'trayTemplate.png' : 'hatstand.ico',
+    ),
+  );
+  if (process.platform === 'darwin') icon.setTemplateImage(true);
   const tray = new Tray(icon);
   tray.setToolTip('Hatstand');
-  tray.on('click', onClick);
+  if (process.platform === 'win32') tray.on('click', onClick);
   return tray;
 }
 

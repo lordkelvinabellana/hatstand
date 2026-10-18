@@ -33,3 +33,7 @@ Sign `Hatstand.exe` before packaging, and `Setup.exe` after `electron-forge make
 ## Artifact contents
 
 `scripts/verify-artifacts.mjs` fails the build if `app.asar` contains anything outside `dist/`, `resources/`, `package.json`, and `LICENSE`. No profile data, `.local/` contents, or source maps are packaged.
+
+## macOS
+
+See [macOS signing and distribution](MACOS.md#signing-and-distribution). Mac CI creates unsigned DMG and ZIP previews for arm64 and x64; it does not publish a release. A public Mac release requires Developer ID signing, notarization, Gatekeeper validation, and the manual checks listed there.

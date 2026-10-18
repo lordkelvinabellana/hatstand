@@ -14,7 +14,7 @@ export interface Profile {
   hotkey: string;
   /** Optional client work folder. Convenience only: it does not restrict Claude's file access. */
   workFolder: string;
-  /** Open this profile when Hatstand starts with Windows. */
+  /** Open this profile when Hatstand starts at login. */
   openAtStartup: boolean;
   archived: boolean;
   createdAt: string;

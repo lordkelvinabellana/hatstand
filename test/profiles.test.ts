@@ -48,7 +48,10 @@ test('accelerators are normalized and unsafe ones rejected', () => {
   assert.equal(normalizeAccelerator('F9'), 'F9');
   for (const bad of ['A', 'Shift+A', 'Ctrl+Ctrl+A', 'Ctrl+Nope', 'Hyper+A', 'Ctrl+', 'x'.repeat(81)])
     assert.throws(() => normalizeAccelerator(bad), bad);
-  assert.equal(acceleratorKey('CommandOrControl+Shift+K'), acceleratorKey('Shift+Control+K'));
+  assert.equal(
+    acceleratorKey('CommandOrControl+Shift+K', 'win32'),
+    acceleratorKey('Shift+Control+K', 'win32'),
+  );
 });
 
 test('two profiles cannot share a shortcut', () => {
