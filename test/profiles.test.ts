@@ -95,6 +95,9 @@ test('settings from older versions gain new defaults; invalid values are rejecte
   const settings = await readSettings(root);
   assert.equal(settings.theme, 'dark');
   assert.equal(settings.setupComplete, false);
+  assert.equal(settings.pets, true);
+  assert.equal(settings.petSounds, true);
+  assert.throws(() => validateSettings({ ...defaults, pets: 'yes' }));
   assert.throws(() => validateSettings({ ...defaults, executable: 'relative\\Claude.exe' }));
   assert.throws(() => validateSettings({ ...defaults, hotkey: 'A' }));
 });

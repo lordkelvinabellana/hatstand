@@ -64,6 +64,7 @@ it is also the client's picture in Hatstand.
 | A green **✓**, plus a sound | The whole task is finished: every step of its task list and every background task |
 
 Each pet plays its jingle in its own key, so you can tell by ear which account wants you.
+Settings → Menu-bar pets turns the sounds off, or the pets themselves (the Hatstand icon comes back).
 Claude's own menu bar icon can be turned off per account in Claude's Settings → General.
 
 <img src="docs/images/panel.png" width="340" alt="A pet's panel listing three sessions: one asking a question with its task list and token usage, one working, one done">

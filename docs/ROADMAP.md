@@ -30,7 +30,6 @@ Priorities can change based on compatibility findings and feedback. Open an issu
 A macOS preview is in progress, including menu-bar pets that show each account's Claude Code sessions (task indicators from Claude Code hooks, never inferred from process state). Details and remaining work are in [MACOS.md](MACOS.md).
 
 - Pets on Windows (the tray hides most icons, so this needs its own design).
-- A setting to turn pets and their sounds off.
 
 ## Done in 0.1.0
 

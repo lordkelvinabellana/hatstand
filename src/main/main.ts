@@ -114,6 +114,15 @@ const trayActions: TrayActions = {
 
 async function syncShell() {
   const profiles = (await store.load()).profiles;
+  // Pets can be switched on and off in Settings; the hook files they read stay in place.
+  if (process.platform === 'darwin' && controller.settings.pets && !pets) {
+    pets = new Pets(root, controller, (id, session) => void openSession(id, session));
+    await pets.start().catch(() => {});
+  } else if (pets && !controller.settings.pets) {
+    pets.dispose();
+    pets = undefined;
+    if (!tray) tray = createTray(show);
+  }
   if (pets) {
     await pets.update(profiles, trayMenu(profiles, controller, trayActions));
     // The pets carry the Hatstand menu; the hat comes back only when there are no profiles.
@@ -248,10 +257,7 @@ async function start() {
       return { ok: false, error: (error as Error).message || 'The operation failed. Try again.' };
     }
   });
-  if (process.platform === 'darwin') {
-    pets = new Pets(root, controller, (id, session) => void openSession(id, session));
-    await pets.start().catch(() => {});
-  } else tray = createTray(show);
+  if (process.platform !== 'darwin' || !controller.settings.pets) tray = createTray(show);
   await window.loadFile(html);
   hotkeys = registerHotkeys(controller.settings, profiles, show, launchFromShell);
   updateJumpList(profiles);
