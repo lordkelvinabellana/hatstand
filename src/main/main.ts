@@ -17,7 +17,8 @@ import { createHandlers } from './handlers.ts';
 import { applyLoginItem, registerHotkeys, updateJumpList, updateDockMenu } from './integration.ts';
 import type { HotkeyResult } from './integration.ts';
 import { handleSquirrelEvent } from './squirrel.ts';
-import { createTray, updateTray } from './tray.ts';
+import { Pets } from './pets.ts';
+import { createTray, type TrayActions, trayMenu, updateTray } from './tray.ts';
 
 const testMode = process.env.HATSTAND_TEST_MODE === '1' && !app.isPackaged;
 const localAppData = process.env.LOCALAPPDATA ?? path.join(app.getPath('appData'), '..', 'Local');
@@ -30,6 +31,7 @@ const html = path.join(__dirname, 'index.html');
 const store = new ProfileStore(root);
 let window: BrowserWindow | undefined;
 let tray: Tray | undefined;
+let pets: Pets | undefined;
 let quitting = false;
 let hotkeys: HotkeyResult = { managerError: '', profileErrors: new Map() };
 
@@ -82,22 +84,31 @@ function launchFromShell(id: string) {
   void controller.launch(id).catch(reportError);
 }
 
+const trayActions: TrayActions = {
+  show,
+  launch: launchFromShell,
+  launchStartupGroup: () => void launchStartupGroup().catch(reportError),
+  closeAll: () => {
+    show();
+    void handlers.closeAll(null).catch(reportError);
+  },
+  quit: () => {
+    quitting = true;
+    app.quit();
+  },
+};
+
 async function syncShell() {
   const profiles = (await store.load()).profiles;
-  if (tray)
-    updateTray(tray, profiles, controller, {
-      show,
-      launch: launchFromShell,
-      launchStartupGroup: () => void launchStartupGroup().catch(reportError),
-      closeAll: () => {
-        show();
-        void handlers.closeAll(null).catch(reportError);
-      },
-      quit: () => {
-        quitting = true;
-        app.quit();
-      },
-    });
+  if (pets) {
+    await pets.update(profiles, trayMenu(profiles, controller, trayActions));
+    // The pets carry the Hatstand menu; the hat comes back only when there are no profiles.
+    if (pets.count && tray) {
+      tray.destroy();
+      tray = undefined;
+    } else if (!pets.count && !tray) tray = createTray(show);
+  }
+  if (tray) updateTray(tray, profiles, controller, trayActions);
   updateDockMenu(profiles, controller, show, launchFromShell);
   notify();
 }
@@ -223,11 +234,15 @@ async function start() {
       return { ok: false, error: (error as Error).message || 'The operation failed. Try again.' };
     }
   });
-  tray = createTray(show);
+  if (process.platform === 'darwin') {
+    pets = new Pets(root, controller, launchFromShell);
+    await pets.start().catch(() => {});
+  } else tray = createTray(show);
   await window.loadFile(html);
   hotkeys = registerHotkeys(controller.settings, profiles, show, launchFromShell);
   updateJumpList(profiles);
   await controller.refresh();
+  await syncShell();
   const background =
     process.argv.includes('--background') ||
     (process.platform === 'darwin' && app.getLoginItemSettings().wasOpenedAtLogin);

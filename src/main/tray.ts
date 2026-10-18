@@ -1,4 +1,4 @@
-import { Menu, nativeImage, Tray } from 'electron';
+import { Menu, type MenuItemConstructorOptions, nativeImage, Tray } from 'electron';
 import path from 'node:path';
 import type { Controller } from '../core/controller.ts';
 import type { Profile } from '../core/profiles.ts';
@@ -29,33 +29,41 @@ export function createTray(onClick: () => void): Tray {
 }
 
 export function updateTray(tray: Tray, profiles: Profile[], controller: Controller, actions: TrayActions) {
+  const running = profiles.filter((p) => !p.archived && controller.owned(p.id));
+  tray.setToolTip(running.length ? `Hatstand · ${running.length} running` : 'Hatstand');
+  tray.setContextMenu(Menu.buildFromTemplate(trayMenu(profiles, controller, actions)));
+}
+
+/** The tray menu; the macOS menu-bar pets show it too. */
+export function trayMenu(
+  profiles: Profile[],
+  controller: Controller,
+  actions: TrayActions,
+): MenuItemConstructorOptions[] {
   const active = profiles.filter((p) => !p.archived);
   const running = active.filter((p) => controller.owned(p.id));
   const startup = active.filter((p) => p.openAtStartup);
-  tray.setToolTip(running.length ? `Hatstand · ${running.length} running` : 'Hatstand');
-  tray.setContextMenu(
-    Menu.buildFromTemplate([
-      { label: 'Open Hatstand', click: actions.show },
-      { type: 'separator' },
-      ...active.map((p) => {
-        const isRunning = running.includes(p);
-        return {
-          label: `${isRunning ? 'Focus' : 'Launch'} ${p.name.replaceAll('&', '&&')}`,
-          sublabel: isRunning ? 'Running' : undefined,
-          type: 'checkbox' as const,
-          checked: isRunning,
-          click: () => actions.launch(p.id),
-        };
-      }),
-      { type: 'separator' },
-      {
-        label: `Open startup profiles (${startup.length})`,
-        enabled: startup.length > 0,
-        click: actions.launchStartupGroup,
-      },
-      { label: 'Close all Claude profiles…', enabled: running.length > 0, click: actions.closeAll },
-      { type: 'separator' },
-      { label: 'Quit Hatstand', click: actions.quit },
-    ]),
-  );
+  return [
+    { label: 'Open Hatstand', click: actions.show },
+    { type: 'separator' },
+    ...active.map((p) => {
+      const isRunning = running.includes(p);
+      return {
+        label: `${isRunning ? 'Focus' : 'Launch'} ${p.name.replaceAll('&', '&&')}`,
+        sublabel: isRunning ? 'Running' : undefined,
+        type: 'checkbox' as const,
+        checked: isRunning,
+        click: () => actions.launch(p.id),
+      };
+    }),
+    { type: 'separator' },
+    {
+      label: `Open startup profiles (${startup.length})`,
+      enabled: startup.length > 0,
+      click: actions.launchStartupGroup,
+    },
+    { label: 'Close all Claude profiles…', enabled: running.length > 0, click: actions.closeAll },
+    { type: 'separator' },
+    { label: 'Quit Hatstand', click: actions.quit },
+  ];
 }
