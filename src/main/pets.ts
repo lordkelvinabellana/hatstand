@@ -13,6 +13,7 @@ import {
   parseSession,
   petMood,
   petSound,
+  settledState,
   type SessionState,
   type SessionSummary,
   speciesNames,
@@ -20,8 +21,9 @@ import {
   withPetHooks,
 } from '../core/pets.ts';
 import type { Profile } from '../core/profiles.ts';
+import { type PanelSession, panelHtml } from './panel.ts';
 
-const labels: Record<Mood, string> = {
+export const labels: Record<Mood, string> = {
   sleep: 'Not running',
   idle: 'Idle',
   working: 'Working…',
@@ -29,7 +31,7 @@ const labels: Record<Mood, string> = {
   done: 'Done, output ready',
 };
 
-interface Pet {
+export interface Pet {
   profile: Profile;
   species: number;
   tray: Tray;
@@ -54,6 +56,8 @@ export class Pets {
   /** Opened by a click (stays until you click elsewhere) rather than by hovering. */
   private pinned = false;
   private hiddenAt = 0;
+  /** Which sessions are expanded in each pet's panel; unset shows the most urgent one open. */
+  private expanded = new Map<string, string[]>();
   private transcripts = new Map<string, { stamp: string; summary: SessionSummary }>();
 
   constructor(
@@ -176,21 +180,15 @@ export class Pets {
   }
 
   private async scan(pet: Pet, quiet = false) {
-    let names: string[] = [];
-    try {
-      names = (await fs.readdir(pet.folder)).filter((n) => n.endsWith('.json'));
-    } catch {}
     const sessions = [];
     let chime: 'ask' | 'done' | undefined;
     const now = Date.now();
-    for (const name of names) {
-      const session = parseSession(await fs.readFile(path.join(pet.folder, name), 'utf8').catch(() => ''));
-      if (!session) continue;
+    for (const { id, session } of await this.read(pet, false)) {
       sessions.push(session);
       const key = `${session.state}@${session.at}`;
-      if (pet.seen.get(name) !== key && session.state !== 'working' && now - session.at < 60_000)
+      if (pet.seen.get(id) !== key && session.state !== 'working' && now - session.at < 60_000)
         chime = chime === 'ask' ? 'ask' : session.state;
-      pet.seen.set(name, key);
+      pet.seen.set(id, key);
     }
     const mood = petMood(!!this.controller.owned(pet.profile.id), sessions, now);
     if (mood !== pet.mood || quiet) {
@@ -231,15 +229,32 @@ export class Pets {
 
   /** Live sessions with what their transcripts say, most urgent first. */
   private async sessions(pet: Pet) {
+    const found = (await this.read(pet, true)).filter(
+      ({ session }) => petMood(true, [session], Date.now()) !== 'idle',
+    );
+    const rank = { ask: 0, done: 1, working: 2 };
+    return found.sort((a, b) => rank[a.session.state] - rank[b.session.state] || b.session.at - a.session.at);
+  }
+
+  /**
+   * Every session file, with its state settled against the transcript: a turn that ended mid-plan
+   * is still working, one that ended on a question needs you. `all` also reads transcripts of working sessions.
+   */
+  private async read(pet: Pet, all: boolean): Promise<PanelSession[]> {
     const code = path.resolve(this.controller.directories(pet.profile.id).code);
     const found: PanelSession[] = [];
     for (const name of await fs.readdir(pet.folder).catch(() => [] as string[])) {
+      if (!name.endsWith('.json')) continue;
       const session = parseSession(await fs.readFile(path.join(pet.folder, name), 'utf8').catch(() => ''));
-      if (!session || petMood(true, [session], Date.now()) === 'idle') continue;
+      if (!session) continue;
       let summary: SessionSummary | undefined;
       const transcript = session.transcript ? path.resolve(session.transcript) : '';
       // Only this profile's own transcripts: the pet files are not trusted to point elsewhere.
-      if (transcript.startsWith(code + path.sep) && transcript.endsWith('.jsonl')) {
+      if (
+        (all || session.state === 'done') &&
+        transcript.startsWith(code + path.sep) &&
+        transcript.endsWith('.jsonl')
+      ) {
         const stat = await fs.stat(transcript).catch(() => undefined);
         const stamp = `${stat?.mtimeMs}:${stat?.size}`;
         const cached = this.transcripts.get(transcript);
@@ -249,15 +264,24 @@ export class Pets {
           this.transcripts.set(transcript, { stamp, summary });
         }
       }
-      found.push({ id: name.replace(/\.json$/, ''), session, summary });
+      found.push({
+        id: name.replace(/\.json$/, ''),
+        session: { ...session, state: settledState(session, summary) },
+        summary,
+      });
     }
-    const rank = { ask: 0, done: 1, working: 2 };
-    return found.sort((a, b) => rank[a.session.state] - rank[b.session.state] || b.session.at - a.session.at);
+    return found;
   }
 
   private async showPanel(pet: Pet) {
     this.panelFor = pet;
-    const html = panelHtml(pet, await this.sessions(pet), this.icon(pet));
+    const html = panelHtml(
+      pet,
+      labels,
+      await this.sessions(pet),
+      this.icon(pet),
+      this.expanded.get(pet.profile.id),
+    );
     if (this.panelFor !== pet) return;
     if (!this.panel || this.panel.isDestroyed()) {
       this.panel = new BrowserWindow({
@@ -271,6 +295,7 @@ export class Pets {
         skipTaskbar: true,
         alwaysOnTop: true,
         hasShadow: true,
+        acceptFirstMouse: true,
         webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false },
       });
       this.panel.setAlwaysOnTop(true, 'pop-up-menu');
@@ -281,6 +306,20 @@ export class Pets {
         event.preventDefault();
         const match = /^hatstand-pet:\/\/open(?:\/([A-Za-z0-9_-]+))?$/.exec(url);
         if (match && this.panelFor) void this.openSession(this.panelFor, match[1]);
+      });
+      // The panel reports its height and open sessions through its title whenever a session is toggled.
+      this.panel.webContents.on('page-title-updated', (_event, title) => {
+        try {
+          const report = JSON.parse(title);
+          if (!this.panelFor || !Array.isArray(report.open)) return;
+          this.expanded.set(this.panelFor.profile.id, report.open.map(String));
+          const bounds = this.panel?.getBounds();
+          if (bounds)
+            this.panel?.setBounds({
+              ...bounds,
+              height: Math.min(560, Number(report.height) || bounds.height),
+            });
+        } catch {}
       });
       this.panel.on('blur', () => {
         if (this.pinned) this.hidePanel();
@@ -321,9 +360,8 @@ export class Pets {
     this.hidePanel();
     this.open(pet.profile.id);
     if (!id) return;
-    const file = path.join(pet.folder, `${id}.json`);
-    const session = parseSession(await fs.readFile(file, 'utf8').catch(() => ''));
-    if (session?.state === 'done') await fs.rm(file, { force: true });
+    const settled = (await this.read(pet, false)).find((s) => s.id === id);
+    if (settled?.session.state === 'done') await fs.rm(path.join(pet.folder, `${id}.json`), { force: true });
     await this.scan(pet);
   }
 
@@ -335,95 +373,4 @@ export class Pets {
       ...this.menu,
     ]);
   }
-}
-
-const esc = (text: string) =>
-  text.replace(
-    /[&<>"']/g,
-    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] ?? c,
-  );
-const clip = (text: string, length: number) =>
-  text.length > length ? `${text.slice(0, length - 1)}…` : text;
-const tokens = (n: number) =>
-  n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${Math.round(n / 1000)}k` : `${n}`;
-function ago(at: number) {
-  const minutes = Math.round((Date.now() - at) / 60_000);
-  return minutes < 1 ? 'just now' : minutes < 60 ? `${minutes}m ago` : `${Math.round(minutes / 60)}h ago`;
-}
-const stateLabels = { ask: 'Needs your input', done: 'Done', working: 'Working' };
-
-interface PanelSession {
-  id: string;
-  session: SessionState;
-  summary?: SessionSummary;
-}
-function panelHtml(pet: Pet, sessions: PanelSession[], icon: string) {
-  const cards = sessions.map(({ id, session, summary }) => {
-    const plan = summary?.plan ?? [];
-    const finished = plan.filter((s) => s.status === 'completed').length;
-    // Up to seven steps around the current one.
-    const current = Math.max(
-      0,
-      plan.findIndex((s) => s.status !== 'completed'),
-    );
-    const first = Math.max(0, Math.min(current - 2, plan.length - 7));
-    const steps = plan
-      .slice(first, first + 7)
-      .map((s) => `<li class="${s.status}">${esc(clip(s.content, 60))}</li>`)
-      .join('');
-    const usage = summary
-      ? [
-          `Context ${tokens(summary.context)}`,
-          `Output ${tokens(summary.output)}`,
-          summary.model ? modelName(summary.model) : '',
-        ].filter(Boolean)
-      : [];
-    return `<a class="session" href="hatstand-pet://open/${id}">
-      <div class="top"><span class="dot ${session.state}"></span><b>${esc(clip(summary?.title || 'Claude session', 48))}</b><span class="when">${ago(session.at)}</span></div>
-      <div class="meta">${stateLabels[session.state]}${summary?.cwd ? ` · ${esc(clip(path.basename(summary.cwd), 40))}` : ''}</div>
-      ${summary?.prompt ? `<div class="prompt">${esc(clip(summary.prompt, 140))}</div>` : ''}
-      ${plan.length ? `<div class="progress"><span style="width:${Math.round((finished / plan.length) * 100)}%"></span></div><div class="meta">${finished} of ${plan.length} tasks done</div><ol>${steps}</ol>` : ''}
-      ${usage.length ? `<div class="usage">${usage.map(esc).join(' · ')}</div>` : ''}
-    </a>`;
-  });
-  return `<!doctype html><html><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:">
-<style>
-:root { --bg: rgba(250,250,248,.97); --fg: #1d2421; --muted: #66706b; --line: rgba(0,0,0,.08); --track: rgba(0,0,0,.08); }
-@media (prefers-color-scheme: dark) { :root { --bg: rgba(32,36,34,.97); --fg: #eef2f0; --muted: #9aa5a0; --line: rgba(255,255,255,.08); --track: rgba(255,255,255,.12); } }
-html, body { margin: 0; background: transparent; }
-body { font: 12px/1.4 -apple-system, BlinkMacSystemFont, sans-serif; color: var(--fg); padding: 4px; cursor: default; user-select: none; }
-.card { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
-header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
-header img { width: 32px; height: 32px; image-rendering: pixelated; }
-header div { display: flex; flex-direction: column; }
-header b { font-size: 13px; }
-header span { color: var(--muted); }
-a { color: inherit; text-decoration: none; }
-.open { margin-left: auto; padding: 4px 10px; border-radius: 6px; background: var(--track); font-weight: 600; }
-.open:hover { background: var(--line); }
-.session { display: block; padding: 10px 12px; border-bottom: 1px solid var(--line); }
-.session:last-child { border-bottom: 0; }
-.session:hover { background: var(--track); }
-.top { display: flex; align-items: center; gap: 6px; }
-.top b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.when { margin-left: auto; color: var(--muted); white-space: nowrap; }
-.dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
-.dot.ask { background: #ff5a36; } .dot.done { background: #22b35e; } .dot.working { background: #5fa2ea; }
-.meta { color: var(--muted); margin-top: 2px; }
-.prompt { margin-top: 6px; padding-left: 8px; border-left: 2px solid var(--line); color: var(--muted); }
-.progress { height: 4px; border-radius: 2px; background: var(--track); margin-top: 8px; overflow: hidden; }
-.progress span { display: block; height: 100%; background: #22b35e; }
-ol { list-style: none; margin: 6px 0 0; padding: 0; }
-li { padding-left: 18px; position: relative; margin: 2px 0; }
-li::before { position: absolute; left: 2px; }
-li.completed { color: var(--muted); text-decoration: line-through; } li.completed::before { content: "✓"; color: #22b35e; }
-li.in_progress { font-weight: 600; } li.in_progress::before { content: "▸"; color: #5fa2ea; }
-li.pending::before { content: "○"; color: var(--muted); }
-.usage { margin-top: 8px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.empty { padding: 12px; color: var(--muted); margin: 0; }
-</style></head><body><div class="card">
-<header><img src="data:image/png;base64,${icon}" alt=""><div><b>${esc(pet.profile.name)}</b><span>${labels[pet.mood]}</span></div><a class="open" href="hatstand-pet://open">${pet.mood === 'sleep' ? 'Launch' : 'Open'} Claude</a></header>
-${cards.join('') || '<p class="empty">No active sessions.</p>'}
-</div></body></html>`;
 }

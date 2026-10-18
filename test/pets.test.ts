@@ -12,6 +12,7 @@ import {
   parseSession,
   petMood,
   petSound,
+  settledState,
   summarizeTranscript,
   withPetHooks,
 } from '../src/core/pets.ts';
@@ -129,6 +130,42 @@ test('transcript summary replays the task list and counts each response once', (
   assert.equal(summary.output, 50);
   assert.equal(summary.context, 1010);
   assert.equal(modelName(summary.model), 'Opus 5.5');
+  // Stopped with steps left: still working. Stopped on a question: needs you. All steps finished: done.
+  const stopped = { state: 'done' as const, at: 1 };
+  assert.equal(settledState(stopped, summary), 'working');
+  assert.equal(settledState(stopped, { ...summary, asking: true }), 'ask');
+  assert.equal(settledState(stopped, { ...summary, plan: [] }), 'done');
+  assert.equal(settledState(stopped, { ...summary, plan: [], background: 1 }), 'working');
+  const bash = line({
+    type: 'assistant',
+    message: {
+      id: 'b',
+      content: [
+        { type: 'tool_use', id: 'toolu_bg', name: 'Bash', input: { command: 'x', run_in_background: true } },
+      ],
+    },
+  });
+  const notice = line({
+    type: 'queue-operation',
+    content: '<task-notification>\n<tool-use-id>toolu_bg</tool-use-id>\n<status>completed</status>',
+  });
+  assert.equal(summarizeTranscript([text, bash].join('\n')).background, 1);
+  assert.equal(summarizeTranscript([text, bash, notice].join('\n')).background, 0);
+  const wrapUp = (ask?: string) =>
+    line({
+      type: 'assistant',
+      message: {
+        id: 'w',
+        content: [{ type: 'tool_use', name: 'mcp__ccd_turn__wrap_up', input: { recap: 'r', ask } }],
+      },
+    });
+  assert.equal(summarizeTranscript([text, wrapUp('Commit?')].join('\n')).asking, true);
+  assert.equal(
+    summarizeTranscript(
+      [text, wrapUp('Commit?'), line({ type: 'user', message: { content: 'yes' } })].join('\n'),
+    ).asking,
+    false,
+  );
 });
 
 test('profiles get a pet: saved ones in order, unknown pets are rejected', () => {
