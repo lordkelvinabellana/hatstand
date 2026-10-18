@@ -78,6 +78,7 @@ try {
   await page.waitForFunction(() => document.querySelector('input[aria-label="Work folder"]')?.value);
   await page.getByLabel(mac ? 'Open at login' : 'Open when Windows starts').check();
   await scrubPaths(page);
+  await instance.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1120, 780));
   await page.screenshot({ path: path.join(screenshotFolder, 'editor.png') });
   await page.getByRole('button', { name: 'Save changes', exact: true }).click();
   await page.getByText('Profile saved.', { exact: true }).waitFor();
@@ -159,6 +160,7 @@ try {
   await page.getByText('Settings saved.', { exact: true }).waitFor();
   await page.evaluate(() => window.scrollTo(0, 0));
   await scrubPaths(page);
+  await instance.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1120, 780));
   await page.screenshot({ path: path.join(screenshotFolder, 'settings.png') });
   assert.equal(JSON.parse(await fs.readFile(path.join(root, 'settings.json'), 'utf8')).hotkey, '');
 
@@ -209,6 +211,7 @@ try {
   await page.getByRole('button', { name: /Client profiles/ }).click();
   if (await page.getByRole('button', { name: 'Dismiss notification' }).count())
     await page.getByRole('button', { name: 'Dismiss notification' }).click();
+  await instance.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1120, 780));
   await page.screenshot({ path: path.join(screenshotFolder, 'profiles.png') });
   await instance.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(780, 640));
   await page.screenshot({ path: path.join(screenshotFolder, 'compact.png') });

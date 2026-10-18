@@ -39,6 +39,8 @@ Claude.exe per profile, with its own --user-data-dir
   manager\               Hatstand's own Electron data
   profiles\<uuid>\desktop   Claude Desktop user data (signed-in session)
   profiles\<uuid>\code      CLAUDE_CONFIG_DIR
+  profiles\<uuid>\pet       macOS: one state file per Claude Code session, written by the pet hook
+  pet-hook.sh, pet-sounds\  macOS: the hook Hatstand adds to each profile's Code settings, and generated sounds
 ```
 
 The data folder is deliberately separate from the Squirrel install folder `%LOCALAPPDATA%\Hatstand`, which the uninstaller deletes. `migrateLegacyData` moves 0.0.1 data out of it by renaming.

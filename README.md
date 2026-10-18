@@ -7,7 +7,7 @@
 
 **[Website](https://lordkelvinabellana.github.io/hatstand/)** · **[Download](https://github.com/lordkelvinabellana/hatstand/releases/latest)** · **[Compatibility](docs/COMPATIBILITY.md)**
 
-Hatstand is a small, open-source Windows and macOS launcher for people who use Claude Desktop with several accounts, such as consultants and agencies working for multiple clients. Create a profile per client, sign in once inside the official Claude app, then launch or focus any client from a list, the tray, a keyboard shortcut, or a desktop shortcut.
+Hatstand is a small, open-source Windows and macOS launcher for people who use Claude Desktop with several accounts, such as consultants and agencies working for multiple clients. Create a profile per client, sign in once inside the official Claude app, then launch or focus any client from a list, the tray, a keyboard shortcut, or a desktop shortcut. On a Mac, each client also gets a pixel pet in the menu bar that tells you when that account's Claude needs you or has finished.
 
 ![Hatstand profile list with three sample clients](docs/images/profiles.png)
 
@@ -22,14 +22,15 @@ Hatstand starts Claude with a separate data folder for each profile by setting `
 
 ## Features
 
-- **One profile per client**: name, color, initials, and an optional account label you enter yourself.
+- **One profile per client**: name, color, a pixel pet (or initials) as its picture, and an optional account label you enter yourself.
 - **Launch or focus** a client's Claude window, or **open several at once**.
-- **Status you can trust**: shows whether that profile's Claude process is running. It never claims an account is signed in or a task finished.
+- **Status you can trust**: shows whether that profile's Claude process is running. It never claims an account is signed in, and only reports a task as finished when Claude Code itself says so (see [menu-bar pets](#menu-bar-pets-macos)).
+- **Menu-bar pets (macOS)**: one pet per client that shows working, needs input, or done, with its own sound, and a panel of that account's active sessions.
 - **Keyboard first**: a global shortcut opens Hatstand (Ctrl+Shift+Space by default), per-profile shortcuts jump straight to a client, and Ctrl+K searches.
 - **Windows integration**: tray menu, taskbar jump list, per-client desktop shortcuts, optional start with Windows, and profiles that open at sign-in.
 - **Client work folders**: one click to open the client's files. This is a convenience only; it doesn't restrict what Claude can access.
 - **Safe data handling**: removing a profile keeps its data by default. Leftover data can be moved to the Recycle Bin (never deleted outright), and uninstalling Hatstand keeps every profile.
-- **Metadata export/import**: names, labels, and colors only. Sign-ins never leave your computer.
+- **Metadata export/import**: names, labels, colors, and pets only. Sign-ins never leave your computer.
 - Light, dark, and system themes; keyboard navigation; no telemetry.
 
 ## macOS preview
@@ -46,6 +47,38 @@ Local previews are not Developer ID signed or notarized. See
 [Mac build, verification and signing instructions](docs/MACOS.md).
 Mac data is stored in `~/Library/Application Support/HatstandData` and survives
 removing the app. The remaining instructions below describe Windows.
+
+### Menu-bar pets (macOS)
+
+![Eight pixel pets, and one pet sleeping, idle, working, asking and done](docs/images/pets.png)
+
+Instead of one Claude icon per account, the menu bar shows one pet per client.
+Pick it in the profile editor (cat, frog, ghost, bunny, bear, chick, slime or robot);
+it is also the client's picture in Hatstand.
+
+| The pet shows | When |
+|---|---|
+| Asleep, grey | That client's Claude isn't running |
+| A bubble with dots, bobbing | Claude Code is working |
+| A red **!**, hopping, plus a sound | It asked you something or needs a permission |
+| A green **✓**, plus a sound | The whole task is finished: every step of its task list and every background task |
+
+Each pet plays its jingle in its own key, so you can tell by ear which account wants you.
+Claude's own menu bar icon can be turned off per account in Claude's Settings → General.
+
+<img src="docs/images/panel.png" width="340" alt="A pet's panel listing three sessions: one asking a question with its task list and token usage, one working, one done">
+
+Hover a pet for a panel of that account's active sessions: title, project folder, your
+last prompt, task progress, background tasks, context and output tokens, and the model.
+Click the pet to keep the panel open, and click a session to open that conversation in
+the right account's Claude. Right-click for the Hatstand menu.
+
+How it works: Hatstand adds a small hook script (`HatstandData/pet-hook.sh`) to each
+profile's Claude Code `settings.json`. The hook writes one tiny file per session
+(state, time, transcript path) to `profiles/<id>/pet/`, and the panel reads that
+session's local transcript. Nothing is sent anywhere. Opening a session sends a
+`claude://code/continue` link to that profile's own Claude process, so macOS asks
+once for permission to control Claude.
 
 ## Install (Windows)
 
