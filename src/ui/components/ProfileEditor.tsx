@@ -2,7 +2,9 @@ import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { Check, FolderOpen, X } from 'lucide-react';
 import type { Color, ProfileInput } from '../../core/profiles.ts';
+import { speciesNames } from '../../core/sprites.ts';
 import { useApp } from '../api.ts';
+import { PetAvatar } from './PetAvatar.tsx';
 import { ShortcutInput } from './ShortcutInput.tsx';
 
 export const profileColors: Color[] = ['teal', 'amber', 'violet', 'blue', 'rose', 'slate'];
@@ -11,6 +13,7 @@ export const emptyProfile: Required<ProfileInput> = {
   accountLabel: '',
   color: 'teal',
   icon: 'C',
+  pet: 'cat',
   hotkey: '',
   workFolder: '',
   openAtStartup: false,
@@ -31,11 +34,12 @@ export function ProfileEditor(props: { editing: string; onClose(): void }) {
           accountLabel: existing.accountLabel,
           color: existing.color,
           icon: existing.icon,
+          pet: existing.pet,
           hotkey: existing.hotkey,
           workFolder: existing.workFolder,
           openAtStartup: existing.openAtStartup,
         }
-      : { ...emptyProfile },
+      : { ...emptyProfile, pet: speciesNames[data.profiles.length % speciesNames.length] },
   );
   const [iconTouched, setIconTouched] = useState(!!existing);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -69,7 +73,7 @@ export function ProfileEditor(props: { editing: string; onClose(): void }) {
         </button>
       </div>
       <form onSubmit={submit}>
-        <div className={`avatar editor-avatar ${form.color}`}>{form.icon}</div>
+        <PetAvatar pet={form.pet} color={form.color} icon={form.icon} className="editor-avatar" />
         <label>
           Client name
           <input
@@ -97,18 +101,43 @@ export function ProfileEditor(props: { editing: string; onClose(): void }) {
           />
           <small>A label you enter, not a verified account identity.</small>
         </label>
-        <label>
-          Initials
-          <input
-            maxLength={3}
-            value={form.icon}
-            required
-            onChange={(e) => {
-              setIconTouched(true);
-              setForm({ ...form, icon: e.target.value });
-            }}
-          />
-        </label>
+        <fieldset>
+          <legend>Pet</legend>
+          <div className="pet-options">
+            {[...speciesNames, ''].map((pet) => (
+              <button
+                key={pet || 'initials'}
+                type="button"
+                className={`pet-option ${form.pet === pet ? 'chosen' : ''}`}
+                aria-label={pet || 'Initials, no pet'}
+                aria-pressed={form.pet === pet}
+                title={pet || 'Initials'}
+                onClick={() => setForm({ ...form, pet })}
+              >
+                <PetAvatar pet={pet} color={form.color} icon={form.icon} />
+              </button>
+            ))}
+          </div>
+          <small>
+            {data.platform === 'darwin'
+              ? 'Also lives in the menu bar and tells you when this account needs you.'
+              : 'Shown as this profile’s picture.'}
+          </small>
+        </fieldset>
+        {form.pet === '' && (
+          <label>
+            Initials
+            <input
+              maxLength={3}
+              value={form.icon}
+              required
+              onChange={(e) => {
+                setIconTouched(true);
+                setForm({ ...form, icon: e.target.value });
+              }}
+            />
+          </label>
+        )}
         <fieldset>
           <legend>Profile color</legend>
           <div className="color-options">
