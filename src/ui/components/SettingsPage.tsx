@@ -42,12 +42,17 @@ export function SettingsPage() {
           <div className="setting-row">
             <div>
               <label htmlFor="theme">Theme</label>
-              <p>Follow your system or choose your own.</p>
+              <p>Follow your system or choose your own. Changes apply right away.</p>
             </div>
             <select
               id="theme"
               value={settings.theme}
-              onChange={(e) => setSettings({ ...settings, theme: e.target.value as Settings['theme'] })}
+              onChange={(e) => {
+                const theme = e.target.value as Settings['theme'];
+                setSettings({ ...settings, theme });
+                // Applies right away; only the theme is saved, other unsaved edits stay in the form.
+                fire('settings', { ...data.settings, theme });
+              }}
             >
               <option value="system">System</option>
               <option value="light">Light</option>

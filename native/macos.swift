@@ -78,7 +78,8 @@ if args.count == 2 && args[1] == "list" {
     guard found > 0 else { fail("Could not enumerate processes.") }
     let observations = pids.prefix(Int(found)).compactMap(observe)
     FileHandle.standardOutput.write(try JSONEncoder().encode(observations))
-} else if args.count == 6 && ["focus", "close", "force-close"].contains(args[1]) {
+} else if (args.count == 6 && ["focus", "close", "force-close"].contains(args[1]))
+            || (args.count == 7 && args[1] == "open-url") {
     guard let pid = Int32(args[2]), pid > 0, let current = observe(pid),
           current.createdAt == args[3], canonical(current.executable) == canonical(args[4]) else {
         fail("The process changed. Refresh and try again.")
@@ -87,7 +88,7 @@ if args.count == 2 && args[1] == "list" {
     guard dirs.count == 1, canonical(String(dirs[0].dropFirst("--user-data-dir=".count))) == canonical(args[5]) else {
         fail("The process changed. Refresh and try again.")
     }
-    if args[1] == "focus" {
+    if args[1] == "focus" || args[1] == "open-url" {
         // Activation alone does not reopen a closed Electron window. Send the same
         // reopen event as a Dock click, addressed to this PID (never the shared bundle ID).
         let reopen = NSAppleEventDescriptor(eventClass: AEEventClass(kCoreEventClass),
@@ -98,6 +99,22 @@ if args.count == 2 && args[1] == "list" {
             _ = try reopen.sendEvent(options: [.waitForReply, .neverInteract], timeout: 3)
         } catch {
             fail("Could not reopen this Claude window. Open it from the Dock and try again.")
+        }
+        if args[1] == "open-url" {
+            // Only a Claude Code session link, delivered to this PID: every Claude shares one bundle ID,
+            // so a normal URL open would reach whichever account macOS picks.
+            guard args[6].range(of: "^claude://code/continue\\?session=local_[A-Za-z0-9-]{1,64}$",
+                                options: .regularExpression) != nil else { fail("Invalid session link.") }
+            let open = NSAppleEventDescriptor(eventClass: AEEventClass(kInternetEventClass),
+                eventID: AEEventID(kAEGetURL),
+                targetDescriptor: NSAppleEventDescriptor(processIdentifier: pid),
+                returnID: AEReturnID(kAutoGenerateReturnID), transactionID: AETransactionID(kAnyTransactionID))
+            open.setParam(NSAppleEventDescriptor(string: args[6]), forKeyword: AEKeyword(keyDirectObject))
+            do {
+                _ = try open.sendEvent(options: [.waitForReply], timeout: 5)
+            } catch {
+                fail("Could not open this session in Claude. Allow Hatstand to control Claude in System Settings > Privacy & Security > Automation.")
+            }
         }
         guard let app = NSRunningApplication(processIdentifier: pid),
               app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps]) else {

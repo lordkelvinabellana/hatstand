@@ -107,6 +107,18 @@ export async function launchClaude(
     });
   });
 }
+/** Opens a Claude Code session in the profile's own running Claude. False when that Claude isn't running. */
+export async function openClaudeSession(
+  installation: Installation,
+  desktop: string,
+  session: string,
+): Promise<boolean> {
+  const running = (await listClaudeProcesses()).find((p) => ownsProcess(p, installation.executable, desktop));
+  if (!running) return false;
+  const url = `claude://code/continue?session=${encodeURIComponent(session)}`;
+  await helper(['open-url', String(running.pid), running.createdAt, installation.executable, desktop, url]);
+  return true;
+}
 export async function closeOwnedProcess(
   installation: Installation,
   desktop: string,

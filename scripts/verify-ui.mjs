@@ -151,6 +151,8 @@ try {
 
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByLabel('Theme', { exact: true }).selectOption('light');
+  // The theme applies when it is picked, without pressing Save.
+  await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
   await page.getByLabel('Global shortcut').focus();
   await page.keyboard.press('Backspace');
   await page.getByRole('button', { name: 'Save preferences', exact: true }).click();
@@ -213,6 +215,7 @@ try {
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByLabel('Theme', { exact: true }).selectOption('dark');
+  await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
   await page.getByRole('button', { name: 'Save preferences', exact: true }).click();
   await page.getByText('Settings saved.', { exact: true }).waitFor();
   await page.getByRole('button', { name: /Client profiles/ }).click();
