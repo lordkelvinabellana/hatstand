@@ -55,7 +55,7 @@
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "lucide-react": "^1.46.0",
+    "lucide-react": "^1.57.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },
