@@ -23,11 +23,21 @@ module.exports = class NativeDMG extends MakerBase {
         path.join(staging, `${appName}.app`),
       ]);
       await fs.symlink('/Applications', path.join(staging, 'Applications'));
-      await execute(
-        '/usr/bin/hdiutil',
-        ['create', '-volname', appName, '-srcfolder', staging, '-ov', '-format', 'UDZO', file],
-        { timeout: 180_000 },
-      );
+      // hdiutil sometimes fails with "Resource busy" on CI runners while macOS scans the
+      // staging folder; that clears on its own, so retry a few times before giving up.
+      for (let attempt = 1; ; attempt++) {
+        try {
+          await execute(
+            '/usr/bin/hdiutil',
+            ['create', '-volname', appName, '-srcfolder', staging, '-ov', '-format', 'UDZO', file],
+            { timeout: 180_000 },
+          );
+          break;
+        } catch (error) {
+          if (attempt >= 4 || !/Resource busy/i.test(String(error.stderr ?? error.message))) throw error;
+          await new Promise((resolve) => setTimeout(resolve, attempt * 5000));
+        }
+      }
       return [file];
     } finally {
       await fs.rm(staging, { recursive: true, force: true });
