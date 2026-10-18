@@ -61,6 +61,30 @@ Claude. Separate profiles are not a filesystem or security sandbox.
   for Command, Super and CommandOrControl. Desktop `.lnk` creation remains
   Windows-only; Mac users have Dock, menu bar and keyboard actions.
 
+### Menu-bar pets
+
+- `src/main/pets.ts` keeps one `Tray` per active profile, drawn from
+  `src/core/sprites.ts` (text grids, no Node imports, so the manager window draws
+  the same pets as avatars). The hat icon comes back only when there are no profiles.
+- At start Hatstand writes `HatstandData/pet-hook.sh` and merges seven hooks into
+  each launched profile's `code/settings.json` (UserPromptSubmit, PostToolUse,
+  PreToolUse for AskUserQuestion/ExitPlanMode, PermissionRequest, Notification,
+  Stop, SessionEnd). Other hooks are left alone; an unreadable settings file is
+  never overwritten; a profile that was never launched gets no folders.
+- The hook writes `profiles/<id>/pet/<session>.json`: state, time, transcript
+  path and the desktop session id, each validated before use. Hatstand watches
+  that folder, and settles a Stop against the transcript: unfinished task-list
+  steps or running background tasks keep it working, a wrap-up question makes it
+  ask. Sessions that stop reporting age out (working after 20 minutes).
+- Sounds are square-wave WAVs generated at start and played with `afplay`.
+- The panel is a sandboxed, script-free page except for one hash-allowed script
+  that reports its height. Its links are commands handled in `will-navigate`.
+- Opening a session: `hatstand-macos open-url` revalidates the process like
+  `focus`, accepts only `claude://code/continue?session=local_…`, and sends it as
+  a `kAEGetURL` Apple Event to that PID. Every Claude shares one bundle ID, so an
+  ordinary URL open would reach whichever account macOS picks. macOS asks once for
+  Automation permission (`NSAppleEventsUsageDescription`).
+
 ## Build and test
 
 Requires Node.js **24+**, macOS **13+**, and Xcode Command Line Tools (`xcode-select --install`).

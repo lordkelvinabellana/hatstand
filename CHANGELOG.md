@@ -4,6 +4,18 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## [Unreleased]
 
+### Added
+
+- **macOS preview**: menu bar and Dock actions, Cmd shortcuts, start at login, and `.app`/DMG/ZIP packaging.
+- **Menu-bar pets (macOS)**: one pixel pet per profile replaces Hatstand's menu bar icon and shows when that account's Claude Code is working, needs input, or is done, with a generated sound in each pet's own key. State comes from Claude Code hooks that Hatstand adds to each profile's settings.
+- **Session panel**: hover a pet to see that account's active sessions (title, folder, last prompt, task progress, background tasks, token usage, model); click to pin it; click a session to open that conversation in the right account's Claude.
+- **Pet picker**: eight pets, or initials, as each profile's picture. Existing profiles get a pet each, in order. Export and import include it.
+
+### Changed
+
+- A session counts as done only when its whole task list and its background tasks are finished; a turn that ends on a question shows as needing input.
+- Picking a theme applies it immediately.
+
 ## [0.1.0] - 2026-09-16
 
 First public preview.
