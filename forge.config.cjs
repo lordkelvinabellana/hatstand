@@ -12,7 +12,11 @@ module.exports = {
     icon: mac ? 'resources/hatstand.icns' : 'resources/hatstand.ico',
     ...(mac
       ? {
-          extendInfo: { LSMinimumSystemVersion: '13.0' },
+          extendInfo: {
+            LSMinimumSystemVersion: '13.0',
+            NSAppleEventsUsageDescription:
+              'Hatstand opens a Claude Code session in the Claude window of the account it belongs to.',
+          },
           appCategoryType: 'public.app-category.productivity',
           darwinDarkModeSupport: true,
           extraResource: ['resources/bin/hatstand-macos'],

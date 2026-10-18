@@ -13,6 +13,8 @@ export interface SessionState {
   at: number;
   /** The session's Claude Code transcript (.jsonl), read for the hover panel. */
   transcript?: string;
+  /** The desktop app's id for the session (local_…), used to open it. */
+  host?: string;
 }
 
 const minute = 60_000;
@@ -273,11 +275,13 @@ input=$(cat)
 sid=$(printf '%s' "$input" | grep -o '"session_id" *: *"[^"]*"' | head -n 1 | sed 's/.*"\\([^"]*\\)"$/\\1/')
 case "$sid" in '' | *[!A-Za-z0-9_-]*) exit 0 ;; esac
 log=$(printf '%s' "$input" | grep -o '"transcript_path" *: *"[^"]*"' | head -n 1 | sed 's/.*"\\([^"]*\\)"$/\\1/')
+host=$CLAUDE_CODE_HOST_SESSION_ID
+case "$host" in local_*) case "$host" in *[!A-Za-z0-9_-]*) host= ;; esac ;; *) host= ;; esac
 case "$log" in *\\\\*) log= ;; *.jsonl) ;; *) log= ;; esac
 dir="$(dirname "$CLAUDE_CONFIG_DIR")/pet"
 mkdir -p "$dir" || exit 0
 if [ "$1" = end ]; then rm -f "$dir/$sid.json"; exit 0; fi
-printf '{"state":"%s","at":%s000,"transcript":"%s"}\\n' "$1" "$(date +%s)" "$log" > "$dir/$sid.tmp" && mv -f "$dir/$sid.tmp" "$dir/$sid.json"
+printf '{"state":"%s","at":%s000,"transcript":"%s","host":"%s"}\\n' "$1" "$(date +%s)" "$log" "$host" > "$dir/$sid.tmp" && mv -f "$dir/$sid.tmp" "$dir/$sid.json"
 `;
 
 /** Returns `settings` with the pet hooks added (replacing any earlier pet hooks), leaving other hooks alone. */

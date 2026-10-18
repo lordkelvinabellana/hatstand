@@ -17,6 +17,7 @@ import { createHandlers } from './handlers.ts';
 import { applyLoginItem, registerHotkeys, updateJumpList, updateDockMenu } from './integration.ts';
 import type { HotkeyResult } from './integration.ts';
 import { handleSquirrelEvent } from './squirrel.ts';
+import { openClaudeSession } from '../core/macos.ts';
 import { Pets } from './pets.ts';
 import { createTray, type TrayActions, trayMenu, updateTray } from './tray.ts';
 
@@ -82,6 +83,19 @@ function reportError(error: unknown) {
 }
 function launchFromShell(id: string) {
   void controller.launch(id).catch(reportError);
+}
+/** Opens a Claude Code session in its own profile's Claude (macOS); otherwise launches or focuses the profile. */
+async function openSession(id: string, session?: string) {
+  const installation = controller.installation;
+  if (session && installation && process.platform === 'darwin' && controller.owned(id)) {
+    try {
+      if (await openClaudeSession(installation, controller.directories(id).desktop, session)) return;
+    } catch (error) {
+      reportError(error);
+      return;
+    }
+  }
+  launchFromShell(id);
 }
 
 const trayActions: TrayActions = {
@@ -235,7 +249,7 @@ async function start() {
     }
   });
   if (process.platform === 'darwin') {
-    pets = new Pets(root, controller, launchFromShell);
+    pets = new Pets(root, controller, (id, session) => void openSession(id, session));
     await pets.start().catch(() => {});
   } else tray = createTray(show);
   await window.loadFile(html);

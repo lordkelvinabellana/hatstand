@@ -63,7 +63,8 @@ export class Pets {
   constructor(
     root: string,
     private controller: Controller,
-    private open: (id: string) => void,
+    /** Brings up the profile's Claude, at the given desktop session (local_…) when there is one. */
+    private open: (id: string, session?: string) => void,
   ) {
     this.script = path.join(root, 'pet-hook.sh');
     this.sounds = path.join(root, 'pet-sounds');
@@ -358,9 +359,10 @@ export class Pets {
   /** Brings up the profile's Claude (launching it if needed) and clears the session's "done" bubble. */
   private async openSession(pet: Pet, id?: string) {
     this.hidePanel();
-    this.open(pet.profile.id);
+    const settled = id ? (await this.read(pet, false)).find((s) => s.id === id) : undefined;
+    const host = settled?.session.host;
+    this.open(pet.profile.id, host && /^local_[A-Za-z0-9-]{1,64}$/.test(host) ? host : undefined);
     if (!id) return;
-    const settled = (await this.read(pet, false)).find((s) => s.id === id);
     if (settled?.session.state === 'done') await fs.rm(path.join(pet.folder, `${id}.json`), { force: true });
     await this.scan(pet);
   }
