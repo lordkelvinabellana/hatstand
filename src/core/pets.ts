@@ -48,6 +48,10 @@ export interface SessionSummary {
   /** Tokens in the latest request: the session's current context size. */
   context: number;
   output: number;
+  /** The last turn ended on a question for you (the desktop app's wrap-up with an ask). */
+  asking: boolean;
+  /** Background commands and agents started but not yet reported finished. */
+  background: number;
 }
 
 /** Reads what the hover panel shows out of a Claude Code transcript (.jsonl). */
@@ -60,9 +64,16 @@ export function summarizeTranscript(text: string): SessionSummary {
     plan: [],
     context: 0,
     output: 0,
+    asking: false,
+    background: 0,
   };
   const counted = new Set<string>();
+  const running = new Set<string>();
+  const finished = new Set<string>();
   for (const line of text.split('\n')) {
+    // A background task ends with a <task-notification> naming its tool call and status.
+    for (const match of line.matchAll(/<tool-use-id>([\w-]+)<\/tool-use-id>.*?<status>(\w+)<\/status>/g))
+      if (match[2] !== 'running') finished.add(match[1]);
     let entry: any;
     try {
       entry = JSON.parse(line);
@@ -74,12 +85,25 @@ export function summarizeTranscript(text: string): SessionSummary {
       summary.title = entry.customTitle;
     if (entry.type === 'last-prompt' && typeof entry.lastPrompt === 'string')
       summary.prompt = entry.lastPrompt;
+    for (const block of entry.type === 'user' && Array.isArray(entry.message?.content)
+      ? entry.message.content
+      : [])
+      if (
+        block?.type === 'tool_result' &&
+        // Claude Code's own wording at the start of the result, so output that merely mentions it doesn't count.
+        /^(Command running in background with ID:|Command did not complete within .*moved to the background \(ID:)/.test(
+          typeof block.content === 'string' ? block.content : (block.content?.[0]?.text ?? ''),
+        )
+      )
+        running.add(block.tool_use_id);
     if (
       entry.type === 'user' &&
       typeof entry.message?.content === 'string' &&
       !entry.message.content.startsWith('<')
-    )
+    ) {
       summary.prompt = entry.message.content;
+      summary.asking = false;
+    }
     if (entry.type !== 'assistant' || !entry.message) continue;
     const message = entry.message;
     if (typeof entry.cwd === 'string') summary.cwd = entry.cwd;
@@ -96,12 +120,20 @@ export function summarizeTranscript(text: string): SessionSummary {
     }
     for (const block of Array.isArray(message.content) ? message.content : []) {
       if (block?.type !== 'tool_use') continue;
+      if (
+        block.input?.run_in_background === true ||
+        (block.name === 'Agent' && block.input?.run_in_background !== false)
+      )
+        running.add(block.id);
+      if (typeof block.name === 'string' && block.name.endsWith('wrap_up'))
+        summary.asking = !!block.input?.ask;
       if (block.name === 'TodoWrite' && Array.isArray(block.input?.todos))
         summary.plan = steps(block.input.todos);
       if (typeof block.name === 'string' && block.name.endsWith('update_plan'))
         applyPlan(summary.plan, block.input, summary);
     }
   }
+  summary.background = [...running].filter((id) => !finished.has(id)).length;
   return summary;
 }
 function steps(items: unknown[]): PlanStep[] {
@@ -129,6 +161,14 @@ function applyPlan(plan: PlanStep[], input: any, summary: SessionSummary) {
   }
   const start = at(input?.start);
   if (start) start.status = 'in_progress';
+}
+
+/** A finished turn only counts as done when its whole task list and its background tasks are finished. */
+export function settledState(session: SessionState, summary?: SessionSummary): SessionState['state'] {
+  if (session.state !== 'done' || !summary) return session.state;
+  if (summary.background) return 'working';
+  if (summary.asking) return 'ask';
+  return summary.plan.some((step) => step.status !== 'completed') ? 'working' : 'done';
 }
 
 /** "claude-opus-5-5" → "Opus 5.5". */
