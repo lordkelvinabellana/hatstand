@@ -61,7 +61,10 @@ test('pet hooks are added once and leave other hooks alone', () => {
   assert.match(JSON.stringify(hooks.PreToolUse), /AskUserQuestion/);
 });
 
-test('the hook script records and clears a session in the profile pet folder', async (t) => {
+// Pets are macOS only; Windows has no /bin/sh to run the hook.
+test('the hook script records and clears a session in the profile pet folder', {
+  skip: process.platform === 'win32',
+}, async (t) => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'hatstand-pet-'));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
   const script = path.join(root, 'pet-hook.sh');
