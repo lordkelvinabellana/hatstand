@@ -214,6 +214,61 @@ export function ProfileEditor(props: { editing: string; onClose(): void }) {
         </button>
       </form>
       {existing && (
+        <details className="advanced" open={existing.brain.enabled}>
+          <summary>Second brain</summary>
+          {existing.brain.external ? (
+            <p>
+              This profile already runs its own capture.py hooks, so Hatstand leaves its notes setup alone.
+            </p>
+          ) : (
+            <>
+              <label className="checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={existing.brain.enabled}
+                  disabled={!!pending}
+                  onChange={(e) =>
+                    fire(
+                      'brain',
+                      { id: existing.id, enabled: e.target.checked },
+                      e.target.checked
+                        ? 'Second brain on. New Claude Code sessions write notes to this profile’s vault.'
+                        : 'Second brain off. Your notes are kept.',
+                    )
+                  }
+                />
+                <span>
+                  Keep notes from Claude Code sessions
+                  <small>
+                    Logs each session and asks Claude to keep client, project, people and tool notes. Only
+                    this profile can see this vault.
+                  </small>
+                </span>
+              </label>
+              <p className="path-text">{existing.brain.folder}</p>
+              <div className="path-picker">
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => fire('pickVault', { id: existing.id })}
+                >
+                  Choose folder…
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => fire('openVault', { id: existing.id })}
+                >
+                  <FolderOpen size={15} />
+                  Open vault
+                </button>
+              </div>
+              <p>Turning it off removes the hooks and Claude instructions. Notes are never deleted.</p>
+            </>
+          )}
+        </details>
+      )}
+      {existing && (
         <details className="advanced">
           <summary>Local storage</summary>
           <p className="path-text">{existing.directory}</p>

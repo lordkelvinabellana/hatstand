@@ -4,6 +4,10 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## [Unreleased]
 
+### Added
+
+- **Second brain (opt-in, per profile)**: a profile can keep its own Markdown notes vault. Claude Code hooks log each session (prompts with secrets and emails redacted, files written, skills and apps used) and a daily index; a managed block in the profile's `CLAUDE.md` asks Claude to keep client, project, people and tool notes and a to-do list. Runs on Hatstand's own executable, no Python. Turning it off removes the hooks and block and keeps the notes. Profiles with their own `capture.py` hooks are left alone.
+
 ## [0.2.0] - 2026-10-19
 
 Adds the macOS app. Mac downloads are unsigned: the first time, open it from System Settings → Privacy & Security → Open Anyway.

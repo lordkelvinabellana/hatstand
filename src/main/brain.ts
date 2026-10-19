@@ -1,0 +1,125 @@
+import * as fs from 'node:fs/promises';
+import path from 'node:path';
+import type { Controller } from '../core/controller.ts';
+import { assertId, isRecord, type Profile } from '../core/profiles.ts';
+import {
+  brainBlock,
+  captureCommand,
+  hasExternalCapture,
+  seedVault,
+  withBrainBlock,
+  withBrainHooks,
+} from '../core/vault.ts';
+
+/** Per-profile second-brain choice. Machine-local (vault paths differ per computer), so never synced. */
+export interface BrainChoice {
+  enabled: boolean;
+  /** '' uses the default `<profile folder>/vault`. */
+  vault: string;
+}
+export interface BrainStatus extends BrainChoice {
+  /** The folder notes are written to. */
+  folder: string;
+  /** The profile already runs its own capture.py hooks; Hatstand leaves it alone. */
+  external: boolean;
+}
+
+const stateFile = (root: string) => path.join(root, 'second-brain.json');
+
+export async function readBrains(root: string): Promise<Record<string, BrainChoice>> {
+  try {
+    const value: unknown = JSON.parse(await fs.readFile(stateFile(root), 'utf8'));
+    const brains: Record<string, BrainChoice> = {};
+    for (const [id, choice] of Object.entries(isRecord(value) ? value : {})) {
+      try {
+        assertId(id);
+      } catch {
+        continue;
+      }
+      if (!isRecord(choice) || typeof choice.enabled !== 'boolean' || typeof choice.vault !== 'string')
+        continue;
+      if (choice.vault && !path.isAbsolute(choice.vault)) continue;
+      brains[id] = { enabled: choice.enabled, vault: choice.vault };
+    }
+    return brains;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return {};
+    throw error;
+  }
+}
+
+export async function saveBrain(root: string, id: string, choice: BrainChoice) {
+  const brains = await readBrains(root);
+  brains[id] = choice;
+  const file = stateFile(root);
+  await fs.writeFile(`${file}.tmp`, JSON.stringify(brains, null, 2));
+  await fs.rename(`${file}.tmp`, file);
+}
+
+/** Reads a Claude Code settings.json; null when it exists but cannot be read or parsed. */
+async function readJson(file: string): Promise<Record<string, unknown> | null> {
+  try {
+    const value: unknown = JSON.parse(await fs.readFile(file, 'utf8'));
+    return isRecord(value) ? value : null;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'ENOENT' ? {} : null;
+  }
+}
+async function replace(file: string, next: string) {
+  const current = await fs.readFile(file, 'utf8').catch(() => null);
+  if (current === next || (current === null && next === '')) return;
+  await fs.writeFile(`${file}.hatstand-tmp`, next);
+  await fs.rename(`${file}.hatstand-tmp`, file);
+}
+
+export async function brainStatus(root: string, controller: Controller, id: string): Promise<BrainStatus> {
+  const choice = (await readBrains(root).catch((): Record<string, BrainChoice> => ({})))[id] ?? {
+    enabled: false,
+    vault: '',
+  };
+  const settings = await readJson(path.join(controller.directories(id).code, 'settings.json'));
+  return {
+    ...choice,
+    folder: choice.vault || path.join(controller.directories(id).base, 'vault'),
+    external: !!settings && hasExternalCapture(settings),
+  };
+}
+
+/** Copies the capture script out of the app bundle to a stable path the hooks can run. */
+async function installScript(root: string) {
+  const script = path.join(root, 'second-brain', 'capture.cjs');
+  const text = await fs.readFile(path.join(__dirname, 'capture.cjs'), 'utf8');
+  await fs.mkdir(path.dirname(script), { recursive: true });
+  await replace(script, text);
+  return script;
+}
+
+/**
+ * Adds or removes each profile's capture hooks and CLAUDE.md block to match its toggle.
+ * Profiles with their own capture.py hooks, never-launched profiles and unreadable settings are skipped.
+ */
+export async function wireBrains(root: string, controller: Controller, profiles: Profile[]) {
+  const brains = await readBrains(root);
+  // Nothing to install or clean up until a profile has used the toggle.
+  if (!Object.keys(brains).length) return;
+  const script = await installScript(root);
+  for (const profile of profiles) {
+    const choice = brains[profile.id];
+    if (!choice) continue;
+    const { code } = controller.directories(profile.id);
+    if (!(await fs.stat(code).catch(() => undefined))?.isDirectory()) continue;
+    const settingsFile = path.join(code, 'settings.json');
+    const settings = await readJson(settingsFile);
+    if (!settings || hasExternalCapture(settings)) continue;
+    const { folder } = await brainStatus(root, controller, profile.id);
+    const command = choice.enabled ? captureCommand(process.execPath, script, folder, profile.name) : null;
+    if (command) await seedVault(folder, new Date().toISOString().slice(0, 10));
+    const next = withBrainHooks(settings, command);
+    // Unchanged content is not rewritten, so a missing settings.json is not created just to stay empty.
+    if (JSON.stringify(next) !== JSON.stringify(settings))
+      await replace(settingsFile, `${JSON.stringify(next, null, 2)}\n`);
+    const claudeFile = path.join(code, 'CLAUDE.md');
+    const claude = await fs.readFile(claudeFile, 'utf8').catch(() => '');
+    await replace(claudeFile, withBrainBlock(claude, command && brainBlock(folder, command)));
+  }
+}

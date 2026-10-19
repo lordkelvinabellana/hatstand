@@ -41,6 +41,9 @@ Claude.exe per profile, with its own --user-data-dir
   profiles\<uuid>\code      CLAUDE_CONFIG_DIR
   profiles\<uuid>\pet       macOS: one state file per Claude Code session, written by the pet hook
   pet-hook.sh, pet-sounds\  macOS: the hook Hatstand adds to each profile's Code settings, and generated sounds
+  second-brain.json      optional second brain: which profiles have it on, and custom vault folders (never synced)
+  second-brain\capture.cjs  the capture script the second-brain hooks run (copied out of the app at start)
+  profiles\<uuid>\vault    optional second brain: that profile's notes (default location)
   sync-session.bin       optional profile sync: Supabase sign-in, encrypted with safeStorage
   sync-deleted.json      optional profile sync: removed profiles not yet deleted remotely
 ```

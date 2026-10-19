@@ -26,6 +26,7 @@ Hatstand starts Claude with a separate data folder for each profile by setting `
 - **Launch or focus** a client's Claude window, or **open several at once**.
 - **Status you can trust**: shows whether that profile's Claude process is running. It never claims an account is signed in, and only reports a task as finished when Claude Code itself says so (see [menu-bar pets](#menu-bar-pets-macos)).
 - **Menu-bar pets (macOS)**: one pet per client that shows working, needs input, or done, with its own sound, and a panel of that account's active sessions.
+- **Second brain (optional, per profile)**: each profile can keep its own Markdown notes vault. Claude Code logs every session there and keeps notes on clients, projects, people and tools. Off by default; see [Second brain](#second-brain).
 - **Keyboard first**: a global shortcut opens Hatstand (Ctrl+Shift+Space by default), per-profile shortcuts jump straight to a client, and Ctrl+K searches.
 - **Windows integration**: tray menu, taskbar jump list, per-client desktop shortcuts, optional start with Windows, and profiles that open at sign-in.
 - **Client work folders**: one click to open the client's files. This is a convenience only; it doesn't restrict what Claude can access.
@@ -122,6 +123,30 @@ Each profile gets its own Claude Desktop data folder, so each keeps its own sign
 Profiles still run as **the same Windows user**. They share your files, clipboard, network, and anything else your account can reach. Hatstand is **not a security sandbox**. For strict separation between clients, use separate Windows accounts or virtual machines.
 
 Cowork and Desktop Code separation, sign-out isolation, and staying signed in after a reboot are **not verified yet**. See [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md).
+
+## Second brain
+
+Turn it on per profile in the profile's details → **Second brain**. That profile then gets its
+own notes vault (by default `profiles/<id>/vault`, or a folder you choose), seeded with
+`Clients/`, `Projects/`, `People/`, `Tools/`, `Sessions/`, `Daily/`, `_templates/` and a `To-Do.md`.
+Vaults are never shared between profiles, so one client's notes stay out of another client's Claude.
+
+How it works: Hatstand adds three Claude Code hooks to that profile's `settings.json` and a
+marked block of note-keeping rules to its `CLAUDE.md`. The hooks run Hatstand's own capture
+script with Hatstand's executable acting as Node (`ELECTRON_RUN_AS_NODE=1`), so nothing else
+needs installing:
+
+- **SessionStart** tells Claude which topic notes already exist.
+- **Stop / SessionEnd** write one note per session to `Sessions/<month>/` (what was asked,
+  files written, skills and apps used) and list the day's sessions in `Daily/`. Secrets,
+  random-looking keys and email addresses are redacted from prompts.
+- Claude writes the part a script can't: a short summary in each session note, and updates to
+  client, project, person and tool notes. Text under `## Summary` and outside the
+  `<!-- auto:start -->` … `<!-- auto:end -->` markers is never overwritten.
+
+Turning it off removes only the hooks and the block Hatstand added; notes are never deleted.
+A profile that already runs its own `capture.py` hooks is left alone. Only Claude Code sessions
+(Code tab) fire hooks, not plain chats. Notes are plain Markdown, so any Markdown editor opens them.
 
 ## Where your data lives
 

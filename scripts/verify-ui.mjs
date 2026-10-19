@@ -97,6 +97,56 @@ try {
   await page.getByRole('alert').filter({ hasText: 'already used' }).waitFor();
   await page.getByRole('button', { name: 'Close profile editor' }).click();
 
+  // Second brain: opt-in per profile; wires hooks and CLAUDE.md, and turning it off removes only those.
+  const [northProfile, acorn] = await readProfiles();
+  const code = path.join(root, 'profiles', northProfile.id, 'code');
+  await fs.mkdir(code, { recursive: true });
+  const userHook = { Stop: [{ hooks: [{ type: 'command', command: 'echo mine' }] }] };
+  await fs.writeFile(path.join(code, 'settings.json'), JSON.stringify({ hooks: userHook }));
+  await fs.writeFile(path.join(code, 'CLAUDE.md'), '# My rules\n');
+  // A profile that already runs its own capture.py is left alone.
+  const acornCode = path.join(root, 'profiles', acorn.id, 'code');
+  await fs.mkdir(acornCode, { recursive: true });
+  const external = JSON.stringify({ hooks: { Stop: [{ hooks: [{ command: 'python3 capture.py' }] }] } });
+  await fs.writeFile(path.join(acornCode, 'settings.json'), external);
+  await page.locator('.profile-identity').first().click();
+  await page.getByText('Second brain', { exact: true }).click();
+  await page.getByLabel(/Keep notes from Claude Code sessions/).click();
+  await page.getByText(/Second brain on\./).waitFor();
+  const wired = JSON.parse(await fs.readFile(path.join(code, 'settings.json'), 'utf8'));
+  const stops = JSON.stringify(wired.hooks.Stop);
+  assert.ok(
+    stops.includes('echo mine') && stops.split('capture.cjs').length === 2,
+    'one capture hook beside the user’s',
+  );
+  const startHook = wired.hooks.SessionStart[0].hooks[0].command;
+  assert.match(
+    await fs.readFile(path.join(code, 'CLAUDE.md'), 'utf8'),
+    /^# My rules\n\n<!-- hatstand:second-brain:start -->/,
+  );
+  const vault = path.join(root, 'profiles', northProfile.id, 'vault');
+  await fs.access(path.join(vault, '_templates', 'Client.md'));
+  if (process.platform !== 'win32') {
+    // The hook really runs: Hatstand's own executable acting as Node, through sh.
+    const { execFileSync } = await import('node:child_process');
+    const output = JSON.parse(execFileSync('/bin/sh', ['-c', startHook], { encoding: 'utf8' }));
+    assert.match(output.hookSpecificOutput.additionalContext, /Second brain vault:/);
+  }
+  await page.getByLabel(/Keep notes from Claude Code sessions/).click();
+  await page.getByText(/Second brain off\./).waitFor();
+  const unwired = await fs.readFile(path.join(code, 'settings.json'), 'utf8');
+  assert.ok(unwired.includes('echo mine') && !unwired.includes('capture.cjs'));
+  assert.equal(await fs.readFile(path.join(code, 'CLAUDE.md'), 'utf8'), '# My rules\n');
+  await fs.access(path.join(vault, 'To-Do.md'));
+  await page.getByRole('button', { name: 'Close profile editor' }).click();
+  await page.locator('.profile-identity').nth(1).click();
+  await page.getByText('Second brain', { exact: true }).click();
+  await page.getByText(/already runs its own capture\.py hooks/).waitFor();
+  // (Menu-bar pets may add their own hooks there; the second brain adds nothing.)
+  assert.ok(!(await fs.readFile(path.join(acornCode, 'settings.json'), 'utf8')).includes('capture.cjs'));
+  await assert.rejects(fs.access(path.join(acornCode, 'CLAUDE.md')));
+  await page.getByRole('button', { name: 'Close profile editor' }).click();
+
   // Actions menu is keyboard operable.
   await page.getByRole('button', { name: 'Actions for Acorn & Co.', exact: true }).click();
   assert.equal(
@@ -275,7 +325,7 @@ try {
   }
   assert.deepEqual(errors, []);
   console.log(
-    'UI checks passed: setup, create, search, selection, shortcuts, work folder, menu keyboard, reorder past archived, archive/restore, settings, export/import, leftover data, compact layout, dark theme, sandbox.',
+    'UI checks passed: setup, create, search, selection, shortcuts, work folder, second brain, menu keyboard, reorder past archived, archive/restore, settings, export/import, leftover data, compact layout, dark theme, sandbox.',
   );
   console.log(`Screenshots: ${screenshotFolder}`);
 } finally {

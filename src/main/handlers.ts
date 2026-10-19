@@ -26,6 +26,7 @@ const trash = mac ? 'Trash' : 'Recycle Bin';
 import type { Snapshot, UpdateCheck } from '../shared.ts';
 import { applyLoginItem, createDesktopShortcut } from './integration.ts';
 import type { ProfileSync } from './sync.ts';
+import { brainStatus, saveBrain } from './brain.ts';
 
 export interface HandlerContext {
   root: string;
@@ -61,16 +62,19 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
     const hotkeys = context.hotkeyErrors();
     return {
       platform: mac ? 'darwin' : 'win32',
-      profiles: state.profiles.map((p) => {
-        const directories = controller.directories(p.id);
-        return {
-          ...p,
-          ...controller.status(p.id),
-          directory: directories.base,
-          bound: directories.bound,
-          hotkeyError: hotkeys.profileErrors.get(p.id),
-        };
-      }),
+      profiles: await Promise.all(
+        state.profiles.map(async (p) => {
+          const directories = controller.directories(p.id);
+          return {
+            ...p,
+            ...controller.status(p.id),
+            directory: directories.base,
+            bound: directories.bound,
+            hotkeyError: hotkeys.profileErrors.get(p.id),
+            brain: await brainStatus(root, controller, p.id),
+          };
+        }),
+      ),
       settings: controller.settings,
       installation: controller.installation,
       installationTested: isTestedVersion(controller.installation?.version),
@@ -255,6 +259,40 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
         throw new Error('This profile has no work folder yet. Add one in its details.');
       const error = await shell.openPath(profile.workFolder);
       if (error) throw new Error(`Could not open ${profile.workFolder}: ${error}`);
+    },
+    async brain(payload) {
+      const id = readId(payload);
+      await controller.getProfile(id);
+      if (typeof (payload as { enabled?: unknown }).enabled !== 'boolean')
+        throw new Error('Invalid request.');
+      const enabled = (payload as { enabled: boolean }).enabled;
+      const status = await brainStatus(root, controller, id);
+      if (enabled && status.external)
+        throw new Error(
+          'This profile already runs its own capture.py hooks. Remove them from its Claude Code settings.json first.',
+        );
+      await saveBrain(root, id, { enabled, vault: status.vault });
+      await context.profilesChanged();
+    },
+    async pickVault(payload) {
+      const id = readId(payload);
+      await controller.getProfile(id);
+      const result = await dialog.showOpenDialog(context.window(), {
+        title: 'Choose the folder for this profile’s notes',
+        properties: ['openDirectory', 'createDirectory'],
+      });
+      if (result.canceled) return;
+      const status = await brainStatus(root, controller, id);
+      await saveBrain(root, id, { enabled: status.enabled, vault: result.filePaths[0] });
+      await context.profilesChanged();
+    },
+    async openVault(payload) {
+      const id = readId(payload);
+      await controller.getProfile(id);
+      const { folder } = await brainStatus(root, controller, id);
+      await fs.mkdir(folder, { recursive: true });
+      const error = await shell.openPath(folder);
+      if (error) throw new Error(error);
     },
     async pickWorkFolder() {
       const result = await dialog.showOpenDialog(context.window(), {
