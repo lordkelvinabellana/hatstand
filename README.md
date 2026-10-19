@@ -27,7 +27,7 @@ Hatstand starts Claude with a separate data folder for each profile by setting `
 - **Status you can trust**: shows whether that profile's Claude process is running. It never claims an account is signed in, and only reports a task as finished when Claude Code itself says so (see [menu-bar pets](#menu-bar-pets-macos)).
 - **Menu-bar pets (macOS)**: one pet per client that shows working, needs input, or done, with its own sound, and a panel of that account's active sessions.
 - **Second brain (optional, per profile)**: each profile can keep its own Markdown notes vault. Claude Code logs every session there and keeps notes on clients, projects, people and tools. Off by default; see [Second brain](#second-brain).
-- **Notes editor**: open a profile's vault in its own Notes window, with live-preview Markdown, `[[wikilinks]]`, search and backlinks. See [Notes](#notes).
+- **Notes editor**: open a profile's vault in its own Notes window, with live-preview Markdown, `[[wikilinks]]`, search, backlinks and a graph of how notes link. See [Notes](#notes).
 - **Keyboard first**: a global shortcut opens Hatstand (Ctrl+Shift+Space by default), per-profile shortcuts jump straight to a client, and Ctrl+K searches.
 - **Windows integration**: tray menu, taskbar jump list, per-client desktop shortcuts, optional start with Windows, and profiles that open at sign-in.
 - **Client work folders**: one click to open the client's files. This is a convenience only; it doesn't restrict what Claude can access.
@@ -191,6 +191,22 @@ Hatstand's main process, not the window.
   version as `Name (my edits).md`).
 - The `<!-- auto:start -->` / `<!-- auto:end -->` markers in session notes are shaded and can't be
   edited by hand, so the capture hook keeps working.
+
+### Graph
+
+The **Graph** button (Cmd/Ctrl+G) opens a graph of the vault as a tab: every note is a dot, every
+`[[wikilink]]` a line. Dots are coloured by top folder (Clients, Projects, People, Tools, Sessions,
+Daily, everything else) and sized by how many notes they link with.
+
+![The graph of a vault, coloured by folder](docs/images/graph.png)
+
+- Click a dot to open the note; hover to light up its neighbours. **Highlight notes** dims
+  everything whose name doesn't match.
+- The legend hides or shows each folder. **Hide Sessions and Daily** keeps the graph to clients,
+  projects, people and tools; **Hide orphans** drops notes with no links; **Show missing notes**
+  adds faint dots for links to notes that don't exist yet (clicking one creates it).
+- The graph follows the vault live: notes Claude writes slot in next to what they link to.
+- Beside an open note, **Local graph** shows the notes it links with, one or two links away.
 
 ## Where your data lives
 

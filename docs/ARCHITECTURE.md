@@ -29,7 +29,10 @@ requests never name a profile or a vault, and every path is vault-relative and c
 nothing overwritten, removal through the system trash). The main window can't use this channel and
 notes windows can't use `hatstand:request`. The vault is watched with `fs.watch` (recursive) and the
 window reloads on change. Wikilinks, aliases, backlinks and search (MiniSearch) live in
-`src/core/links.ts`, which is pure and unit-tested.
+`src/core/links.ts`, which is pure and unit-tested. The graph view builds its nodes and edges from
+that same link index in `src/core/graph.ts` (also pure: filters, local graph, search matches) and
+draws them with sigma.js 3 and graphology in `src/notes/GraphView.tsx`. ForceAtlas2 runs in a web
+worker that the library starts from a blob, which is why the notes page's CSP allows `worker-src blob:`.
 
 ## Principles
 

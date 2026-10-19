@@ -18,12 +18,11 @@ Priorities can change based on compatibility findings and feedback. Open an issu
 
 ## Second brain
 
-Done: capture, per-profile vaults, hook and CLAUDE.md wiring, opt-in toggle, vault picker and editable templates, and the notes editor (file tree, tabs, live preview, wikilinks, search, backlinks, live reload). Next:
+Done: capture, per-profile vaults, hook and CLAUDE.md wiring, opt-in toggle, vault picker and editable templates, the notes editor (file tree, tabs, live preview, wikilinks, search, backlinks, live reload), and the graph view (global and local, live, filters). Next:
 
-1. Graph view of wikilinks (sigma.js, graphology).
-2. Claude features: open the session behind a note, an Ask box, and a recall MCP server.
-3. Editor extras if wanted: images and attachments, tables, split panes, links by path updated when a folder moves.
-4. Maybe later: one-way linking between vaults on one machine, and end-to-end-encrypted hosted sync.
+1. Claude features: open the session behind a note, an Ask box, and a recall MCP server.
+2. Editor extras if wanted: images and attachments, tables, split panes, links by path updated when a folder moves.
+3. Maybe later: one-way linking between vaults on one machine, and end-to-end-encrypted hosted sync.
 
 ## Later, only if compatibility allows
 
