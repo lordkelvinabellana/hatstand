@@ -27,7 +27,8 @@ Hatstand starts Claude with a separate data folder for each profile by setting `
 - **Status you can trust**: shows whether that profile's Claude process is running. It never claims an account is signed in, and only reports a task as finished when Claude Code itself says so (see [menu-bar pets](#menu-bar-pets-macos)).
 - **Menu-bar pets (macOS)**: one pet per client that shows working, needs input, or done, with its own sound, and a panel of that account's active sessions.
 - **Second brain (optional, per profile)**: each profile can keep its own Markdown notes vault. Claude Code logs every session there and keeps notes on clients, projects, people and tools. Off by default; see [Second brain](#second-brain).
-- **Notes editor**: open a profile's vault in its own Notes window, with live-preview Markdown, `[[wikilinks]]`, search, backlinks and a graph of how notes link. See [Notes](#notes).
+- **Second brain page**: every vault in one graph (each vault its own circle), a card per vault, and each vault's notes inside Hatstand, with live-preview Markdown, `[[wikilinks]]`, search, backlinks and a graph. Share a vault with other profiles that do the same work. See [Notes](#notes).
+- **Profile page**: click a profile to see its details, what its Claude Code sessions are doing right now, and its second brain.
 - **Keyboard first**: a global shortcut opens Hatstand (Ctrl+Shift+Space by default), per-profile shortcuts jump straight to a client, and Ctrl+K searches.
 - **Windows integration**: tray menu, taskbar jump list, per-client desktop shortcuts, optional start with Windows, and profiles that open at sign-in.
 - **Client work folders**: one click to open the client's files. This is a convenience only; it doesn't restrict what Claude can access.
@@ -167,9 +168,12 @@ A profile that already runs its own `capture.py` hooks is left alone. Only Claud
 
 ## Notes
 
-**Open notes** (profile actions menu, or the profile's details → Second brain) opens that profile's
-vault in its own window. Each window only ever sees its own profile's vault; the check happens in
-Hatstand's main process, not the window.
+**Second brain** in the sidebar shows every vault in one graph, each vault in its own circle, with a
+card per vault. Profiles without a vault get a setup button at the top: their own vault (recommended),
+a vault another profile shares, or an existing folder such as an Obsidian vault. **Open notes** opens a
+vault's notes inside Hatstand. **Share…** lets other profiles write to the same vault (for accounts
+that do the same work); each can leave again, and nothing is moved or deleted. Which vault a request
+reaches is decided in Hatstand's main process, never by the page.
 
 ![The Notes window: file tree, a client note in live preview, and backlinks](docs/images/notes.png)
 

@@ -16,8 +16,7 @@ for (const entry of entries)
 if (
   !entries.includes('/dist/main.cjs') ||
   !entries.includes('/dist/preload.cjs') ||
-  !entries.includes('/dist/index.html') ||
-  !entries.includes('/dist/notes.html')
+  !entries.includes('/dist/index.html')
 )
   throw new Error('Required runtime files missing.');
 async function walk(folder) {

@@ -1,6 +1,16 @@
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Archive, Check, ChevronRight, CircleHelp, LayoutList, RefreshCw, Settings2, X } from 'lucide-react';
+import {
+  Archive,
+  Brain,
+  Check,
+  ChevronRight,
+  CircleHelp,
+  LayoutList,
+  RefreshCw,
+  Settings2,
+  X,
+} from 'lucide-react';
 import type { Snapshot } from '../shared.ts';
 import { api, AppContext } from './api.ts';
 import type { AppContextValue, Page } from './api.ts';
@@ -9,10 +19,15 @@ import { ProfilesPage } from './components/ProfilesPage.tsx';
 import { SettingsPage } from './components/SettingsPage.tsx';
 import { HatMark } from './components/HatMark.tsx';
 import { SetupPage } from './components/SetupPage.tsx';
+import { ProfilePage } from './components/ProfilePage.tsx';
+import { VaultPage } from './components/VaultPage.tsx';
+import { ProfileEditor } from './components/ProfileEditor.tsx';
 
 const titles: Record<Page, string> = {
   profiles: 'Client profiles',
   archive: 'Archived',
+  vault: 'Second brain',
+  profile: 'Profile',
   settings: 'Settings',
   about: 'Compatibility',
 };
@@ -22,6 +37,9 @@ export function App() {
   const [page, setPage] = useState<Page>('profiles');
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<string | null>(null);
+  const [profileId, setProfileId] = useState<string | null>(null);
+  const [vaultOf, setVaultOf] = useState<string | null>(null);
+  const [theme, setTheme] = useState('light');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [pending, setPending] = useState<string | null>(null);
@@ -65,6 +83,19 @@ export function App() {
     setPage(next);
     setEditing(null);
     setError('');
+    if (next === 'vault') setVaultOf(null);
+  }, []);
+  const openProfile = useCallback((id: string) => {
+    setProfileId(id);
+    setPage('profile');
+    setEditing(null);
+    setError('');
+  }, []);
+  const openVault = useCallback((id: string | null) => {
+    setVaultOf(id);
+    setPage('vault');
+    setEditing(null);
+    setError('');
   }, []);
 
   useEffect(() => {
@@ -75,8 +106,10 @@ export function App() {
     if (!data) return;
     const media = matchMedia('(prefers-color-scheme: dark)');
     const apply = () => {
-      document.documentElement.dataset.theme =
+      const next =
         data.settings.theme === 'system' ? (media.matches ? 'dark' : 'light') : data.settings.theme;
+      document.documentElement.dataset.theme = next;
+      setTheme(next);
     };
     apply();
     media.addEventListener('change', apply);
@@ -104,8 +137,11 @@ export function App() {
   }, []);
 
   const context = useMemo<AppContextValue | null>(
-    () => (data ? { data, pending, run, fire, navigate, refresh } : null),
-    [data, pending, run, fire, navigate, refresh],
+    () =>
+      data
+        ? { data, pending, run, fire, navigate, refresh, openProfile, openVault, edit: setEditing, theme }
+        : null,
+    [data, pending, run, fire, navigate, refresh, openProfile, openVault, theme],
   );
 
   if (!data || !context)
@@ -188,6 +224,11 @@ export function App() {
           <nav className="nav-group" aria-label="Workspace">
             <p className="nav-caption">Workspace</p>
             {navItem('profiles', <LayoutList size={18} />, active.length)}
+            {navItem(
+              'vault',
+              <Brain size={18} />,
+              new Set(active.filter((p) => p.brain.enabled).map((p) => p.brain.folder)).size,
+            )}
             {navItem('archive', <Archive size={18} />)}
           </nav>
           <div className="sidebar-bottom">
@@ -215,7 +256,7 @@ export function App() {
               <RefreshCw size={17} className={pending === 'refresh' ? 'spin' : ''} />
             </button>
           </header>
-          <div className="page">
+          <div className={`page ${page === 'vault' && vaultOf ? 'page-full' : ''}`}>
             {banners}
             {(page === 'profiles' || page === 'archive') && (
               <ProfilesPage
@@ -227,6 +268,11 @@ export function App() {
                 editing={editing}
                 onEdit={setEditing}
               />
+            )}
+            {page === 'vault' && <VaultPage open={vaultOf} />}
+            {page === 'profile' && profileId && <ProfilePage id={profileId} />}
+            {page !== 'profiles' && page !== 'archive' && editing && (
+              <ProfileEditor editing={editing} onClose={() => setEditing(null)} />
             )}
             {page === 'settings' && <SettingsPage />}
             {page === 'about' && <CompatibilityPage />}

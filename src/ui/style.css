@@ -1250,3 +1250,298 @@ small {
     transition: none !important;
   }
 }
+
+/* Second brain page */
+.page.page-full {
+  padding: 0;
+  max-width: none;
+}
+.vault-open {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 62px);
+}
+.vault-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+.vault-bar .text-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.vault-notes {
+  flex: 1;
+  min-height: 0;
+}
+.vault-notes .n-app {
+  height: 100%;
+}
+.avatar-stack {
+  display: inline-flex;
+  align-items: center;
+}
+.avatar-stack button {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.avatar-stack .avatar {
+  width: 28px;
+  height: 28px;
+  font-size: 11px;
+  margin-left: -6px;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+.avatar-stack > :first-child .avatar,
+.avatar-stack > .avatar:first-child {
+  margin-left: 0;
+}
+.setup-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  margin-bottom: 18px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.setup-strip .secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.vault-overview {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+.vault-overview-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.vault-overview .n-graph-canvas {
+  height: 480px;
+}
+.vault-overview-bar .checkbox-row.compact {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.vault-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+.vault-card,
+.profile-panel {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  padding: 16px;
+}
+.vault-card header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.vault-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+.vault-tag {
+  font-size: 11.5px;
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: var(--sidebar);
+  color: var(--muted);
+}
+.vault-people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.vault-person {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 3px;
+  border-radius: 99px;
+}
+.vault-person .avatar {
+  width: 26px;
+  height: 26px;
+  font-size: 11px;
+}
+.vault-card .button-row,
+.profile-panel .button-row {
+  flex-wrap: wrap;
+  align-items: center;
+}
+.vault-dialog {
+  width: min(520px, calc(100vw - 32px));
+}
+.vault-lead {
+  margin: 0 0 14px;
+  color: var(--muted);
+}
+.choice-list {
+  display: grid;
+  gap: 8px;
+}
+.vault-dialog label.choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.choice.chosen {
+  border-color: var(--accent, #2f8f74);
+  box-shadow: 0 0 0 1px var(--accent, #2f8f74);
+}
+.choice > span:not(.avatar-stack):not(.avatar) {
+  display: grid;
+  flex: 1;
+}
+
+/* Profile page */
+.profile-page .back {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 14px;
+}
+.profile-hero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+.profile-hero h1 {
+  margin: 0;
+}
+.profile-hero p {
+  margin: 2px 0 6px;
+  color: var(--muted);
+}
+.profile-hero .secondary,
+.profile-hero .primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.hero-avatar {
+  width: 64px;
+  height: 64px;
+  font-size: 22px;
+}
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.tasks-panel {
+  grid-row: span 2;
+}
+.profile-panel h2 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 12px;
+  font-size: 15px;
+}
+.task-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.task {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.task-state {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.task-state.ask {
+  color: #b5651d;
+}
+.task-state.done {
+  color: #2f8f74;
+}
+.task-prompt {
+  color: var(--muted);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.task-progress {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+}
+.task-progress span {
+  display: block;
+  height: 100%;
+  background: #2f8f74;
+}
+.task small {
+  color: var(--muted);
+}
+.detail-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 8px 14px;
+  margin: 0;
+}
+.detail-list dt {
+  color: var(--muted);
+}
+.detail-list dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.detail-list .text-button {
+  text-align: left;
+  padding: 0;
+}
+@media (max-width: 900px) {
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+  .tasks-panel {
+    grid-row: auto;
+  }
+}

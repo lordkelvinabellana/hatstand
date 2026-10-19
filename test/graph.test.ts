@@ -1,6 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildGraph, filterGraph, groupOf, localGraph, matchNodes } from '../src/core/graph.ts';
+import {
+  buildGraph,
+  combineVaults,
+  filterGraph,
+  groupOf,
+  localGraph,
+  matchNodes,
+  ringPositions,
+  splitVaultNode,
+} from '../src/core/graph.ts';
 import { buildIndex } from '../src/core/links.ts';
 
 const vault = buildIndex([
@@ -119,4 +128,26 @@ test('2,000 notes build quickly', () => {
   filterGraph(big, { hidden: new Set(['Sessions'] as const), ghosts: false, orphans: false });
   assert.equal(big.nodes.length, 2050);
   assert.ok(performance.now() - start < 1000);
+});
+
+test('all vaults: each vault hangs off its own hub and vaults never link to each other', () => {
+  const other = buildGraph(buildIndex([{ path: 'People/Kam.md', text: 'Same name, other vault.\n' }]));
+  const vaults = [
+    { key: '/a', label: 'Personal', color: 'red', graph },
+    { key: '/b', label: 'Stakra', color: 'blue', graph: other },
+  ];
+  const all = combineVaults(vaults);
+  assert.equal(all.nodes.length, graph.nodes.length + other.nodes.length + 2);
+  const hubs = all.nodes.filter((n) => n.hub);
+  assert.deepEqual(
+    hubs.map((n) => n.label),
+    ['Personal', 'Stakra'],
+  );
+  assert.equal(all.nodes.find((n) => n.id === '/b\nPeople/Kam.md')?.color, 'blue');
+  for (const [a, b] of all.edges) assert.equal(splitVaultNode(a).key, splitVaultNode(b).key);
+  assert.deepEqual(splitVaultNode('/a\nPeople/Kam.md'), { key: '/a', path: 'People/Kam.md' });
+  assert.deepEqual(splitVaultNode('/a\n'), { key: '/a', path: '' });
+  const spots = ringPositions(vaults);
+  assert.equal(spots.size, all.nodes.length);
+  assert.notDeepEqual(spots.get('/a\n'), spots.get('/b\n'));
 });

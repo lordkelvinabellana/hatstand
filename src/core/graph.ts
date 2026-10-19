@@ -15,6 +15,10 @@ export interface GraphNode {
   /** Distinct notes this one links to or is linked from. */
   links: number;
   ghost: boolean;
+  /** Overrides the folder colour (the all-vaults view colours by vault). */
+  color?: string;
+  /** A vault's hub in the all-vaults view: drawn larger, always labelled. */
+  hub?: boolean;
 }
 export interface GraphData {
   nodes: GraphNode[];
@@ -104,4 +108,65 @@ export function matchNodes(graph: GraphData, query: string): Set<string> | null 
   const q = query.trim().toLowerCase();
   if (!q) return null;
   return new Set(graph.nodes.filter((n) => n.label.toLowerCase().includes(q)).map((n) => n.id));
+}
+
+export interface VaultGraph {
+  /** Unique per vault (its folder). */
+  key: string;
+  label: string;
+  color: string;
+  graph: GraphData;
+}
+
+/**
+ * Every vault in one graph, for the Second brain page: each vault's notes keep their own links and hang off
+ * a hub node named after the vault, so each vault settles into its own circle. Node ids are `<key>\n<id>`;
+ * vaults are never linked to each other, even where they hold notes of the same name.
+ */
+export function combineVaults(vaults: VaultGraph[]): GraphData {
+  const nodes: GraphNode[] = [];
+  const edges: [string, string][] = [];
+  for (const v of vaults) {
+    const id = (node: string) => `${v.key}\n${node}`;
+    const hub = id('');
+    nodes.push({
+      id: hub,
+      label: v.label,
+      group: 'Other',
+      links: v.graph.nodes.length,
+      ghost: false,
+      color: v.color,
+      hub: true,
+    });
+    for (const n of v.graph.nodes) {
+      nodes.push({ ...n, id: id(n.id), color: n.ghost ? undefined : v.color });
+      edges.push([hub, id(n.id)]);
+    }
+    for (const [a, b] of v.graph.edges) edges.push([id(a), id(b)]);
+  }
+  return { nodes, edges };
+}
+
+/** Splits a combined-graph id back into its vault key and note path ('' for the hub). */
+export function splitVaultNode(id: string): { key: string; path: string } {
+  const at = id.indexOf('\n');
+  return { key: id.slice(0, at), path: id.slice(at + 1) };
+}
+
+/** Starting spots: each vault's notes around its own point on a ring, so the layout begins already grouped. */
+export function ringPositions(vaults: VaultGraph[]) {
+  const positions = new Map<string, { x: number; y: number }>();
+  const radius = 60 + vaults.length * 40;
+  vaults.forEach((v, i) => {
+    const angle = (i / Math.max(vaults.length, 1)) * Math.PI * 2;
+    const cx = vaults.length > 1 ? Math.cos(angle) * radius : 0;
+    const cy = vaults.length > 1 ? Math.sin(angle) * radius : 0;
+    positions.set(`${v.key}\n`, { x: cx, y: cy });
+    v.graph.nodes.forEach((n, j) => {
+      const a = j * 2.399963; // golden angle: an even spiral
+      const r = 4 * Math.sqrt(j + 1);
+      positions.set(`${v.key}\n${n.id}`, { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r });
+    });
+  });
+  return positions;
 }

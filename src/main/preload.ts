@@ -12,8 +12,8 @@ contextBridge.exposeInMainWorld('hatstand', {
   },
 });
 contextBridge.exposeInMainWorld('notes', {
-  request: async (action: string, payload?: unknown) => {
-    const result = await ipcRenderer.invoke('notes:request', { action, payload });
+  request: async (profile: string, action: string, payload?: unknown) => {
+    const result = await ipcRenderer.invoke('notes:request', { profile, action, payload });
     if (!result.ok) throw new Error(result.error);
     return result.value;
   },

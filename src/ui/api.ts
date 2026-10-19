@@ -8,7 +8,7 @@ declare global {
 }
 export const api = window.hatstand;
 
-export type Page = 'profiles' | 'archive' | 'settings' | 'about';
+export type Page = 'profiles' | 'archive' | 'vault' | 'profile' | 'settings' | 'about';
 
 export interface AppContextValue {
   data: Snapshot;
@@ -18,6 +18,14 @@ export interface AppContextValue {
   /** Fire-and-forget variant of `run`. */
   fire(action: string, payload?: unknown, message?: string): void;
   navigate(page: Page): void;
+  /** A profile's own page. */
+  openProfile(id: string): void;
+  /** The Second brain page: a vault (by any profile that uses it), or every vault when null. */
+  openVault(profile: string | null): void;
+  /** Opens the editor dialog for a profile (or 'new'). */
+  edit(id: string): void;
+  /** The theme in effect, for views that draw with canvas colours. */
+  theme: string;
   refresh(): Promise<void>;
 }
 export const AppContext = createContext<AppContextValue | null>(null);

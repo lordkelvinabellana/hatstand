@@ -18,7 +18,7 @@ import { HatMark } from './HatMark.tsx';
 import { PetAvatar } from './PetAvatar.tsx';
 import { ProfileEditor } from './ProfileEditor.tsx';
 
-const statusLabels: Record<ProfileView['status'], string> = {
+export const statusLabels: Record<ProfileView['status'], string> = {
   running: 'Running',
   starting: 'Opening…',
   closing: 'Closing…',
@@ -36,7 +36,7 @@ interface Props {
 }
 
 export const ProfilesPage = forwardRef<HTMLInputElement, Props>(function ProfilesPage(props, searchRef) {
-  const { data, pending, fire, navigate } = useApp();
+  const { data, pending, fire, navigate, openProfile, openVault } = useApp();
   const [menu, setMenu] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [dragging, setDragging] = useState<string | null>(null);
@@ -279,7 +279,7 @@ export const ProfilesPage = forwardRef<HTMLInputElement, Props>(function Profile
                     <button
                       type="button"
                       className="profile-identity"
-                      onClick={() => props.onEdit(profile.id)}
+                      onClick={() => openProfile(profile.id)}
                     >
                       <PetAvatar pet={profile.pet} color={profile.color} icon={profile.icon} />
                       <span className="profile-name">
@@ -355,9 +355,12 @@ export const ProfilesPage = forwardRef<HTMLInputElement, Props>(function Profile
                               <button
                                 type="button"
                                 role="menuitem"
-                                onClick={() => act('openNotes', { id: profile.id })}
+                                onClick={() => {
+                                  setMenu(null);
+                                  openVault(profile.id);
+                                }}
                               >
-                                Open notes
+                                Second brain
                               </button>
                             )}
                             {profile.workFolder && (
