@@ -98,6 +98,14 @@ test('settings from older versions gain new defaults; invalid values are rejecte
   assert.equal(settings.pets, true);
   assert.equal(settings.petSounds, true);
   assert.throws(() => validateSettings({ ...defaults, pets: 'yes' }));
+  // Versions the user marked as working: older files load without them; junk is refused.
+  assert.deepEqual(settings.confirmedVersions, []);
+  assert.deepEqual(
+    validateSettings({ ...defaults, confirmedVersions: ['2.42304.0', '2.42304.0'] }).confirmedVersions,
+    ['2.42304.0'],
+  );
+  assert.throws(() => validateSettings({ ...defaults, confirmedVersions: ['../x'] }));
+  assert.throws(() => validateSettings({ ...defaults, confirmedVersions: '2.1' }));
   assert.equal(settings.syncEnabled, false);
   // Sync needs a project, only over https, and never with a secret key.
   assert.throws(() => validateSettings({ ...defaults, syncEnabled: true }));

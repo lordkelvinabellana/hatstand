@@ -124,12 +124,24 @@ export const ProfilesPage = forwardRef<HTMLInputElement, Props>(function Profile
           </button>
         </div>
       )}
-      {data.installation && !data.installationTested && (
+      {data.installation && !data.installationTested && !data.installationConfirmed && (
         <div className="banner warning">
           <span>
-            Claude {data.installation.version} hasn’t been tested with Hatstand yet. Profiles usually keep
-            working; report anything unusual.
+            Claude {data.installation.version} hasn’t been tested with Hatstand yet. If your profiles open and
+            stay signed in, mark it as working and this won’t show again.
           </span>
+          <button
+            type="button"
+            onClick={() =>
+              fire(
+                'confirmVersion',
+                { works: true },
+                `Marked Claude ${data.installation?.version} as working. You can undo this under Compatibility.`,
+              )
+            }
+          >
+            Works for me
+          </button>
           <button type="button" onClick={() => navigate('about')}>
             Details <ArrowUpRight size={15} />
           </button>

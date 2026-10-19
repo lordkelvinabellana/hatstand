@@ -134,6 +134,9 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
       settings: controller.settings,
       installation: controller.installation,
       installationTested: isTestedVersion(controller.installation?.version),
+      installationConfirmed: controller.settings.confirmedVersions.includes(
+        controller.installation?.version ?? '',
+      ),
       installationError: controller.installationError,
       processError: controller.processError,
       hotkeyError: hotkeys.managerError,
@@ -165,6 +168,9 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
       osRelease: os.release(),
       claudeVersion: controller.installation?.version ?? null,
       claudeVersionTested: isTestedVersion(controller.installation?.version),
+      claudeVersionUserConfirmed: controller.settings.confirmedVersions.includes(
+        controller.installation?.version ?? '',
+      ),
       installType: controller.installation?.kind ?? null,
       profileCount: profiles.length,
       archivedProfileCount: profiles.filter((p) => p.archived).length,
@@ -551,6 +557,20 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
       applyLoginItem(next.startWithWindows);
       await controller.detect();
       await context.profilesChanged();
+    },
+    /** The user's own verdict on the installed Claude version: working (no more warning) or not. */
+    async confirmVersion(payload) {
+      const works = (payload as { works?: unknown })?.works;
+      const version = controller.installation?.version;
+      if (typeof works !== 'boolean' || !version) throw new Error('Invalid request.');
+      const others = controller.settings.confirmedVersions.filter((v) => v !== version);
+      const next = {
+        ...controller.settings,
+        confirmedVersions: works ? [...others, version].slice(-50) : others,
+      };
+      await saveSettings(root, next);
+      controller.settings = next;
+      context.notify();
     },
     async completeSetup() {
       const next = { ...controller.settings, setupComplete: true };

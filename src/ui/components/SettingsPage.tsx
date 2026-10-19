@@ -140,7 +140,7 @@ export function SettingsPage() {
           <h2>Claude Desktop</h2>
           <p>
             {data.installation
-              ? `${data.installation.kind} installation · ${data.installation.version}${data.installationTested ? '' : ' · not yet tested with Hatstand'}`
+              ? `${data.installation.kind} installation · ${data.installation.version}${data.installationTested ? '' : data.installationConfirmed ? ' · marked as working by you' : ' · not yet tested with Hatstand'}`
               : 'No installation detected'}
           </p>
           <div className="path-picker">

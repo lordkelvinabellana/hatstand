@@ -49,7 +49,9 @@ export function SetupPage() {
                 <Check size={16} />
                 <span>
                   Found Claude {data.installation.version} ({data.installation.kind}).
-                  {data.installationTested ? '' : ' This version hasn’t been tested with Hatstand yet.'}
+                  {data.installationTested || data.installationConfirmed
+                    ? ''
+                    : ' This version hasn’t been tested with Hatstand yet.'}
                 </span>
               </div>
             ) : (

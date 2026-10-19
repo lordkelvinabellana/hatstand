@@ -23,6 +23,8 @@ export interface Settings {
   /** The project's publishable (anon) key, which is public by design. Never a service key. */
   syncKey: string;
   syncEmail: string;
+  /** Claude Desktop versions the user marked as working here, which silences the untested-version warning. */
+  confirmedVersions: string[];
 }
 export const defaults: Settings = {
   theme: 'system',
@@ -37,6 +39,7 @@ export const defaults: Settings = {
   syncUrl: '',
   syncKey: '',
   syncEmail: '',
+  confirmedVersions: [],
 };
 /** Secret and service-role keys bypass row-level security; they must never be stored here. */
 export function isSecretSupabaseKey(key: string) {
@@ -81,7 +84,10 @@ export function validateSettings(input: unknown): Settings {
     (value.syncEnabled && (!value.syncUrl || !value.syncKey)) ||
     typeof value.executable !== 'string' ||
     value.executable.length > 1000 ||
-    (value.executable !== '' && !path.win32.isAbsolute(value.executable))
+    (value.executable !== '' && !path.win32.isAbsolute(value.executable)) ||
+    !Array.isArray(value.confirmedVersions) ||
+    value.confirmedVersions.length > 50 ||
+    !value.confirmedVersions.every((v) => typeof v === 'string' && /^[\w.+-]{1,50}$/.test(v))
   )
     throw new Error('Invalid settings.');
   return {
@@ -97,6 +103,7 @@ export function validateSettings(input: unknown): Settings {
     syncUrl: value.syncUrl.trim(),
     syncKey: value.syncKey,
     syncEmail: value.syncEmail.trim(),
+    confirmedVersions: [...new Set(value.confirmedVersions as string[])],
   };
 }
 export async function readSettings(root: string): Promise<Settings> {
