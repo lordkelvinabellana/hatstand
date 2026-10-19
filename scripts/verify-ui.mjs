@@ -217,6 +217,13 @@ async function checkGraph(notes, write) {
 
   await notes.getByRole('button', { name: 'Graph', exact: true }).click();
   const graph = notes.getByRole('region', { name: 'Graph' });
+  if (!(await graph.evaluate(() => !!document.createElement('canvas').getContext('webgl')))) {
+    // GPU-less runners (macOS Intel CI): the graph says so and the rest of the window keeps working.
+    await graph.getByText('The graph needs WebGL').waitFor();
+    console.log('No WebGL here: graph drawing checks skipped.');
+    await notes.getByRole('button', { name: 'Close Graph' }).click();
+    return;
+  }
   const count = async () => Number((await graph.getByText(/^\d+ notes/).textContent()).match(/\d+/)[0]);
   await graph.locator('canvas').first().waitFor();
   await until(async () => (await count()) > 40, 'graph shows the vault');

@@ -602,3 +602,13 @@ fieldset.n-depth {
   border: 0;
   padding: 0;
 }
+.n-graph-off {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 16px;
+  color: var(--muted);
+  font-size: 12.5px;
+  text-align: center;
+}

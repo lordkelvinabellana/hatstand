@@ -1,7 +1,7 @@
 import { UndirectedGraph } from 'graphology';
 import fa2 from 'graphology-layout-forceatlas2';
 import fa2Worker from 'graphology-layout-forceatlas2/worker.js';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Sigma from 'sigma';
 import type { NodeHoverDrawingFunction } from 'sigma/rendering';
 import { GROUPS, type GraphData, type Group } from '../core/graph.ts';
@@ -32,7 +32,30 @@ const palette = () => ({
   surface: css('--surface'),
 });
 
-export function GraphView(props: {
+let webgl: boolean | undefined;
+const hasWebGL = () => {
+  if (webgl === undefined)
+    try {
+      const canvas = document.createElement('canvas');
+      webgl = !!(canvas.getContext('webgl2') ?? canvas.getContext('webgl'));
+    } catch {
+      webgl = false;
+    }
+  return webgl;
+};
+const unavailable = (
+  <p className="n-graph-canvas n-graph-off" role="note">
+    The graph needs WebGL, which this computer’s graphics don’t offer right now.
+  </p>
+);
+
+type Props = Parameters<typeof SigmaGraph>[0];
+/** Sigma draws with WebGL; without it (some VMs and GPU-less machines) the rest of the window keeps working. */
+export function GraphView(props: Props) {
+  return hasWebGL() ? <SigmaGraph {...props} /> : unavailable;
+}
+
+function SigmaGraph(props: {
   data: GraphData;
   theme: string;
   active: string | null;
@@ -44,6 +67,7 @@ export function GraphView(props: {
   onOpen(id: string, label: string): void;
 }) {
   const container = useRef<HTMLDivElement>(null);
+  const [failed, setFailed] = useState(false);
   const sigma = useRef<Sigma<NodeAttrs> | null>(null);
   const graph = useRef(new UndirectedGraph<NodeAttrs>());
   const layout = useRef<{ kill(): void } | null>(null);
@@ -74,41 +98,47 @@ export function GraphView(props: {
       ctx.fillStyle = colors.ink;
       ctx.fillText(data.label ?? '', data.x + data.size + 8, data.y + size / 3);
     };
-    const s = new Sigma<NodeAttrs>(g, container.current!, {
-      allowInvalidContainer: true,
-      stagePadding: props.compact ? 56 : 30,
-      zIndex: true,
-      labelFont: 'system-ui, -apple-system, "Segoe UI", sans-serif',
-      labelSize: props.compact ? 11 : 12,
-      labelColor: { color: live.current.colors.ink },
-      labelRenderedSizeThreshold: props.compact ? 4 : 6,
-      labelDensity: props.compact ? 2 : 0.6,
-      defaultDrawNodeHover: drawHover,
-      minCameraRatio: 0.05,
-      maxCameraRatio: 4,
-      nodeReducer: (id, attrs) => {
-        const { colors, hovered, near, highlight, active } = live.current;
-        const out: Record<string, unknown> = {
-          ...attrs,
-          color: attrs.ghost ? colors.ghost : colors[attrs.group],
-        };
-        const focus = hovered ? near : highlight;
-        if (focus && !focus.has(id)) Object.assign(out, { color: colors.dim, label: '', zIndex: 0 });
-        else if (focus) Object.assign(out, { zIndex: 1, forceLabel: hovered !== null || focus.size <= 40 });
-        if (id === active) Object.assign(out, { highlighted: true, forceLabel: true, zIndex: 2 });
-        return out;
-      },
-      edgeReducer: (edge, attrs) => {
-        const { colors, hovered, highlight } = live.current;
-        if (hovered)
-          return g.hasExtremity(edge, hovered)
-            ? { ...attrs, color: colors.edgeOn, size: 1.5, zIndex: 1 }
-            : { ...attrs, hidden: true };
-        if (highlight && !g.extremities(edge).every((id) => highlight.has(id)))
-          return { ...attrs, color: colors.dim, size: 0.5 };
-        return { ...attrs, color: colors.edge, size: props.compact ? 1 : 0.8 };
-      },
-    });
+    let s: Sigma<NodeAttrs>;
+    try {
+      s = new Sigma<NodeAttrs>(g, container.current!, {
+        allowInvalidContainer: true,
+        stagePadding: props.compact ? 56 : 30,
+        zIndex: true,
+        labelFont: 'system-ui, -apple-system, "Segoe UI", sans-serif',
+        labelSize: props.compact ? 11 : 12,
+        labelColor: { color: live.current.colors.ink },
+        labelRenderedSizeThreshold: props.compact ? 4 : 6,
+        labelDensity: props.compact ? 2 : 0.6,
+        defaultDrawNodeHover: drawHover,
+        minCameraRatio: 0.05,
+        maxCameraRatio: 4,
+        nodeReducer: (id, attrs) => {
+          const { colors, hovered, near, highlight, active } = live.current;
+          const out: Record<string, unknown> = {
+            ...attrs,
+            color: attrs.ghost ? colors.ghost : colors[attrs.group],
+          };
+          const focus = hovered ? near : highlight;
+          if (focus && !focus.has(id)) Object.assign(out, { color: colors.dim, label: '', zIndex: 0 });
+          else if (focus) Object.assign(out, { zIndex: 1, forceLabel: hovered !== null || focus.size <= 40 });
+          if (id === active) Object.assign(out, { highlighted: true, forceLabel: true, zIndex: 2 });
+          return out;
+        },
+        edgeReducer: (edge, attrs) => {
+          const { colors, hovered, highlight } = live.current;
+          if (hovered)
+            return g.hasExtremity(edge, hovered)
+              ? { ...attrs, color: colors.edgeOn, size: 1.5, zIndex: 1 }
+              : { ...attrs, hidden: true };
+          if (highlight && !g.extremities(edge).every((id) => highlight.has(id)))
+            return { ...attrs, color: colors.dim, size: 0.5 };
+          return { ...attrs, color: colors.edge, size: props.compact ? 1 : 0.8 };
+        },
+      });
+    } catch {
+      setFailed(true);
+      return;
+    }
     s.on('enterNode', ({ node }) => {
       live.current.hovered = node;
       live.current.near = new Set([node, ...g.neighbors(node)]);
@@ -142,6 +172,7 @@ export function GraphView(props: {
   // biome-ignore lint/correctness/useExhaustiveDependencies: positions and compact are fixed per view.
   useEffect(() => {
     const g = graph.current;
+    if (!sigma.current) return;
     const { data, positions, compact } = props;
     const ids = new Set(data.nodes.map((n) => n.id));
     let changed = false;
@@ -235,5 +266,6 @@ export function GraphView(props: {
     sigma.current?.refresh({ skipIndexation: true });
   }, [props.active, props.highlight, props.theme]);
 
+  if (failed) return unavailable;
   return <div className="n-graph-canvas" ref={container} role="img" aria-label={props.label} />;
 }
