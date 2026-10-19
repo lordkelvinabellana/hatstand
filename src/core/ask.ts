@@ -20,7 +20,7 @@ export function askPrompt(question: string) {
   const q = question.trim();
   if (!q) throw new Error('Type a question first.');
   if (q.length > ASK_LIMIT) throw new Error(`Keep the question under ${ASK_LIMIT} characters.`);
-  return `${q}\n\nAnswer from my notes in this folder (the hatstand-notes tools search and read them). Cite each note you use as [[Note name]].`;
+  return `${q}\n\nAnswer from my notes in this folder: use the hatstand-notes tools if you have them, otherwise search and read the Markdown files here. Cite each note you use as [[Note name]].`;
 }
 
 /** A new Claude Code session in `folder` with the prompt filled in. Percent-encoded only, as the helper requires. */
