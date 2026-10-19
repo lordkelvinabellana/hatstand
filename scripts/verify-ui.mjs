@@ -76,7 +76,7 @@ async function checkNotes(vault) {
   assert.ok(!(await editor.innerText()).includes('[[Kam]]'));
 
   // Typing autosaves to the plain .md file; [[ completes note names.
-  await notes.locator('.cm-line', { hasText: 'Send the proposal' }).click();
+  await notes.locator('.cm-line', { hasText: 'Send the proposal' }).getByText('Send the proposal').click();
   await notes.keyboard.press('End');
   await notes.keyboard.type(' to [[Ka');
   await notes.locator('.cm-tooltip-autocomplete').getByText('Kam', { exact: true }).click();
@@ -85,7 +85,8 @@ async function checkNotes(vault) {
     'autosave',
   );
   // Ticking the checkbox edits the markdown.
-  await notes.locator('.cm-line', { hasText: 'A design studio' }).click();
+  // At the line's start: its middle may be the [[Kam]] link, which would open that note instead.
+  await notes.locator('.cm-line', { hasText: 'A design studio' }).click({ position: { x: 4, y: 8 } });
   await notes.locator('input.cm-task').click();
   await until(async () => (await read('Clients/Aether.md')).includes('- [x] Send'), 'checkbox saved');
 
@@ -111,7 +112,7 @@ async function checkNotes(vault) {
 
   // Unsaved edits are never overwritten: keep both saves mine as a copy.
   await notes.getByRole('tab', { name: 'Kam' }).click();
-  await notes.locator('.cm-line', { hasText: 'Runs ops' }).click();
+  await notes.locator('.cm-line', { hasText: 'Runs ops' }).click({ position: { x: 4, y: 8 } });
   await notes.keyboard.press('End');
   await notes.keyboard.type(' Mine.');
   await write('People/Kam.md', '# Kam\n\nRuns ops. Claude added this.\n');
