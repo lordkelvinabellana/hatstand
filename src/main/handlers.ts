@@ -68,11 +68,15 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
   async function vaultOf(payload: unknown) {
     const id = readId(payload);
     await controller.getProfile(id);
-    return (await brainStatus(root, controller, id)).folder;
+    const status = await brainStatus(root, controller, id);
+    if (status.external)
+      throw new Error('This profile runs its own capture.py hooks; Hatstand leaves its notes alone.');
+    return status.folder;
   }
 
   /** Points a profile at `vault` ('' = default), offering to copy its notes there. Nothing is deleted. */
   async function switchVault(id: string, vault: string) {
+    await vaultOf({ id });
     const folder = await checkVault(root, controller, (await store.load()).profiles, id, vault);
     const status = await brainStatus(root, controller, id);
     if (vaultsOverlap(folder, status.folder) && folder !== status.folder)
@@ -318,6 +322,8 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
         properties: ['openDirectory', 'createDirectory'],
       });
       if (result.canceled) return;
+      await vaultOf({ id });
+      await checkVault(root, controller, (await store.load()).profiles, id, result.filePaths[0]);
       if ((await inspectVault(result.filePaths[0])).used)
         throw new Error('That folder isn’t empty. To use the notes in it, choose “Use existing folder…”.');
       await switchVault(id, result.filePaths[0]);
@@ -331,6 +337,8 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
       });
       if (result.canceled) return;
       const folder = result.filePaths[0];
+      await vaultOf({ id });
+      await checkVault(root, controller, (await store.load()).profiles, id, folder);
       const info = await inspectVault(folder);
       if (info.notes || info.obsidian) {
         const answer = await dialog.showMessageBox(context.window(), {

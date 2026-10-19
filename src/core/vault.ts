@@ -166,7 +166,7 @@ const exists = (file: string) =>
 export async function inspectVault(folder: string): Promise<VaultInfo> {
   const entries = await fs.readdir(folder, { recursive: true }).catch((error) => {
     if (error.code === 'ENOENT') return [] as string[];
-    throw error;
+    throw new Error(`Hatstand can’t read everything in that folder (${error.code ?? error.message}).`);
   });
   const visible = entries.filter((entry) => !entry.split(path.sep).some((part) => part.startsWith('.')));
   const adds: string[] = [];

@@ -188,6 +188,10 @@ try {
   await pickFolder(path.join(root, 'profiles', acorn.id));
   await page.getByRole('button', { name: 'Use existing folder…' }).click();
   await page.getByRole('alert').filter({ hasText: 'Each profile keeps its own vault' }).waitFor();
+  // The home folder is refused before anything under it is read.
+  await pickFolder(os.homedir());
+  await page.getByRole('button', { name: 'Use existing folder…' }).click();
+  await page.getByRole('alert').filter({ hasText: 'not your whole home folder' }).waitFor();
   await page.getByRole('button', { name: 'Use default' }).click();
   await page.getByText('Using the default vault folder.').waitFor();
   assert.equal(
@@ -210,6 +214,11 @@ try {
   await page.locator('.profile-identity').nth(1).click();
   await page.getByText('Second brain', { exact: true }).click();
   await page.getByText(/already runs its own capture\.py hooks/).waitFor();
+  // Its vault and templates can't be changed through IPC either.
+  await assert.rejects(
+    page.evaluate((id) => window.hatstand.request('saveTemplate', { id, name: 'Tool', text: 'x' }), acorn.id),
+    /own capture\.py hooks/,
+  );
   // (Menu-bar pets may add their own hooks there; the second brain adds nothing.)
   assert.ok(!(await fs.readFile(path.join(acornCode, 'settings.json'), 'utf8')).includes('capture.cjs'));
   await assert.rejects(fs.access(path.join(acornCode, 'CLAUDE.md')));

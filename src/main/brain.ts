@@ -1,4 +1,5 @@
 import * as fs from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import type { Controller } from '../core/controller.ts';
 import { assertId, isRecord, type Profile } from '../core/profiles.ts';
@@ -100,6 +101,8 @@ export async function checkVault(
   if (vault && !path.isAbsolute(vault)) throw new Error('Choose a full folder path.');
   const own = controller.directories(id);
   const folder = vault || path.join(own.base, 'vault');
+  if ([os.homedir(), path.parse(folder).root].some((f) => path.resolve(f) === path.resolve(folder)))
+    throw new Error('Choose a folder for notes, not your whole home folder or drive.');
   if ([own.desktop, own.code].some((f) => vaultsOverlap(folder, f)))
     throw new Error('Choose a folder outside this profile’s Claude data.');
   for (const other of profiles) {
