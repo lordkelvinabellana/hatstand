@@ -7,11 +7,14 @@ import {
   brainBlock,
   captureCommand,
   hasExternalCapture,
+  recallEntry,
   seedVault,
   vaultsOverlap,
   withBrainBlock,
   withBrainHooks,
+  withRecallServer,
 } from '../core/vault.ts';
+import { RECALL_SERVER } from '../core/recall.ts';
 
 /** Per-profile second-brain choice. Machine-local (vault paths differ per computer), so never synced. */
 export interface BrainChoice {
@@ -119,10 +122,10 @@ export async function checkVault(
   return folder;
 }
 
-/** Copies the capture script out of the app bundle to a stable path the hooks can run. */
-async function installScript(root: string) {
-  const script = path.join(root, 'second-brain', 'capture.cjs');
-  const text = await fs.readFile(path.join(__dirname, 'capture.cjs'), 'utf8');
+/** Copies a bundled script (the capture hook, the recall server) out of the app bundle to a stable path. */
+async function installScript(root: string, name = 'capture.cjs') {
+  const script = path.join(root, 'second-brain', name);
+  const text = await fs.readFile(path.join(__dirname, name), 'utf8');
   await fs.mkdir(path.dirname(script), { recursive: true });
   await replace(script, text);
   return script;
@@ -137,6 +140,7 @@ export async function wireBrains(root: string, controller: Controller, profiles:
   // Nothing to install or clean up until a profile has used the toggle.
   if (!Object.keys(brains).length) return;
   const script = await installScript(root);
+  const recall = await installScript(root, 'recall.cjs');
   for (const profile of profiles) {
     const choice = brains[profile.id];
     if (!choice) continue;
@@ -155,5 +159,18 @@ export async function wireBrains(root: string, controller: Controller, profiles:
     const claudeFile = path.join(code, 'CLAUDE.md');
     const claude = await fs.readFile(claudeFile, 'utf8').catch(() => '');
     await replace(claudeFile, withBrainBlock(claude, command && brainBlock(folder, command)));
+    // The recall MCP server, for Claude Code (code/.claude.json) and Claude Desktop chats. Only files Claude
+    // already created and that parse are touched, and only Hatstand's own entry in them.
+    const entry = choice.enabled ? recallEntry(process.execPath, recall, folder) : null;
+    for (const file of [
+      path.join(code, '.claude.json'),
+      path.join(controller.directories(profile.id).desktop, 'claude_desktop_config.json'),
+    ]) {
+      const config = await readJson(file);
+      if (!config || !(await fs.stat(file).catch(() => undefined))) continue;
+      const next = withRecallServer(config, RECALL_SERVER, entry);
+      if (JSON.stringify(next) !== JSON.stringify(config))
+        await replace(file, `${JSON.stringify(next, null, 2)}\n`);
+    }
   }
 }

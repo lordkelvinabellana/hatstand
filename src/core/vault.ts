@@ -227,6 +227,26 @@ export function captureCommand(executable: string, script: string, vault: string
   return `ELECTRON_RUN_AS_NODE=1 ${[executable, script].map(shellQuote).join(' ')} --vault ${shellQuote(vault)} --profile ${shellQuote(profile)}`;
 }
 
+/** The `hatstand-notes` MCP server entry for a profile's Claude Code and Claude Desktop configs. */
+export function recallEntry(executable: string, script: string, vault: string) {
+  return { command: executable, args: [script, '--vault', vault], env: { ELECTRON_RUN_AS_NODE: '1' } };
+}
+
+/** Returns `config` with Hatstand's MCP server set to `entry`, or removed when it is null; other servers are kept. */
+export function withRecallServer(
+  config: Record<string, unknown>,
+  name: string,
+  entry: Record<string, unknown> | null,
+): Record<string, unknown> {
+  const servers = { ...((config.mcpServers ?? {}) as Record<string, unknown>) };
+  if (entry) servers[name] = entry;
+  else delete servers[name];
+  const next = { ...config, mcpServers: servers };
+  // Turning off leaves no empty `mcpServers` behind.
+  if (!entry && !Object.keys(servers).length) delete (next as { mcpServers?: unknown }).mcpServers;
+  return next;
+}
+
 const mentions = (group: unknown, text: string) =>
   JSON.stringify((group as { hooks?: unknown })?.hooks ?? '').includes(text);
 

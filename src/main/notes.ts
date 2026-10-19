@@ -1,8 +1,10 @@
-import { BrowserWindow, dialog, type IpcMainInvokeEvent, nativeTheme, shell } from 'electron';
+import { BrowserWindow, clipboard, dialog, type IpcMainInvokeEvent, nativeTheme, shell } from 'electron';
 import { type FSWatcher, watch } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { askPrompt } from '../core/ask.ts';
+import { frontmatter } from '../core/brain.ts';
 import { backlinks, buildIndex, noteName } from '../core/links.ts';
 import {
   createFolder,
@@ -19,6 +21,12 @@ import { isRecord } from '../core/profiles.ts';
 
 /** What a notes window needs about its profile; throws when the profile has no vault Hatstand may open. */
 export type VaultLookup = (id: string) => Promise<{ folder: string; name: string; color: string }>;
+
+/** Hands work to the profile's own Claude Desktop. 'launched' means only the app could be opened. */
+export interface ClaudeActions {
+  openSession(id: string, cliSession: string): Promise<'opened' | 'launched' | 'missing'>;
+  ask(id: string, folder: string, question: string): Promise<'opened' | 'launched'>;
+}
 
 interface Entry {
   window: BrowserWindow;
@@ -39,7 +47,10 @@ const text = (value: unknown) => {
  */
 export class NotesWindows {
   private entries = new Map<string, Entry>();
-  constructor(private vaultFor: VaultLookup) {}
+  constructor(
+    private vaultFor: VaultLookup,
+    private claude: ClaudeActions,
+  ) {}
 
   async open(id: string) {
     const existing = this.entries.get(id);
@@ -131,13 +142,14 @@ export class NotesWindows {
       const vault = await this.vaultFor(id);
       entry.folder = vault.folder;
       const payload = isRecord(request.payload) ? request.payload : {};
-      return { ok: true, value: await this.run(entry.window, vault, request.action, payload) };
+      return { ok: true, value: await this.run(id, entry.window, vault, request.action, payload) };
     } catch (error) {
       return { ok: false, error: (error as Error).message || 'The operation failed. Try again.' };
     }
   }
 
   private async run(
+    id: string,
     window: BrowserWindow,
     vault: Awaited<ReturnType<VaultLookup>>,
     action: string,
@@ -164,6 +176,19 @@ export class NotesWindows {
         return createNote(folder, payload.path, payload.text === undefined ? '' : text(payload.text));
       case 'createFolder':
         return createFolder(folder, payload.path);
+      case 'openSession': {
+        // The session id comes from the note on disk, not from the window.
+        const session = frontmatter(await readNote(folder, payload.path)).session ?? '';
+        return this.claude.openSession(id, session);
+      }
+      case 'ask': {
+        const question = text(payload.question);
+        askPrompt(question); // validates before anything opens
+        const result = await this.claude.ask(id, folder, question);
+        // Where the link can't be delivered, the question waits on the clipboard.
+        if (result === 'launched') clipboard.writeText(askPrompt(question));
+        return result;
+      }
       case 'move':
         return this.move(window, folder, payload.from, payload.to);
       case 'trash': {

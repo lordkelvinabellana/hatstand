@@ -80,7 +80,8 @@ Claude. Separate profiles are not a filesystem or security sandbox.
 - The panel is a sandboxed, script-free page except for one hash-allowed script
   that reports its height. Its links are commands handled in `will-navigate`.
 - Opening a session: `hatstand-macos open-url` revalidates the process like
-  `focus`, accepts only `claude://code/continue?session=local_…`, and sends it as
+  `focus`, accepts only `claude://code/continue?session=local_…` or a percent-encoded
+  `claude://code/new?q=…&folder=…` (the notes Ask box), and sends it as
   a `kAEGetURL` Apple Event to that PID. Every Claude shares one bundle ID, so an
   ordinary URL open would reach whichever account macOS picks. macOS asks once for
   Automation permission (`NSAppleEventsUsageDescription`).
