@@ -765,6 +765,18 @@ small {
   gap: 16px;
   color: var(--accent);
 }
+.sync-fields {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0;
+  max-width: 520px;
+}
+.sync-fields label {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
 .inline-error {
   color: var(--danger);
 }

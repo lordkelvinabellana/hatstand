@@ -158,6 +158,17 @@ try {
   await page.keyboard.press('Backspace');
   await page.getByRole('button', { name: 'Save preferences', exact: true }).click();
   await page.getByText('Settings saved.', { exact: true }).waitFor();
+  // Sync refuses a secret key before anything is sent, and stays off by default.
+  await page.getByLabel('Supabase project URL').fill('https://example.supabase.co');
+  await page.getByLabel('Publishable key').fill('sb_secret_not_allowed');
+  await page.getByLabel('Email', { exact: true }).fill('test@example.com');
+  await page.getByRole('button', { name: 'Email me a sign-in code' }).click();
+  await page
+    .getByText(/secret Supabase key/)
+    .first()
+    .waitFor();
+  await page.getByRole('heading', { name: 'Sync profiles' }).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: path.join(screenshotFolder, 'sync.png') });
   if (mac) {
     // Pets switch off (the Hatstand icon returns) and back on without a restart.
     for (const checked of [false, true]) {

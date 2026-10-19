@@ -98,6 +98,22 @@ test('settings from older versions gain new defaults; invalid values are rejecte
   assert.equal(settings.pets, true);
   assert.equal(settings.petSounds, true);
   assert.throws(() => validateSettings({ ...defaults, pets: 'yes' }));
+  assert.equal(settings.syncEnabled, false);
+  // Sync needs a project, only over https, and never with a secret key.
+  assert.throws(() => validateSettings({ ...defaults, syncEnabled: true }));
+  assert.throws(() => validateSettings({ ...defaults, syncUrl: 'http://abc.supabase.co' }));
+  assert.throws(() => validateSettings({ ...defaults, syncKey: 'sb_secret_abc' }), /secret Supabase key/);
+  const serviceRole = `x.${Buffer.from(JSON.stringify({ role: 'service_role' })).toString('base64url')}.y`;
+  assert.throws(() => validateSettings({ ...defaults, syncKey: serviceRole }), /secret Supabase key/);
+  assert.equal(
+    validateSettings({
+      ...defaults,
+      syncEnabled: true,
+      syncUrl: 'https://abc.supabase.co',
+      syncKey: 'sb_publishable_x',
+    }).syncEnabled,
+    true,
+  );
   assert.throws(() => validateSettings({ ...defaults, executable: 'relative\\Claude.exe' }));
   assert.throws(() => validateSettings({ ...defaults, hotkey: 'A' }));
 });

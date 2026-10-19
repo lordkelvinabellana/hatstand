@@ -16,6 +16,13 @@ export interface Settings {
   pets: boolean;
   /** macOS: pets play a sound when an account needs you or finishes. */
   petSounds: boolean;
+  /** Optional profile sync through the user's own Supabase project (metadata only). */
+  syncEnabled: boolean;
+  /** The Supabase project URL, e.g. https://abc.supabase.co. */
+  syncUrl: string;
+  /** The project's publishable (anon) key, which is public by design. Never a service key. */
+  syncKey: string;
+  syncEmail: string;
 }
 export const defaults: Settings = {
   theme: 'system',
@@ -26,11 +33,35 @@ export const defaults: Settings = {
   setupComplete: false,
   pets: true,
   petSounds: true,
+  syncEnabled: false,
+  syncUrl: '',
+  syncKey: '',
+  syncEmail: '',
 };
+/** Secret and service-role keys bypass row-level security; they must never be stored here. */
+export function isSecretSupabaseKey(key: string) {
+  if (key.startsWith('sb_secret_')) return true;
+  try {
+    const payload = JSON.parse(Buffer.from(key.split('.')[1] ?? '', 'base64url').toString('utf8'));
+    return payload?.role === 'service_role';
+  } catch {
+    return false;
+  }
+}
+function validSyncUrl(value: string) {
+  if (!value) return true;
+  try {
+    return value.length <= 300 && new URL(value).protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
 /** Missing keys take their defaults so settings files from older versions keep loading. */
 export function validateSettings(input: unknown): Settings {
   if (!isRecord(input)) throw new Error('Invalid settings.');
   const value = { ...defaults, ...input };
+  if (typeof value.syncKey === 'string' && isSecretSupabaseKey(value.syncKey))
+    throw new Error('That is a secret Supabase key. Use the publishable (anon) key instead.');
   if (
     !['system', 'light', 'dark'].includes(String(value.theme)) ||
     typeof value.minimizeToTray !== 'boolean' ||
@@ -38,6 +69,16 @@ export function validateSettings(input: unknown): Settings {
     typeof value.setupComplete !== 'boolean' ||
     typeof value.pets !== 'boolean' ||
     typeof value.petSounds !== 'boolean' ||
+    typeof value.syncEnabled !== 'boolean' ||
+    typeof value.syncUrl !== 'string' ||
+    !validSyncUrl(value.syncUrl) ||
+    typeof value.syncKey !== 'string' ||
+    value.syncKey.length > 1000 ||
+    /\s/.test(value.syncKey) ||
+    typeof value.syncEmail !== 'string' ||
+    value.syncEmail.length > 320 ||
+    (value.syncEmail !== '' && !/^[^\s@]+@[^\s@]+$/.test(value.syncEmail)) ||
+    (value.syncEnabled && (!value.syncUrl || !value.syncKey)) ||
     typeof value.executable !== 'string' ||
     value.executable.length > 1000 ||
     (value.executable !== '' && !path.win32.isAbsolute(value.executable))
@@ -52,6 +93,10 @@ export function validateSettings(input: unknown): Settings {
     setupComplete: value.setupComplete,
     pets: value.pets,
     petSounds: value.petSounds,
+    syncEnabled: value.syncEnabled,
+    syncUrl: value.syncUrl.trim(),
+    syncKey: value.syncKey,
+    syncEmail: value.syncEmail.trim(),
   };
 }
 export async function readSettings(root: string): Promise<Settings> {

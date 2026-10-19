@@ -31,6 +31,7 @@ Hatstand starts Claude with a separate data folder for each profile by setting `
 - **Client work folders**: one click to open the client's files. This is a convenience only; it doesn't restrict what Claude can access.
 - **Safe data handling**: removing a profile keeps its data by default. Leftover data can be moved to the Recycle Bin (never deleted outright), and uninstalling Hatstand keeps every profile.
 - **Metadata export/import**: names, labels, colors, and pets only. Sign-ins never leave your computer.
+- **Optional profile sync**: keep the profile list in your own Supabase project so another computer gets the same clients. Off by default; sign-ins and Claude data never sync. See [docs/SYNC.md](docs/SYNC.md).
 - Light, dark, and system themes; keyboard navigation; no telemetry.
 
 ## macOS preview
@@ -134,7 +135,7 @@ Profile folders contain signed-in sessions: **treat them like passwords** and ne
 
 Removing a profile keeps its data unless you tick **Also move this profile's local Claude data to the Recycle Bin**. **Settings → Local data** finds data left behind by removed profiles. Removing a profile doesn't sign out of or delete the Claude account, or any conversations stored by Claude.
 
-Hatstand logs actions with profile IDs only (no names, labels, or paths) and makes no network requests except **Check for updates** in Settings, which contacts the GitHub API when you ask.
+Hatstand logs actions with profile IDs only (no names, labels, or paths) and makes no network requests except **Check for updates** in Settings, which contacts the GitHub API when you ask, and, only if you turn it on, **profile sync** with your own Supabase project.
 
 ## Development
 

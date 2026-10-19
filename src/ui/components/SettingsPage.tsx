@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ArrowUpRight, Download, RefreshCw, Trash2, Upload } from 'lucide-react';
+import { ArrowUpRight, CloudUpload, Download, RefreshCw, Trash2, Upload } from 'lucide-react';
+import { syncGuideUrl } from '../../core/project.ts';
 import type { Settings } from '../../core/settings.ts';
 import type { ProfileInput } from '../../core/profiles.ts';
 import type { StorageFolder, UpdateCheck } from '../../shared.ts';
@@ -14,6 +15,15 @@ export function SettingsPage() {
   const [importPreview, setImportPreview] = useState<ProfileInput[] | null>(null);
   const [update, setUpdate] = useState<UpdateCheck | null>(null);
   const [storage, setStorage] = useState<StorageFolder[] | null>(null);
+  const [sync, setSync] = useState({
+    syncUrl: data.settings.syncUrl,
+    syncKey: data.settings.syncKey,
+    syncEmail: data.settings.syncEmail,
+  });
+  const [code, setCode] = useState('');
+  const [codeSent, setCodeSent] = useState(false);
+  // Saves only the sync fields, so other unsaved edits on this page stay in their form.
+  const saveSync = (syncEnabled: boolean) => run('settings', { ...data.settings, ...sync, syncEnabled });
   const leftovers = storage?.filter((folder) => !folder.registered) ?? [];
 
   function loadStorage() {
@@ -215,6 +225,132 @@ export function SettingsPage() {
               <p>You have the latest version ({update.current}).</p>
             )}
           </div>
+        )}
+      </section>
+
+      <section className="setting-section transfer">
+        <h2>Sync profiles</h2>
+        <p>
+          Optional. Keeps profile names, labels, colors, pets, order and shortcuts in your own Supabase
+          project, so another computer gets the same list. Sign-ins, Claude data, settings and work folders
+          never leave this computer.{' '}
+          <button
+            type="button"
+            className="text-button"
+            onClick={() => fire('openExternal', { url: syncGuideUrl })}
+          >
+            Setup guide <ArrowUpRight size={13} />
+          </button>
+        </p>
+        <div className="sync-fields">
+          <label>
+            Supabase project URL
+            <input
+              value={sync.syncUrl}
+              placeholder="https://your-project.supabase.co"
+              onChange={(e) => setSync({ ...sync, syncUrl: e.target.value })}
+            />
+          </label>
+          <label>
+            Publishable key
+            <input
+              value={sync.syncKey}
+              placeholder="sb_publishable_… or the anon key"
+              onChange={(e) => setSync({ ...sync, syncKey: e.target.value.trim() })}
+            />
+          </label>
+          <label>
+            Email
+            <input
+              type="email"
+              value={sync.syncEmail}
+              placeholder="you@example.com"
+              onChange={(e) => setSync({ ...sync, syncEmail: e.target.value })}
+            />
+          </label>
+        </div>
+        {data.sync.signedIn ? (
+          <>
+            <p role="status">
+              {data.sync.syncing
+                ? 'Syncing…'
+                : data.sync.lastSyncAt
+                  ? `Signed in. Last synced ${new Date(data.sync.lastSyncAt).toLocaleString()}.`
+                  : 'Signed in.'}
+              {!data.settings.syncEnabled && ' Sync is paused.'}
+            </p>
+            {data.sync.error && <p className="inline-error">{data.sync.error}</p>}
+            <div className="button-row">
+              <button
+                type="button"
+                className="secondary"
+                disabled={!!pending || data.sync.syncing}
+                onClick={() =>
+                  void saveSync(true)
+                    .then(() => run('syncNow', undefined, 'Profiles synced.'))
+                    .catch(() => {})
+                }
+              >
+                <CloudUpload size={15} />
+                Sync now
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled={!!pending}
+                onClick={() => void saveSync(!data.settings.syncEnabled).catch(() => {})}
+              >
+                {data.settings.syncEnabled ? 'Pause sync' : 'Resume sync'}
+              </button>
+              <button type="button" className="text-button" onClick={() => fire('syncSignOut')}>
+                Sign out
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            {data.sync.error && <p className="inline-error">{data.sync.error}</p>}
+            <div className="button-row">
+              <button
+                type="button"
+                className="secondary"
+                disabled={!!pending || !sync.syncUrl || !sync.syncKey || !sync.syncEmail}
+                onClick={() =>
+                  void saveSync(false)
+                    .then(() => run('syncSendCode', undefined, 'Code sent. Check your email.'))
+                    .then(() => setCodeSent(true))
+                    .catch(() => {})
+                }
+              >
+                Email me a sign-in code
+              </button>
+              {codeSent && (
+                <>
+                  <input
+                    aria-label="Sign-in code"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={code}
+                    placeholder="Code"
+                    onChange={(e) => setCode(e.target.value.trim())}
+                  />
+                  <button
+                    type="button"
+                    className="primary"
+                    disabled={!!pending || !code}
+                    onClick={() =>
+                      void saveSync(true)
+                        .then(() => run('syncVerify', { code }, 'Signed in. Profiles synced.'))
+                        .then(() => setCode(''))
+                        .catch(() => {})
+                    }
+                  >
+                    Sign in and sync
+                  </button>
+                </>
+              )}
+            </div>
+          </>
         )}
       </section>
 
