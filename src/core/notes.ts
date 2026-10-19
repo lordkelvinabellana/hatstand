@@ -158,3 +158,15 @@ export async function relinkVault(vault: string, old: string, next: string) {
   }
   return changed;
 }
+
+/** The deep-graph file Claude wrote, as text; '' when missing, too large or not a plain file in the vault. */
+export async function readInferred(vault: string) {
+  const file = path.join(vault, '.hatstand', 'inferred-links.json');
+  try {
+    const [dir, stat] = await Promise.all([fs.lstat(path.dirname(file)), fs.lstat(file)]);
+    if (!dir.isDirectory() || !stat.isFile() || stat.size > 2_000_000) return '';
+    return await fs.readFile(file, 'utf8');
+  } catch {
+    return '';
+  }
+}

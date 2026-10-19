@@ -1335,6 +1335,10 @@ small {
 .vault-overview .n-graph-canvas {
   height: 480px;
 }
+.vault-toggles {
+  display: inline-flex;
+  gap: 16px;
+}
 .vault-overview-bar .checkbox-row.compact {
   display: inline-flex;
   flex-direction: row;

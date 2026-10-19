@@ -175,6 +175,10 @@ vault's notes inside Hatstand. **Share…** lets other profiles write to the sam
 that do the same work); each can leave again, and nothing is moved or deleted. Which vault a request
 reaches is decided in Hatstand's main process, never by the page.
 
+**Deep graph** (on a vault's Graph tab) asks that profile's Claude to find connections your notes
+don't link yet. It writes them to `.hatstand/inferred-links.json` in the vault without touching any note,
+and Hatstand draws them in orange, with Claude's reason beside each note under **AI-suggested links**.
+
 ![The Notes window: file tree, a client note in live preview, and backlinks](docs/images/notes.png)
 
 - **Files**: folders and `.md` notes (hidden folders such as `.obsidian` are skipped). New note

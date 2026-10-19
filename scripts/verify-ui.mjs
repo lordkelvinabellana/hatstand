@@ -237,6 +237,30 @@ async function checkClaude(notes, write, vault) {
   assert.equal(asked.searchParams.get('folder'), vault);
   assert.match(asked.searchParams.get('q'), /^What did we agree with Northwind\?\n\nAnswer from my notes/);
   await notes.screenshot({ path: path.join(screenshotFolder, 'notes-ask.png') });
+
+  // Deep graph: Claude's links file shows up live as AI-suggested links, and the button asks this
+  // profile's own Claude for a new one in this vault.
+  await fs.mkdir(path.join(vault, '.hatstand'), { recursive: true });
+  await fs.writeFile(
+    path.join(vault, '.hatstand', 'inferred-links.json'),
+    JSON.stringify({
+      links: [
+        { from: 'Clients/Northwind.md', to: 'Tools/Figma.md', reason: 'Their brand work runs in Figma.' },
+        { from: 'Clients/Northwind.md', to: 'Nowhere.md', reason: 'Dropped: no such note.' },
+      ],
+    }),
+  );
+  await notes.getByRole('heading', { name: 'AI-suggested links' }).waitFor();
+  await notes.locator('.n-suggested').getByText('Their brand work runs in Figma.').waitFor();
+  assert.equal(await notes.locator('.n-suggested li').count(), 1);
+  await notes.keyboard.press(`${primaryKey}+G`);
+  await notes.getByText('AI links (1)').waitFor();
+  await notes.getByRole('button', { name: 'Refresh deep graph' }).click();
+  await until(async () => (await opened()).length === 3, 'deep graph link sent');
+  const deep = new URL((await opened())[2].url);
+  assert.equal(deep.searchParams.get('folder'), vault);
+  assert.match(deep.searchParams.get('q'), /^Build a deep graph of this notes vault/);
+  await notes.screenshot({ path: path.join(screenshotFolder, 'deep-graph.png') });
   await notes.getByRole('button', { name: 'Files', exact: true }).click();
 }
 

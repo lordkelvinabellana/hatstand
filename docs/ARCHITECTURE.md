@@ -31,7 +31,10 @@ the system trash). Every vault in use is watched with `fs.watch` (recursive) and
 A vault can be shared: `shareVault` points other profiles at one vault folder (a default vault inside a
 profile's own data first moves to `HatstandData/vaults/<name>`, since profiles never point into each
 other's data), and `checkVault` allows another profile's vault only for that explicit share. The
-all-vaults graph combines each vault's graph around its own hub (`combineVaults` in `src/core/graph.ts`). Wikilinks, aliases, backlinks and search (MiniSearch) live in
+all-vaults graph combines each vault's graph around its own hub (`combineVaults` in `src/core/graph.ts`).
+Deep graph (`src/core/inferred.ts`) never calls a model itself: it opens a Code session in the profile's
+own Claude with a fixed prompt, and that session writes `.hatstand/inferred-links.json`. Hatstand only
+reads the file, resolves each end to a note that exists, and adds the pairs as `ai` edges (`withInferred`). Wikilinks, aliases, backlinks and search (MiniSearch) live in
 `src/core/links.ts`, which is pure and unit-tested. The graph view builds its nodes and edges from
 that same link index in `src/core/graph.ts` (also pure: filters, local graph, search matches) and
 draws them with sigma.js 3 and graphology in `src/notes/GraphView.tsx`. ForceAtlas2 runs in a web

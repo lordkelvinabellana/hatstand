@@ -24,7 +24,34 @@ export interface GraphData {
   nodes: GraphNode[];
   /** Undirected, one per linked pair. */
   edges: [string, string][];
+  /** Deep graph: edges Claude suggested (not in the notes), keyed `a\nb`, with Claude's reason. */
+  ai?: Map<string, string>;
 }
+
+/** Adds Claude's suggested links as edges of their own kind; pairs already linked by hand stay plain. */
+export function withInferred(
+  graph: GraphData,
+  links: { from: string; to: string; reason: string }[],
+): GraphData {
+  if (!links.length) return graph;
+  const ids = new Set(graph.nodes.map((n) => n.id));
+  const have = new Set(graph.edges.map(([a, b]) => `${a}\n${b}`));
+  const ai = new Map<string, string>();
+  const edges = [...graph.edges];
+  for (const l of links) {
+    if (!ids.has(l.from) || !ids.has(l.to)) continue;
+    const pair: [string, string] = l.from < l.to ? [l.from, l.to] : [l.to, l.from];
+    const key = pair.join('\n');
+    if (have.has(key) || ai.has(key)) continue;
+    ai.set(key, l.reason);
+    edges.push(pair);
+  }
+  return { nodes: graph.nodes, edges, ai };
+}
+
+/** Graph data without Claude's suggested links. */
+export const withoutInferred = (graph: GraphData): GraphData =>
+  graph.ai ? { nodes: graph.nodes, edges: graph.edges.filter((e) => !graph.ai!.has(e.join('\n'))) } : graph;
 
 export const groupOf = (path: string): Group => {
   const top = path.includes('/') ? path.slice(0, path.indexOf('/')) : '';
@@ -76,6 +103,7 @@ export function filterGraph(graph: GraphData, filter: GraphFilter): GraphData {
   return {
     nodes: graph.nodes.filter((n) => keep.has(n.id) && (filter.orphans || linked.has(n.id))),
     edges,
+    ai: graph.ai,
   };
 }
 
@@ -100,6 +128,7 @@ export function localGraph(graph: GraphData, center: string, depth: number): Gra
   return {
     nodes: graph.nodes.filter((n) => seen.has(n.id)),
     edges: graph.edges.filter(([a, b]) => seen.has(a) && seen.has(b)),
+    ai: graph.ai,
   };
 }
 
@@ -126,6 +155,7 @@ export interface VaultGraph {
 export function combineVaults(vaults: VaultGraph[]): GraphData {
   const nodes: GraphNode[] = [];
   const edges: [string, string][] = [];
+  const ai = new Map<string, string>();
   for (const v of vaults) {
     const id = (node: string) => `${v.key}\n${node}`;
     const hub = id('');
@@ -142,9 +172,13 @@ export function combineVaults(vaults: VaultGraph[]): GraphData {
       nodes.push({ ...n, id: id(n.id), color: n.ghost ? undefined : v.color });
       edges.push([hub, id(n.id)]);
     }
-    for (const [a, b] of v.graph.edges) edges.push([id(a), id(b)]);
+    for (const [a, b] of v.graph.edges) {
+      edges.push([id(a), id(b)]);
+      const reason = v.graph.ai?.get(`${a}\n${b}`);
+      if (reason !== undefined) ai.set(`${id(a)}\n${id(b)}`, reason);
+    }
   }
-  return { nodes, edges };
+  return { nodes, edges, ai };
 }
 
 /** Splits a combined-graph id back into its vault key and note path ('' for the hub). */
