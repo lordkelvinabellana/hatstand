@@ -136,7 +136,7 @@ export const ProfilesPage = forwardRef<HTMLInputElement, Props>(function Profile
         </div>
       )}
       {data.processError && <div className="banner warning">{data.processError}</div>}
-      <div className={`profile-workspace ${props.editing ? 'with-editor' : ''}`}>
+      <div className="profile-workspace">
         <section className="profiles-panel" aria-label="Client profiles">
           <div className="list-toolbar">
             <label className="search">
