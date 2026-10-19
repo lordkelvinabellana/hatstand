@@ -23,6 +23,14 @@ await Promise.all([
     format: 'cjs',
   }),
   build({
+    entryPoints: ['src/brain/capture.ts'],
+    outfile: 'dist/capture.cjs',
+    bundle: true,
+    platform: 'node',
+    target: 'node24',
+    format: 'cjs',
+  }),
+  build({
     entryPoints: ['src/ui/index.tsx'],
     outfile: 'dist/ui.js',
     bundle: true,

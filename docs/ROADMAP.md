@@ -16,6 +16,15 @@ Priorities can change based on compatibility findings and feedback. Open an issu
 - Per-profile environment presets for Desktop Code, only where separate configuration paths are verified.
 - Localization.
 
+## Second brain
+
+Done: capture, per-profile vaults, hook and CLAUDE.md wiring, opt-in toggle, vault picker and editable templates. Next:
+
+1. A built-in notes editor: file tree, tabs, search and backlinks (CodeMirror 6, MiniSearch).
+2. Graph view of wikilinks (sigma.js, graphology).
+3. Claude features: open the session behind a note, an Ask box, and a recall MCP server.
+4. Maybe later: one-way linking between vaults on one machine, and end-to-end-encrypted hosted sync.
+
 ## Later, only if compatibility allows
 
 - Per-profile MCP configuration editor with validation and backup.

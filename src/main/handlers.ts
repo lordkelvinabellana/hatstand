@@ -26,6 +26,15 @@ const trash = mac ? 'Trash' : 'Recycle Bin';
 import type { Snapshot, UpdateCheck } from '../shared.ts';
 import { applyLoginItem, createDesktopShortcut } from './integration.ts';
 import type { ProfileSync } from './sync.ts';
+import { brainStatus, checkVault, saveBrain } from './brain.ts';
+import {
+  assertTemplateName,
+  copyVault,
+  inspectVault,
+  readTemplate,
+  saveTemplate,
+  vaultsOverlap,
+} from '../core/vault.ts';
 
 export interface HandlerContext {
   root: string;
@@ -56,21 +65,56 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
   const { root, store, controller } = context;
   let pendingImport: ReturnType<typeof parseImport> | null = null;
 
+  async function vaultOf(payload: unknown) {
+    const id = readId(payload);
+    await controller.getProfile(id);
+    const status = await brainStatus(root, controller, id);
+    if (status.external)
+      throw new Error('This profile runs its own capture.py hooks; Hatstand leaves its notes alone.');
+    return status.folder;
+  }
+
+  /** Points a profile at `vault` ('' = default), offering to copy its notes there. Nothing is deleted. */
+  async function switchVault(id: string, vault: string) {
+    await vaultOf({ id });
+    const folder = await checkVault(root, controller, (await store.load()).profiles, id, vault);
+    const status = await brainStatus(root, controller, id);
+    if (vaultsOverlap(folder, status.folder) && folder !== status.folder)
+      throw new Error('Choose a folder outside this profile’s current vault.');
+    if (folder !== status.folder && (await inspectVault(status.folder)).notes) {
+      const answer = await dialog.showMessageBox(context.window(), {
+        type: 'question',
+        buttons: ['Cancel', 'Just switch', 'Copy notes'],
+        defaultId: 2,
+        cancelId: 0,
+        message: 'Copy this profile’s notes to the new folder?',
+        detail: `Copying never replaces a file that’s already there. The current folder stays as it is:\n${status.folder}`,
+      });
+      if (answer.response === 0) return;
+      if (answer.response === 2) await copyVault(status.folder, folder);
+    }
+    await saveBrain(root, id, { enabled: status.enabled, vault });
+    await context.profilesChanged();
+  }
+
   async function snapshot(): Promise<Snapshot> {
     const state = await store.load();
     const hotkeys = context.hotkeyErrors();
     return {
       platform: mac ? 'darwin' : 'win32',
-      profiles: state.profiles.map((p) => {
-        const directories = controller.directories(p.id);
-        return {
-          ...p,
-          ...controller.status(p.id),
-          directory: directories.base,
-          bound: directories.bound,
-          hotkeyError: hotkeys.profileErrors.get(p.id),
-        };
-      }),
+      profiles: await Promise.all(
+        state.profiles.map(async (p) => {
+          const directories = controller.directories(p.id);
+          return {
+            ...p,
+            ...controller.status(p.id),
+            directory: directories.base,
+            bound: directories.bound,
+            hotkeyError: hotkeys.profileErrors.get(p.id),
+            brain: await brainStatus(root, controller, p.id),
+          };
+        }),
+      ),
       settings: controller.settings,
       installation: controller.installation,
       installationTested: isTestedVersion(controller.installation?.version),
@@ -255,6 +299,103 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
         throw new Error('This profile has no work folder yet. Add one in its details.');
       const error = await shell.openPath(profile.workFolder);
       if (error) throw new Error(`Could not open ${profile.workFolder}: ${error}`);
+    },
+    async brain(payload) {
+      const id = readId(payload);
+      await controller.getProfile(id);
+      if (typeof (payload as { enabled?: unknown }).enabled !== 'boolean')
+        throw new Error('Invalid request.');
+      const enabled = (payload as { enabled: boolean }).enabled;
+      const status = await brainStatus(root, controller, id);
+      if (enabled && status.external)
+        throw new Error(
+          'This profile already runs its own capture.py hooks. Remove them from its Claude Code settings.json first.',
+        );
+      await saveBrain(root, id, { enabled, vault: status.vault });
+      await context.profilesChanged();
+    },
+    async newVault(payload) {
+      const id = readId(payload);
+      await controller.getProfile(id);
+      const result = await dialog.showOpenDialog(context.window(), {
+        title: 'Choose or create an empty folder for a new vault',
+        properties: ['openDirectory', 'createDirectory'],
+      });
+      if (result.canceled) return;
+      await vaultOf({ id });
+      await checkVault(root, controller, (await store.load()).profiles, id, result.filePaths[0]);
+      if ((await inspectVault(result.filePaths[0])).used)
+        throw new Error('That folder isn’t empty. To use the notes in it, choose “Use existing folder…”.');
+      await switchVault(id, result.filePaths[0]);
+    },
+    async adoptVault(payload) {
+      const id = readId(payload);
+      await controller.getProfile(id);
+      const result = await dialog.showOpenDialog(context.window(), {
+        title: 'Choose an existing notes folder',
+        properties: ['openDirectory'],
+      });
+      if (result.canceled) return;
+      const folder = result.filePaths[0];
+      await vaultOf({ id });
+      await checkVault(root, controller, (await store.load()).profiles, id, folder);
+      const info = await inspectVault(folder);
+      if (info.notes || info.obsidian) {
+        const answer = await dialog.showMessageBox(context.window(), {
+          type: 'question',
+          buttons: ['Cancel', 'Use this vault'],
+          defaultId: 1,
+          cancelId: 0,
+          message: `Use this ${info.obsidian ? 'Obsidian vault' : 'folder'} for this profile’s notes?`,
+          detail: `Found ${info.notes} note${info.notes === 1 ? '' : 's'}. Existing notes are not changed. ${
+            info.adds.length
+              ? `When the second brain is on, Hatstand adds only what’s missing:\n${info.adds.join('\n')}`
+              : 'Nothing needs adding.'
+          }`,
+        });
+        if (answer.response !== 1) return;
+      }
+      await switchVault(id, folder);
+    },
+    async resetVault(payload) {
+      const id = readId(payload);
+      await controller.getProfile(id);
+      await switchVault(id, '');
+    },
+    async template(payload) {
+      const { name } = payload as { name?: unknown };
+      assertTemplateName(name);
+      return readTemplate(await vaultOf(payload), name);
+    },
+    async saveTemplate(payload) {
+      const { name, text } = payload as { name?: unknown; text?: unknown };
+      assertTemplateName(name);
+      if (typeof text !== 'string') throw new Error('Invalid request.');
+      await saveTemplate(await vaultOf(payload), name, text);
+    },
+    async resetTemplate(payload) {
+      const { name } = payload as { name?: unknown };
+      assertTemplateName(name);
+      const vault = await vaultOf(payload);
+      const answer = await dialog.showMessageBox(context.window(), {
+        type: 'question',
+        buttons: ['Cancel', 'Restore default'],
+        defaultId: 0,
+        cancelId: 0,
+        message: `Restore the default ${name} template?`,
+        detail: 'Your changes to this template are replaced. Notes made from it are not changed.',
+      });
+      if (answer.response !== 1) return false;
+      await saveTemplate(vault, name, null);
+      return true;
+    },
+    async openVault(payload) {
+      const id = readId(payload);
+      await controller.getProfile(id);
+      const { folder } = await brainStatus(root, controller, id);
+      await fs.mkdir(folder, { recursive: true });
+      const error = await shell.openPath(folder);
+      if (error) throw new Error(error);
     },
     async pickWorkFolder() {
       const result = await dialog.showOpenDialog(context.window(), {

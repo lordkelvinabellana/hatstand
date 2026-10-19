@@ -97,6 +97,133 @@ try {
   await page.getByRole('alert').filter({ hasText: 'already used' }).waitFor();
   await page.getByRole('button', { name: 'Close profile editor' }).click();
 
+  // Second brain: opt-in per profile; wires hooks and CLAUDE.md, and turning it off removes only those.
+  const [northProfile, acorn] = await readProfiles();
+  const code = path.join(root, 'profiles', northProfile.id, 'code');
+  await fs.mkdir(code, { recursive: true });
+  const userHook = { Stop: [{ hooks: [{ type: 'command', command: 'echo mine' }] }] };
+  await fs.writeFile(path.join(code, 'settings.json'), JSON.stringify({ hooks: userHook }));
+  await fs.writeFile(path.join(code, 'CLAUDE.md'), '# My rules\n');
+  // A profile that already runs its own capture.py is left alone.
+  const acornCode = path.join(root, 'profiles', acorn.id, 'code');
+  await fs.mkdir(acornCode, { recursive: true });
+  const external = JSON.stringify({ hooks: { Stop: [{ hooks: [{ command: 'python3 capture.py' }] }] } });
+  await fs.writeFile(path.join(acornCode, 'settings.json'), external);
+  await page.locator('.profile-identity').first().click();
+  await page.getByText('Second brain', { exact: true }).click();
+  await page.getByLabel(/Keep notes from Claude Code sessions/).click();
+  await page.getByText(/Second brain on\./).waitFor();
+  const wired = JSON.parse(await fs.readFile(path.join(code, 'settings.json'), 'utf8'));
+  const stops = JSON.stringify(wired.hooks.Stop);
+  assert.ok(
+    stops.includes('echo mine') && stops.split('capture.cjs').length === 2,
+    'one capture hook beside the user’s',
+  );
+  const startHook = wired.hooks.SessionStart[0].hooks[0].command;
+  assert.match(
+    await fs.readFile(path.join(code, 'CLAUDE.md'), 'utf8'),
+    /^# My rules\n\n<!-- hatstand:second-brain:start -->/,
+  );
+  const vault = path.join(root, 'profiles', northProfile.id, 'vault');
+  await fs.access(path.join(vault, '_templates', 'Client.md'));
+  if (process.platform !== 'win32') {
+    // The hook really runs: Hatstand's own executable acting as Node, through sh.
+    const { execFileSync } = await import('node:child_process');
+    const output = JSON.parse(execFileSync('/bin/sh', ['-c', startHook], { encoding: 'utf8' }));
+    assert.match(output.hookSpecificOutput.additionalContext, /Second brain vault:/);
+  }
+  // Templates: edit one in place, then restore Hatstand's default.
+  const toolTemplate = path.join(vault, '_templates', 'Tool.md');
+  const defaultTool = await fs.readFile(toolTemplate, 'utf8');
+  await instance.evaluate(({ dialog }) => {
+    globalThis.realMessageBox = dialog.showMessageBox;
+    globalThis.boxes = [];
+    // Confirm adopt / restore, "Copy notes" when switching vaults the first time, "Just switch" after.
+    dialog.showMessageBox = async (_window, options) => {
+      globalThis.boxes.push(options.message);
+      const copies = globalThis.boxes.filter((m) => m.startsWith('Copy')).length;
+      return { response: options.message.startsWith('Copy') ? (copies === 1 ? 2 : 1) : 1 };
+    };
+  });
+  await page.getByRole('combobox', { name: /^Template/ }).selectOption('Tool');
+  await page.getByLabel('Tool template').fill('# {{title}}\n\nMy tool notes.\n');
+  await page.getByRole('button', { name: 'Save template' }).click();
+  await page.getByText('Tool template saved.').waitFor();
+  assert.equal(await fs.readFile(toolTemplate, 'utf8'), '# {{title}}\n\nMy tool notes.\n');
+  await page.getByText('(edited)').waitFor();
+  await page.getByRole('button', { name: 'Restore default' }).click();
+  await page.getByText('(edited)').waitFor({ state: 'detached' });
+  assert.equal(await fs.readFile(toolTemplate, 'utf8'), defaultTool);
+  assert.equal(await page.getByLabel('Tool template').inputValue(), defaultTool);
+  await page.locator('.template-editor').scrollIntoViewIfNeeded();
+  await page.screenshot({ path: path.join(screenshotFolder, 'second-brain.png') });
+
+  // Vault picker: adopt an existing Obsidian-style vault without changing its notes.
+  const adopted = path.join(root, 'Existing vault');
+  await fs.mkdir(path.join(adopted, '.obsidian'), { recursive: true });
+  await fs.mkdir(path.join(adopted, 'Clients'));
+  const acme = path.join(adopted, 'Clients', 'Acme.md');
+  await fs.writeFile(acme, '# Acme\n\nMy own note.\n');
+  await fs.writeFile(path.join(adopted, 'To-Do.md'), '# My list\n');
+  const pickFolder = (folder) =>
+    instance.evaluate(({ dialog }, f) => {
+      dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [f] });
+    }, folder);
+  await pickFolder(adopted);
+  await page.getByRole('button', { name: 'New vault…' }).click();
+  await page.getByRole('alert').filter({ hasText: 'isn’t empty' }).waitFor();
+  await page.getByRole('button', { name: 'Use existing folder…' }).click();
+  await page.locator('.path-text').filter({ hasText: 'Existing vault' }).waitFor();
+  assert.deepEqual(await instance.evaluate(() => globalThis.boxes.slice(1)), [
+    'Use this Obsidian vault for this profile’s notes?',
+    'Copy this profile’s notes to the new folder?',
+  ]);
+  assert.equal(await fs.readFile(acme, 'utf8'), '# Acme\n\nMy own note.\n');
+  assert.equal(await fs.readFile(path.join(adopted, 'To-Do.md'), 'utf8'), '# My list\n');
+  await fs.access(path.join(adopted, 'People')); // seeded because the second brain is on
+  await fs.access(path.join(adopted, '_templates', 'To-Do format.md')); // copied from the old vault
+  await fs.access(path.join(vault, 'To-Do.md')); // the old vault is left in place
+  assert.ok((await fs.readFile(path.join(code, 'CLAUDE.md'), 'utf8')).includes(adopted));
+  // Another profile's folder is refused: vaults stay per profile.
+  await pickFolder(path.join(root, 'profiles', acorn.id));
+  await page.getByRole('button', { name: 'Use existing folder…' }).click();
+  await page.getByRole('alert').filter({ hasText: 'Each profile keeps its own vault' }).waitFor();
+  // The home folder is refused before anything under it is read.
+  await pickFolder(os.homedir());
+  await page.getByRole('button', { name: 'Use existing folder…' }).click();
+  await page.getByRole('alert').filter({ hasText: 'not your whole home folder' }).waitFor();
+  await page.getByRole('button', { name: 'Use default' }).click();
+  await page.getByText('Using the default vault folder.').waitFor();
+  assert.equal(
+    JSON.parse(await fs.readFile(path.join(root, 'second-brain.json'), 'utf8'))[northProfile.id].vault,
+    '',
+  );
+  assert.ok((await fs.readFile(path.join(code, 'CLAUDE.md'), 'utf8')).includes(vault));
+  await fs.access(acme);
+  await instance.evaluate(({ dialog }) => {
+    dialog.showMessageBox = globalThis.realMessageBox;
+  });
+
+  await page.getByLabel(/Keep notes from Claude Code sessions/).click();
+  await page.getByText(/Second brain off\./).waitFor();
+  const unwired = await fs.readFile(path.join(code, 'settings.json'), 'utf8');
+  assert.ok(unwired.includes('echo mine') && !unwired.includes('capture.cjs'));
+  assert.equal(await fs.readFile(path.join(code, 'CLAUDE.md'), 'utf8'), '# My rules\n');
+  await fs.access(path.join(vault, 'To-Do.md'));
+  await page.getByRole('button', { name: 'Close profile editor' }).click();
+  await page.locator('.profile-identity').nth(1).click();
+  await page.getByText('Second brain', { exact: true }).click();
+  await page.getByText(/already runs its own capture\.py hooks/).waitFor();
+  // Its vault and templates can't be changed through IPC either.
+  await assert.rejects(
+    page.evaluate((id) => window.hatstand.request('saveTemplate', { id, name: 'Tool', text: 'x' }), acorn.id),
+    /own capture\.py hooks/,
+  );
+  // (Menu-bar pets may add their own hooks there; the second brain adds nothing.)
+  assert.ok(!(await fs.readFile(path.join(acornCode, 'settings.json'), 'utf8')).includes('capture.cjs'));
+  await assert.rejects(fs.access(path.join(acornCode, 'CLAUDE.md')));
+  await page.getByRole('button', { name: 'Close profile editor' }).click();
+
   // Actions menu is keyboard operable.
   await page.getByRole('button', { name: 'Actions for Acorn & Co.', exact: true }).click();
   assert.equal(
@@ -275,7 +402,7 @@ try {
   }
   assert.deepEqual(errors, []);
   console.log(
-    'UI checks passed: setup, create, search, selection, shortcuts, work folder, menu keyboard, reorder past archived, archive/restore, settings, export/import, leftover data, compact layout, dark theme, sandbox.',
+    'UI checks passed: setup, create, search, selection, shortcuts, work folder, second brain, menu keyboard, reorder past archived, archive/restore, settings, export/import, leftover data, compact layout, dark theme, sandbox.',
   );
   console.log(`Screenshots: ${screenshotFolder}`);
 } finally {

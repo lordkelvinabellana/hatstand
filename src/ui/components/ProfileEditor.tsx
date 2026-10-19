@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Check, FolderOpen, X } from 'lucide-react';
 import type { Color, ProfileInput } from '../../core/profiles.ts';
 import { speciesNames } from '../../core/sprites.ts';
-import { useApp } from '../api.ts';
+import { api, useApp } from '../api.ts';
 import { PetAvatar } from './PetAvatar.tsx';
 import { ShortcutInput } from './ShortcutInput.tsx';
 
@@ -214,6 +214,79 @@ export function ProfileEditor(props: { editing: string; onClose(): void }) {
         </button>
       </form>
       {existing && (
+        <details className="advanced" open={existing.brain.enabled}>
+          <summary>Second brain</summary>
+          {existing.brain.external ? (
+            <p>
+              This profile already runs its own capture.py hooks, so Hatstand leaves its notes setup alone.
+            </p>
+          ) : (
+            <>
+              <label className="checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={existing.brain.enabled}
+                  disabled={!!pending}
+                  onChange={(e) =>
+                    fire(
+                      'brain',
+                      { id: existing.id, enabled: e.target.checked },
+                      e.target.checked
+                        ? 'Second brain on. New Claude Code sessions write notes to this profile’s vault.'
+                        : 'Second brain off. Your notes are kept.',
+                    )
+                  }
+                />
+                <span>
+                  Keep notes from Claude Code sessions
+                  <small>
+                    Logs each session and asks Claude to keep client, project, people and tool notes. Only
+                    this profile can see this vault.
+                  </small>
+                </span>
+              </label>
+              <p className="path-text">{existing.brain.folder}</p>
+              <div className="path-picker">
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => fire('newVault', { id: existing.id })}
+                >
+                  New vault…
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => fire('adoptVault', { id: existing.id })}
+                >
+                  Use existing folder…
+                </button>
+                {existing.brain.vault && (
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={() => fire('resetVault', { id: existing.id }, 'Using the default vault folder.')}
+                  >
+                    Use default
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => fire('openVault', { id: existing.id })}
+                >
+                  <FolderOpen size={15} />
+                  Open vault
+                </button>
+              </div>
+              <p>Switching folders never moves or deletes notes; you can copy them over.</p>
+              {existing.brain.enabled && <Templates id={existing.id} folder={existing.brain.folder} />}
+              <p>Turning it off removes the hooks and Claude instructions. Notes are never deleted.</p>
+            </>
+          )}
+        </details>
+      )}
+      {existing && (
         <details className="advanced">
           <summary>Local storage</summary>
           <p className="path-text">{existing.directory}</p>
@@ -229,5 +302,83 @@ export function ProfileEditor(props: { editing: string; onClose(): void }) {
         </details>
       )}
     </aside>
+  );
+}
+
+/** Same names as TEMPLATE_NAMES in core/vault.ts (a Node module the UI can't import); main validates them. */
+const templateNames = ['Client', 'Project', 'Person', 'Tool', 'To-Do format'];
+
+/** Edits the vault's `_templates/` files; each can go back to Hatstand's default. */
+function Templates(props: { id: string; folder: string }) {
+  const { pending, run } = useApp();
+  const [name, setName] = useState(templateNames[0]);
+  const [saved, setSaved] = useState<{ text: string; edited: boolean } | null>(null);
+  const [text, setText] = useState('');
+  const [version, setVersion] = useState(0);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reload when the vault moves or after a save or restore.
+  useEffect(() => {
+    let live = true;
+    api
+      .request('template', { id: props.id, name })
+      .then((value) => {
+        if (!live) return;
+        const template = value as { text: string; edited: boolean };
+        setSaved(template);
+        setText(template.text);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [props.id, props.folder, name, version]);
+  const reload = () => setVersion((v) => v + 1);
+
+  return (
+    <div className="template-editor">
+      <label>
+        Template {saved?.edited && <small>(edited)</small>}
+        <select value={name} onChange={(e) => setName(e.target.value)}>
+          {templateNames.map((n) => (
+            <option key={n}>{n}</option>
+          ))}
+        </select>
+      </label>
+      <textarea
+        aria-label={`${name} template`}
+        value={text}
+        spellCheck={false}
+        disabled={!saved}
+        onChange={(e) => setText(e.target.value)}
+      />
+      <div className="path-picker">
+        <button
+          type="button"
+          className="secondary"
+          disabled={!!pending || !saved || text === saved.text}
+          onClick={() =>
+            run('saveTemplate', { id: props.id, name, text }, `${name} template saved.`)
+              .then(reload)
+              .catch(() => {})
+          }
+        >
+          Save template
+        </button>
+        <button
+          type="button"
+          className="secondary"
+          disabled={!!pending || !saved?.edited}
+          onClick={() =>
+            run('resetTemplate', { id: props.id, name })
+              .then(reload)
+              .catch(() => {})
+          }
+        >
+          Restore default
+        </button>
+      </div>
+      <p>
+        New notes start from these. <code>{'{{title}}'}</code> and <code>{'{{date}}'}</code> are filled in.
+      </p>
+    </div>
   );
 }

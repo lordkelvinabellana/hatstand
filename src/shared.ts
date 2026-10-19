@@ -5,6 +5,7 @@ import type { Installation } from './core/platform.ts';
 import type { ReleaseInfo } from './core/project.ts';
 import type { StorageFolder } from './core/storage.ts';
 import type { SyncStatus } from './main/sync.ts';
+import type { BrainStatus } from './main/brain.ts';
 export type { ProfileStatus };
 
 export interface ProfileView extends Profile {
@@ -14,6 +15,8 @@ export interface ProfileView extends Profile {
   /** Attached existing folder: Hatstand never removes its data. */
   bound: boolean;
   hotkeyError?: string;
+  /** Second brain: this profile's own notes vault. */
+  brain: BrainStatus;
 }
 export interface Snapshot {
   platform: 'darwin' | 'win32';

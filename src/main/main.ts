@@ -18,6 +18,7 @@ import { applyLoginItem, registerHotkeys, updateJumpList, updateDockMenu } from 
 import type { HotkeyResult } from './integration.ts';
 import { handleSquirrelEvent } from './squirrel.ts';
 import { openClaudeSession } from '../core/macos.ts';
+import { wireBrains } from './brain.ts';
 import { Pets } from './pets.ts';
 import { ProfileSync } from './sync.ts';
 import { createTray, type TrayActions, trayMenu, updateTray } from './tray.ts';
@@ -132,6 +133,8 @@ async function syncShell() {
       tray = undefined;
     } else if (!pets.count && !tray) tray = createTray(show);
   }
+  // After the pets, which also rewrite each profile's settings.json.
+  await wireBrains(root, controller, profiles).catch(() => {});
   if (tray) updateTray(tray, profiles, controller, trayActions);
   updateDockMenu(profiles, controller, show, launchFromShell);
   notify();
