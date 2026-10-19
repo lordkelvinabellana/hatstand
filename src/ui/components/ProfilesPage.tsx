@@ -351,6 +351,15 @@ export const ProfilesPage = forwardRef<HTMLInputElement, Props>(function Profile
                             <button type="button" role="menuitem" onClick={() => props.onEdit(profile.id)}>
                               Edit profile
                             </button>
+                            {!profile.brain.external && (
+                              <button
+                                type="button"
+                                role="menuitem"
+                                onClick={() => act('openNotes', { id: profile.id })}
+                              >
+                                Open notes
+                              </button>
+                            )}
                             {profile.workFolder && (
                               <button
                                 type="button"

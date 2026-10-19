@@ -1,0 +1,446 @@
+/* Notes window. Colours come from the Hatstand tokens in ../ui/style.css (light and dark). */
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  background: var(--bg);
+  color: var(--ink);
+  overflow: hidden;
+}
+.n-app {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  height: 100%;
+}
+.n-spacer {
+  flex: 1;
+}
+.n-hint {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+/* Sidebar */
+.n-side {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--sidebar);
+  border-right: 1px solid var(--line);
+}
+.n-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 14px 14px 8px;
+  font-size: 14px;
+}
+.n-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  flex-shrink: 0;
+}
+.n-tools {
+  display: flex;
+  gap: 2px;
+  padding: 2px 8px 8px;
+  border-bottom: 1px solid var(--line);
+}
+.n-tools button,
+.n-links-toggle {
+  width: 30px;
+  height: 30px;
+  color: var(--muted);
+}
+.n-tools button.on,
+.n-links-toggle.on {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.n-tree {
+  flex: 1;
+  overflow: auto;
+  padding: 6px 6px 40px;
+}
+.n-row {
+  width: 100%;
+  justify-content: flex-start;
+  gap: 6px;
+  height: 28px;
+  padding-right: 8px;
+  font-weight: 500;
+  color: var(--ink);
+  border-radius: 6px;
+}
+.n-row svg {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.n-row.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.n-row.selected:not(:hover) {
+  background: color-mix(in srgb, var(--accent-soft) 45%, transparent);
+}
+.n-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.n-rename {
+  flex: 1;
+  min-width: 0;
+  height: 22px;
+  padding: 0 4px;
+  font-size: 13px;
+}
+.n-search {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 10px 8px;
+  gap: 8px;
+}
+.n-search input {
+  width: 100%;
+}
+.n-search ul,
+.n-backlinks ul,
+.n-switch {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+}
+.n-search li button,
+.n-backlinks li button {
+  width: 100%;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 7px 8px;
+  text-align: left;
+}
+.n-search li span,
+.n-backlinks li span {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+/* Tabs and editor */
+.n-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--surface);
+}
+.n-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 6px 8px 0;
+  background: var(--sidebar);
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+  min-height: 41px;
+}
+.n-links-toggle {
+  align-self: center;
+  margin-bottom: 4px;
+}
+.n-tab {
+  display: flex;
+  align-items: center;
+  max-width: 220px;
+  border-radius: 8px 8px 0 0;
+  color: var(--muted);
+}
+.n-tab.active {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 0 0 1px var(--line);
+  clip-path: inset(-1px -1px 0 -1px);
+}
+.n-tab > button:first-child {
+  height: 34px;
+  padding: 0 4px 0 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  border-radius: 8px 0 0 0;
+}
+.n-tab > button:first-child:hover:not(:disabled) {
+  background: transparent;
+}
+.n-unsaved {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: middle;
+}
+.n-close {
+  width: 22px;
+  height: 22px;
+  margin-right: 6px;
+  color: var(--muted);
+}
+.n-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 12px 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+.n-banner span {
+  flex: 1;
+}
+.n-banner button {
+  height: 28px;
+  padding: 0 10px;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+}
+.n-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.n-editor {
+  flex: 1;
+  min-width: 0;
+}
+.n-editor[hidden] {
+  display: none;
+}
+.n-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: var(--muted);
+}
+.n-empty .primary {
+  height: 36px;
+  padding: 0 16px;
+}
+.n-backlinks {
+  width: 260px;
+  flex-shrink: 0;
+  padding: 16px 10px;
+  border-left: 1px solid var(--line);
+  overflow: auto;
+}
+.n-backlinks h2 {
+  margin: 0 8px 8px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.n-backlinks .n-hint {
+  margin: 0 8px;
+}
+
+/* Menu and dialogs */
+.n-menu {
+  position: fixed;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.16);
+}
+.n-menu button {
+  justify-content: flex-start;
+  height: 30px;
+  padding: 0 10px;
+  font-weight: 500;
+}
+.n-menu .danger {
+  color: var(--danger);
+}
+.n-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 14vh;
+  background: rgb(0 0 0 / 0.25);
+}
+.n-modal {
+  width: min(460px, calc(100vw - 32px));
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 16px 48px rgb(0 0 0 / 0.22);
+}
+.n-modal h2 {
+  margin: 0 0 12px;
+  font-size: 15px;
+}
+.n-modal form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.n-modal label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.n-modal input,
+.n-modal select {
+  width: 100%;
+}
+.n-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.n-actions button {
+  height: 32px;
+  padding: 0 14px;
+}
+.n-switch {
+  margin-top: 8px;
+  max-height: 50vh;
+}
+.n-switch button {
+  width: 100%;
+  justify-content: space-between;
+  height: 32px;
+  padding: 0 10px;
+  font-weight: 500;
+}
+.n-switch button.on {
+  background: var(--accent-soft);
+}
+.n-switch span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+.n-switch .n-hint {
+  padding: 6px 10px;
+}
+
+/* Live preview */
+.cm-h {
+  font-weight: 700;
+  line-height: 1.3;
+}
+.cm-h1 {
+  font-size: 1.75em;
+  padding-top: 0.4em;
+}
+.cm-h2 {
+  font-size: 1.4em;
+  padding-top: 0.5em;
+}
+.cm-h3 {
+  font-size: 1.18em;
+  padding-top: 0.4em;
+}
+.cm-h4,
+.cm-h5,
+.cm-h6 {
+  font-size: 1.05em;
+}
+.cm-strong {
+  font-weight: 700;
+}
+.cm-em {
+  font-style: italic;
+}
+.cm-strike,
+.cm-task-done {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+.cm-md-mark,
+.cm-list-mark {
+  color: var(--muted);
+}
+.cm-inline-code,
+.cm-codeblock {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.9em;
+}
+.cm-inline-code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--hover);
+}
+.cm-codeblock {
+  background: var(--hover);
+  padding-left: 14px !important;
+}
+.cm-quote {
+  border-left: 3px solid var(--line);
+  padding-left: 14px !important;
+  color: var(--muted);
+}
+.cm-hr {
+  background: linear-gradient(var(--line), var(--line)) center / 100% 1px no-repeat;
+}
+.cm-wikilink,
+.cm-md-link {
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  text-underline-offset: 3px;
+}
+.cm-bullet {
+  color: var(--muted);
+  padding-right: 2px;
+}
+.cm-task {
+  margin: 0 6px 0 0;
+  vertical-align: -2px;
+  width: 15px;
+  height: 15px;
+}
+.cm-frontmatter {
+  color: var(--muted);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.82em;
+  background: var(--hover);
+}
+.cm-auto {
+  background: color-mix(in srgb, var(--accent-soft) 55%, transparent);
+}
+.cm-auto-first::after {
+  content: "Updated by Hatstand";
+  float: right;
+  font-size: 11px;
+  color: var(--muted);
+}

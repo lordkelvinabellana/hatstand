@@ -1,6 +1,6 @@
 import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
-import { Check, FolderOpen, X } from 'lucide-react';
+import { Check, FolderOpen, NotebookPen, X } from 'lucide-react';
 import type { Color, ProfileInput } from '../../core/profiles.ts';
 import { speciesNames } from '../../core/sprites.ts';
 import { api, useApp } from '../api.ts';
@@ -286,6 +286,14 @@ export function ProfileEditor(props: { editing: string; onClose(): void }) {
                       Use default
                     </button>
                   )}
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={() => fire('openNotes', { id: existing.id })}
+                  >
+                    <NotebookPen size={15} />
+                    Open notes
+                  </button>
                   <button
                     type="button"
                     className="secondary"

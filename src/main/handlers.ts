@@ -26,6 +26,7 @@ const trash = mac ? 'Trash' : 'Recycle Bin';
 import type { Snapshot, UpdateCheck } from '../shared.ts';
 import { applyLoginItem, createDesktopShortcut } from './integration.ts';
 import type { ProfileSync } from './sync.ts';
+import type { NotesWindows } from './notes.ts';
 import { brainStatus, checkVault, saveBrain } from './brain.ts';
 import {
   assertTemplateName,
@@ -46,6 +47,7 @@ export interface HandlerContext {
   profilesChanged(): Promise<void>;
   notify(): void;
   sync: ProfileSync;
+  notes: NotesWindows;
 }
 type Handler = (payload: unknown) => Promise<unknown>;
 
@@ -396,6 +398,9 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
       await fs.mkdir(folder, { recursive: true });
       const error = await shell.openPath(folder);
       if (error) throw new Error(error);
+    },
+    async openNotes(payload) {
+      await context.notes.open(readId(payload));
     },
     async pickWorkFolder() {
       const result = await dialog.showOpenDialog(context.window(), {

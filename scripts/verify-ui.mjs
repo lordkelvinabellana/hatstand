@@ -29,6 +29,161 @@ async function scrubPaths(page) {
 }
 const readProfiles = async () =>
   JSON.parse(await fs.readFile(path.join(root, 'profiles.json'), 'utf8')).profiles;
+const until = async (check, message) => {
+  for (let i = 0; i < 50; i++) {
+    if (await check()) return;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  assert.fail(message);
+};
+
+/** Notes window: tree, live preview, autosave, wikilinks, backlinks, search, live disk changes, conflicts. */
+async function checkNotes(vault) {
+  const main = await instance.firstWindow();
+  const write = (rel, text) =>
+    fs
+      .mkdir(path.dirname(path.join(vault, rel)), { recursive: true })
+      .then(() => fs.writeFile(path.join(vault, rel), text));
+  const read = (rel) => fs.readFile(path.join(vault, rel), 'utf8');
+  await write(
+    'Clients/Aether.md',
+    '---\ntype: client\naliases: [Aether Labs]\n---\n# Aether\n\nA **design** studio. Works with [[Kam]].\n\n- [ ] Send the proposal\n',
+  );
+  await write('People/Kam.md', '# Kam\n\nRuns ops.\n');
+  await write(
+    'Sessions/2026-10-20 Fix invoices.md',
+    '# Fix invoices\n\n## Summary\n- Fixed it\n\n<!-- auto:start -->\n## Prompts\n- fix the invoices\n<!-- auto:end -->\n',
+  );
+  const [notes] = await Promise.all([
+    instance.waitForEvent('window'),
+    main.getByRole('button', { name: 'Open notes' }).click(),
+  ]);
+  await notes.emulateMedia({ reducedMotion: 'reduce', colorScheme: 'light' });
+  notes.on('pageerror', (error) => errors.push(`notes: ${error.message}`));
+  await instance.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()
+      .find((w) => w.getTitle().endsWith('Notes'))
+      .setSize(1180, 760),
+  );
+  const tree = notes.getByRole('navigation', { name: 'Notes and folders' });
+  await tree.getByRole('button', { name: 'Clients' }).click();
+  await tree.getByRole('button', { name: 'Aether' }).click();
+  const editor = notes.locator('.cm-content');
+  // Live preview: heading styled and its # hidden, wikilink shown by name, checkbox rendered.
+  await notes.locator('.cm-h1', { hasText: 'Aether' }).waitFor();
+  await notes.locator('.cm-wikilink', { hasText: 'Kam' }).waitFor();
+  assert.equal(await notes.locator('input.cm-task').count(), 1);
+  assert.ok(!(await editor.innerText()).includes('[[Kam]]'));
+
+  // Typing autosaves to the plain .md file; [[ completes note names.
+  await notes.locator('.cm-line', { hasText: 'Send the proposal' }).getByText('Send the proposal').click();
+  await notes.keyboard.press('End');
+  await notes.keyboard.type(' to [[Ka');
+  await notes.locator('.cm-tooltip-autocomplete').getByText('Kam', { exact: true }).click();
+  await until(
+    async () => (await read('Clients/Aether.md')).includes('Send the proposal to [[Kam]]'),
+    'autosave',
+  );
+  // Ticking the checkbox edits the markdown.
+  // At the line's start: its middle may be the [[Kam]] link, which would open that note instead.
+  await notes.locator('.cm-line', { hasText: 'A design studio' }).click({ position: { x: 4, y: 8 } });
+  await notes.locator('input.cm-task').click();
+  await until(async () => (await read('Clients/Aether.md')).includes('- [x] Send'), 'checkbox saved');
+
+  // Clicking a rendered wikilink (not on the line being edited) opens the note; its backlinks list Aether.
+  await notes.locator('.cm-wikilink', { hasText: 'Kam' }).last().click();
+  await notes.getByRole('tab', { name: 'Kam' }).waitFor();
+  await notes
+    .getByRole('complementary', { name: 'Backlinks' })
+    .getByText('Aether', { exact: true })
+    .waitFor();
+  // A link to a missing note creates it in the vault root.
+  await notes.locator('.cm-content').click();
+  await notes.keyboard.press(`${primaryKey}+End`);
+  await notes.keyboard.type('\nSee [[Ops handbook]]\n');
+  await notes.locator('.cm-wikilink', { hasText: 'Ops handbook' }).click();
+  await notes.getByRole('tab', { name: 'Ops handbook' }).waitFor();
+  await fs.access(path.join(vault, 'Ops handbook.md'));
+
+  // Notes Claude writes appear live.
+  await write('Projects/Hatstand.md', '# Hatstand\n\nFor [[Aether Labs]].\n');
+  await tree.getByRole('button', { name: 'Projects' }).click();
+  await tree.getByRole('button', { name: 'Hatstand' }).waitFor();
+
+  // Unsaved edits are never overwritten: keep both saves mine as a copy.
+  await notes.getByRole('tab', { name: 'Kam' }).click();
+  await notes.locator('.cm-line', { hasText: 'Runs ops' }).click({ position: { x: 4, y: 8 } });
+  await notes.keyboard.press('End');
+  await notes.keyboard.type(' Mine.');
+  await write('People/Kam.md', '# Kam\n\nRuns ops. Claude added this.\n');
+  await notes.getByText('This note changed on disk while you were editing it.').waitFor();
+  await notes.screenshot({ path: path.join(screenshotFolder, 'notes-conflict.png') });
+  await notes.getByRole('button', { name: 'Keep both' }).click();
+  await until(
+    () =>
+      fs.access(path.join(vault, 'People', 'Kam (my edits).md')).then(
+        () => true,
+        () => false,
+      ),
+    'copy',
+  );
+  assert.match(await read('People/Kam (my edits).md'), /Runs ops\. Mine\./);
+  assert.equal(await read('People/Kam.md'), '# Kam\n\nRuns ops. Claude added this.\n');
+
+  // The auto block markers can't be edited by hand.
+  const session = 'Sessions/2026-10-20 Fix invoices.md';
+  await tree.getByRole('button', { name: 'Sessions' }).click();
+  await tree.getByRole('button', { name: '2026-10-20 Fix invoices' }).click();
+  await notes.locator('.cm-auto').first().waitFor();
+  await notes.locator('.cm-content').click();
+  await notes.keyboard.press(`${primaryKey}+A`);
+  await notes.keyboard.press('Backspace');
+  await new Promise((resolve) => setTimeout(resolve, 900));
+  assert.match(await read(session), /<!-- auto:start -->[\s\S]*<!-- auto:end -->/);
+
+  // Full-text search.
+  await notes.keyboard.press(`${primaryKey}+Shift+F`);
+  await notes.getByLabel('Search notes').fill('proposal');
+  await notes.locator('.n-search li').first().getByText('Aether').waitFor();
+
+  // Renaming offers to update links; Trash goes through the system trash.
+  await instance.evaluate(({ dialog, shell }) => {
+    globalThis.trashed = [];
+    dialog.showMessageBox = async () => ({ response: 1 });
+    shell.trashItem = async (file) => {
+      globalThis.trashed.push(file);
+    };
+  });
+  await notes.getByRole('button', { name: 'Files', exact: true }).click();
+  await tree.getByRole('button', { name: 'Kam', exact: true }).dblclick();
+  await notes.getByLabel('New name').fill('Kam Reyes');
+  await notes.keyboard.press('Enter');
+  await until(async () => (await read('Clients/Aether.md')).includes('[[Kam Reyes]]'), 'links updated');
+  await tree.getByRole('button', { name: 'Ops handbook' }).click({ button: 'right' });
+  await notes.getByRole('menuitem', { name: /Move to/ }).click();
+  await until(() => instance.evaluate(() => globalThis.trashed.length === 1), 'trash called');
+  await fs.access(path.join(vault, 'Ops handbook.md')); // stubbed: only the system trash removes files
+
+  // Isolation: paths can't leave the vault, and the main window can't use the notes channel.
+  await assert.rejects(
+    notes.evaluate(() => window.notes.request('read', { path: '../../notes.md' })),
+    /Invalid note path/,
+  );
+  await assert.rejects(
+    main.evaluate(() => window.notes.request('load')),
+    /Request rejected/,
+  );
+
+  await tree.getByRole('button', { name: 'Aether' }).click();
+  await notes.locator('.cm-h1', { hasText: 'Aether' }).waitFor();
+  await notes.screenshot({ path: path.join(screenshotFolder, 'notes.png') });
+  await notes.emulateMedia({ colorScheme: 'dark' });
+  await notes.screenshot({ path: path.join(screenshotFolder, 'notes-dark.png') });
+  await notes.close();
+  await instance.evaluate(({ dialog }) => {
+    dialog.showMessageBox = globalThis.realMessageBox;
+  });
+}
 try {
   const page = await instance.firstWindow();
   await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: 'light' });
@@ -204,6 +359,7 @@ try {
     dialog.showMessageBox = globalThis.realMessageBox;
   });
 
+  await checkNotes(vault);
   await page.getByLabel(/Keep notes from Claude Code sessions/).click();
   await page.getByText(/Second brain off\./).waitFor();
   const unwired = await fs.readFile(path.join(code, 'settings.json'), 'utf8');

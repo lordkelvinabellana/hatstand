@@ -21,6 +21,16 @@ core (plain Node, unit-tested)               src/core
 Claude.exe per profile, with its own --user-data-dir
 ```
 
+Notes windows (one per profile) are a second React renderer, `src/notes`, built to `dist/notes.html`.
+They talk to the main process over their own channel, `window.notes.request(action, payload)` →
+`notes:request`, handled by `src/main/notes.ts`. Each window is bound to its profile when it opens:
+requests never name a profile or a vault, and every path is vault-relative and checked by
+`src/core/notes.ts` (no `..`, no hidden folders, no symlinks out of the vault, writes to `.md` only,
+nothing overwritten, removal through the system trash). The main window can't use this channel and
+notes windows can't use `hatstand:request`. The vault is watched with `fs.watch` (recursive) and the
+window reloads on change. Wikilinks, aliases, backlinks and search (MiniSearch) live in
+`src/core/links.ts`, which is pure and unit-tested.
+
 ## Principles
 
 - **Measured status only.** "Running" means a Claude main process with that profile's exact `--user-data-dir` exists. Hatstand never infers sign-in state or task progress.
