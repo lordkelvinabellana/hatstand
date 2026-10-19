@@ -25,6 +25,8 @@ export interface Snapshot {
   settings: Settings;
   installation: Installation | null;
   installationTested: boolean;
+  /** The user marked the installed Claude version as working with Hatstand. */
+  installationConfirmed: boolean;
   installationError?: string;
   processError?: string;
   hotkeyError?: string;

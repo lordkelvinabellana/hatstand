@@ -44,9 +44,47 @@ export function CompatibilityPage() {
           {data.installation
             ? data.installationTested
               ? `Your installed version, ${data.installation.version}, is one of them.`
-              : `Your installed version, ${data.installation.version}, has not been tested yet.`
+              : data.installationConfirmed
+                ? `Your installed version, ${data.installation.version}, isn’t on that list, but you marked it as working.`
+                : `Your installed version, ${data.installation.version}, has not been tested yet.`
             : ''}
         </p>
+        {data.installation && !data.installationTested && (
+          <div className="button-row">
+            {data.installationConfirmed ? (
+              <button
+                type="button"
+                className="secondary"
+                onClick={() =>
+                  fire('confirmVersion', { works: false }, 'The untested-version warning is back on.')
+                }
+              >
+                Undo “works for me”
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="secondary"
+                onClick={() =>
+                  fire(
+                    'confirmVersion',
+                    { works: true },
+                    `Marked Claude ${data.installation?.version} as working.`,
+                  )
+                }
+              >
+                Mark as working
+              </button>
+            )}
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => fire('openExternal', { url: issuesUrl })}
+            >
+              Something’s wrong? Report it <ArrowUpRight size={14} />
+            </button>
+          </div>
+        )}
       </section>
       <section className="setting-section">
         <h2>Separate sessions, shared computer</h2>
