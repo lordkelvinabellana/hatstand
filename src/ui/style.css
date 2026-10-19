@@ -24,7 +24,8 @@ body {
 }
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 button {
@@ -52,12 +53,14 @@ button:focus-visible,
 a:focus-visible,
 input:focus-visible,
 select:focus-visible,
+textarea:focus-visible,
 summary:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
 input,
-select {
+select,
+textarea {
   color: var(--ink);
   background: var(--field);
   border: 1px solid var(--line);
@@ -575,6 +578,19 @@ small {
 }
 .path-text {
   overflow-wrap: anywhere;
+}
+.template-editor {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+.template-editor textarea {
+  width: 100%;
+  min-height: 220px;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.5;
 }
 .banner {
   padding: 12px 14px;

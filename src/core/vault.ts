@@ -12,7 +12,11 @@ const OURS = 'capture.cjs';
 /** A capture script the user wired up themselves (the original Python second brain). */
 const EXTERNAL = 'capture.py';
 
-const templates: Record<string, string> = {
+export const TEMPLATE_NAMES = ['Client', 'Project', 'Person', 'Tool', 'To-Do format'] as const;
+export type TemplateName = (typeof TEMPLATE_NAMES)[number];
+
+/** Built-in `_templates/` files; the user can edit them in Hatstand and restore these. */
+export const defaultTemplates: Record<TemplateName, string> = {
   Client: `---
 type: client
 status: active
@@ -98,6 +102,16 @@ What it is and what it's used for.
 ## Log
 - {{date}}
 `,
+  'To-Do format': `# To-Do format
+
+How \`To-Do.md\` is kept. One \`##\` section per client, then **Done** at the bottom.
+
+Each task is one line:
+\`- [ ] Task · due YYYY-MM-DD · waiting on Name · note · [[Linked note]]\`
+
+- Leave out "waiting on" when it's on us, and "due" when there's no date.
+- Finished items become \`- [x] … · done YYYY-MM-DD\` and move to **Done**.
+`,
 };
 
 const todo = (today: string) => `---
@@ -106,11 +120,16 @@ updated: ${today}
 ---
 # To-Do
 
-Grouped by client. Format: \`- [ ] Task · due YYYY-MM-DD · waiting on Name · note · [[Linked note]]\`.
-Leave out "waiting on" when it's on us. Finished items become \`- [x] … · done YYYY-MM-DD\` and move to **Done**.
+Format: \`_templates/To-Do format.md\`.
 
 ## Done
 `;
+
+const SEEDED_FOLDERS = ['Clients', 'Projects', 'People', 'Tools', 'Sessions', 'Daily', '_templates'];
+const seededFiles = () => [
+  ...TEMPLATE_NAMES.map((name) => path.join('_templates', `${name}.md`)),
+  'To-Do.md',
+];
 
 async function writeIfMissing(file: string, text: string) {
   await fs.writeFile(file, text, { flag: 'wx' }).catch((error) => {
@@ -120,11 +139,84 @@ async function writeIfMissing(file: string, text: string) {
 
 /** Creates the vault's folders, templates and to-do list; never overwrites an existing file. */
 export async function seedVault(vault: string, today: string) {
-  for (const folder of ['Clients', 'Projects', 'People', 'Tools', 'Sessions', 'Daily', '_templates'])
-    await fs.mkdir(path.join(vault, folder), { recursive: true });
-  for (const [name, text] of Object.entries(templates))
+  for (const folder of SEEDED_FOLDERS) await fs.mkdir(path.join(vault, folder), { recursive: true });
+  for (const [name, text] of Object.entries(defaultTemplates))
     await writeIfMissing(path.join(vault, '_templates', `${name}.md`), text);
   await writeIfMissing(path.join(vault, 'To-Do.md'), todo(today));
+}
+
+export interface VaultInfo {
+  /** Markdown notes already in the folder (hidden folders skipped). */
+  notes: number;
+  /** Has an `.obsidian/` settings folder. */
+  obsidian: boolean;
+  /** Has any entry besides OS clutter. */
+  used: boolean;
+  /** What turning the second brain on would add (folders and files, relative); nothing existing is changed. */
+  adds: string[];
+}
+
+const exists = (file: string) =>
+  fs.stat(file).then(
+    () => true,
+    () => false,
+  );
+
+/** Looks at a folder before it becomes a vault. A missing folder is an empty one. */
+export async function inspectVault(folder: string): Promise<VaultInfo> {
+  const entries = await fs.readdir(folder, { recursive: true }).catch((error) => {
+    if (error.code === 'ENOENT') return [] as string[];
+    throw error;
+  });
+  const visible = entries.filter((entry) => !entry.split(path.sep).some((part) => part.startsWith('.')));
+  const adds: string[] = [];
+  for (const entry of [...SEEDED_FOLDERS.map((f) => `${f}/`), ...seededFiles()])
+    if (!(await exists(path.join(folder, entry)))) adds.push(entry.split(path.sep).join('/'));
+  return {
+    notes: visible.filter((entry) => entry.endsWith('.md')).length,
+    obsidian: entries.includes('.obsidian'),
+    used: entries.some((entry) => !['.DS_Store', 'Thumbs.db', 'desktop.ini'].includes(entry)),
+    adds,
+  };
+}
+
+const comparable = (folder: string) =>
+  // Default file systems on macOS and Windows ignore case; a false match only refuses a folder.
+  path
+    .resolve(folder)
+    .toLowerCase()
+    .replace(/[\\/]+$/, '') + path.sep;
+
+/** True when one folder is, contains, or sits inside the other. */
+export const vaultsOverlap = (a: string, b: string) =>
+  comparable(a).startsWith(comparable(b)) || comparable(b).startsWith(comparable(a));
+
+/** Copies notes into another vault, skipping any file that already exists there. The source is left as it was. */
+export async function copyVault(from: string, to: string) {
+  await fs.cp(from, to, { recursive: true, force: false, errorOnExist: false });
+}
+
+const templateFile = (vault: string, name: TemplateName) => path.join(vault, '_templates', `${name}.md`);
+
+export function assertTemplateName(name: unknown): asserts name is TemplateName {
+  if (!TEMPLATE_NAMES.includes(name as TemplateName)) throw new Error('Unknown template.');
+}
+
+/** The template's text (the built-in default when the vault has none yet) and whether it was edited. */
+export async function readTemplate(vault: string, name: TemplateName) {
+  const text = await fs.readFile(templateFile(vault, name), 'utf8').catch((error) => {
+    if (error.code === 'ENOENT') return defaultTemplates[name];
+    throw error;
+  });
+  return { text, edited: text !== defaultTemplates[name] };
+}
+
+/** Writes a template; `null` restores the built-in default. */
+export async function saveTemplate(vault: string, name: TemplateName, text: string | null) {
+  const file = templateFile(vault, name);
+  await fs.mkdir(path.dirname(file), { recursive: true });
+  await fs.writeFile(`${file}.hatstand-tmp`, text ?? defaultTemplates[name]);
+  await fs.rename(`${file}.hatstand-tmp`, file);
 }
 
 /** POSIX single-quoting; Claude Code runs hook commands through a POSIX shell (Git Bash on Windows). */
@@ -183,7 +275,7 @@ This profile's notes vault is \`${vault}\`. It belongs to this Hatstand profile 
 | A person the user works with | \`People/<Name>.md\` (\`org: "[[Client]]"\`) |
 | A tool, app or service the user starts using, or a gotcha with one | \`Tools/<Name>.md\` |
 | A status change, decision, deliverable sent, deadline, blocker or lesson | a dated bullet in the related note's \`## Log\` (newest first); update \`status:\` and \`## Current state\` if they changed |
-| A task, follow-up, promise with a date, or something waiting on someone | a line in \`To-Do.md\` under that client |
+| A task, follow-up, promise with a date, or something waiting on someone | a line in \`To-Do.md\` under that client, in the format in \`_templates/To-Do format.md\` |
 
 - Before creating a note, check whether it exists. Create new ones from \`_templates/\` (Client, Project, Person, Tool), replacing \`{{title}}\` and \`{{date}}\`. Bump \`updated:\` when you change a note.
 - Link with \`[[wikilinks]]\` by the note's exact name.

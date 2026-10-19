@@ -7,6 +7,7 @@ import {
   captureCommand,
   hasExternalCapture,
   seedVault,
+  vaultsOverlap,
   withBrainBlock,
   withBrainHooks,
 } from '../core/vault.ts';
@@ -83,6 +84,36 @@ export async function brainStatus(root: string, controller: Controller, id: stri
     folder: choice.vault || path.join(controller.directories(id).base, 'vault'),
     external: !!settings && hasExternalCapture(settings),
   };
+}
+
+/**
+ * Returns the folder a profile's vault would be at for `vault` ('' = default), or throws when it overlaps
+ * another profile's vault or Hatstand folder: vaults stay per profile.
+ */
+export async function checkVault(
+  root: string,
+  controller: Controller,
+  profiles: Profile[],
+  id: string,
+  vault: string,
+) {
+  if (vault && !path.isAbsolute(vault)) throw new Error('Choose a full folder path.');
+  const own = controller.directories(id);
+  const folder = vault || path.join(own.base, 'vault');
+  if ([own.desktop, own.code].some((f) => vaultsOverlap(folder, f)))
+    throw new Error('Choose a folder outside this profile’s Claude data.');
+  for (const other of profiles) {
+    if (other.id === id) continue;
+    const theirs = [
+      controller.directories(other.id).base,
+      (await brainStatus(root, controller, other.id)).folder,
+    ];
+    if (theirs.some((f) => vaultsOverlap(folder, f)))
+      throw new Error(
+        `That folder overlaps ${other.name}’s notes or data. Each profile keeps its own vault.`,
+      );
+  }
+  return folder;
 }
 
 /** Copies the capture script out of the app bundle to a stable path the hooks can run. */

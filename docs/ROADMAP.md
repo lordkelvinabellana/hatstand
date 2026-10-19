@@ -18,13 +18,12 @@ Priorities can change based on compatibility findings and feedback. Open an issu
 
 ## Second brain
 
-Step 1 (capture, per-profile vaults, hook and CLAUDE.md wiring, opt-in toggle) is in progress. Next:
+Done: capture, per-profile vaults, hook and CLAUDE.md wiring, opt-in toggle, vault picker and editable templates. Next:
 
-1. Vault picker and editable templates.
-2. A built-in notes editor: file tree, tabs, search and backlinks (CodeMirror 6, MiniSearch).
-3. Graph view of wikilinks (sigma.js, graphology).
-4. Claude features: open the session behind a note, an Ask box, and a recall MCP server.
-5. Maybe later: one-way linking between vaults on one machine, and end-to-end-encrypted hosted sync.
+1. A built-in notes editor: file tree, tabs, search and backlinks (CodeMirror 6, MiniSearch).
+2. Graph view of wikilinks (sigma.js, graphology).
+3. Claude features: open the session behind a note, an Ask box, and a recall MCP server.
+4. Maybe later: one-way linking between vaults on one machine, and end-to-end-encrypted hosted sync.
 
 ## Later, only if compatibility allows
 

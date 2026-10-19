@@ -7,6 +7,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 ### Added
 
 - **Second brain (opt-in, per profile)**: a profile can keep its own Markdown notes vault. Claude Code hooks log each session (prompts with secrets and emails redacted, files written, skills and apps used) and a daily index; a managed block in the profile's `CLAUDE.md` asks Claude to keep client, project, people and tool notes and a to-do list. Runs on Hatstand's own executable, no Python. Turning it off removes the hooks and block and keeps the notes. Profiles with their own `capture.py` hooks are left alone.
+- **Second brain vault picker and templates**: start a new vault, adopt an existing folder or Obsidian vault without changing its notes, or go back to the default; switching can copy notes over and never deletes or replaces any. Folders that overlap another profile's vault are refused. The note templates and the to-do format (now `_templates/To-Do format.md`) can be edited in Hatstand, each with **Restore default**.
 
 ## [0.2.0] - 2026-10-19
 

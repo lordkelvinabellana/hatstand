@@ -131,6 +131,22 @@ own notes vault (by default `profiles/<id>/vault`, or a folder you choose), seed
 `Clients/`, `Projects/`, `People/`, `Tools/`, `Sessions/`, `Daily/`, `_templates/` and a `To-Do.md`.
 Vaults are never shared between profiles, so one client's notes stay out of another client's Claude.
 
+Choosing the folder:
+
+- **New vault…** starts in an empty folder.
+- **Use existing folder…** adopts a folder that already has notes, such as an Obsidian vault.
+  Hatstand shows what it would add (only missing folders, templates and `To-Do.md`) and never
+  changes existing notes. The capture hooks append a marked block to an existing `Home.md` and
+  to that day's `Daily/` note.
+- **Use default** points back at `profiles/<id>/vault`.
+- Switching folders never moves or deletes anything. If the current vault has notes, you can copy
+  them over; copying never replaces a file that's already there.
+- A folder that overlaps another profile's vault or Hatstand data is refused.
+
+**Templates**: while the second brain is on, the Client, Project, Person and Tool templates and the
+To-Do format (`_templates/To-Do format.md`, which Claude follows for `To-Do.md`) can be edited in
+the same panel. **Restore default** puts Hatstand's version back for that one template.
+
 How it works: Hatstand adds three Claude Code hooks to that profile's `settings.json` and a
 marked block of note-keeping rules to its `CLAUDE.md`. The hooks run Hatstand's own capture
 script with Hatstand's executable acting as Node (`ELECTRON_RUN_AS_NODE=1`), so nothing else

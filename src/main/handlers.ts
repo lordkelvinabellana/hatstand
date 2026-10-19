@@ -26,7 +26,15 @@ const trash = mac ? 'Trash' : 'Recycle Bin';
 import type { Snapshot, UpdateCheck } from '../shared.ts';
 import { applyLoginItem, createDesktopShortcut } from './integration.ts';
 import type { ProfileSync } from './sync.ts';
-import { brainStatus, saveBrain } from './brain.ts';
+import { brainStatus, checkVault, saveBrain } from './brain.ts';
+import {
+  assertTemplateName,
+  copyVault,
+  inspectVault,
+  readTemplate,
+  saveTemplate,
+  vaultsOverlap,
+} from '../core/vault.ts';
 
 export interface HandlerContext {
   root: string;
@@ -56,6 +64,34 @@ function readIds(payload: unknown): string[] {
 export function createHandlers(context: HandlerContext): Record<string, Handler> {
   const { root, store, controller } = context;
   let pendingImport: ReturnType<typeof parseImport> | null = null;
+
+  async function vaultOf(payload: unknown) {
+    const id = readId(payload);
+    await controller.getProfile(id);
+    return (await brainStatus(root, controller, id)).folder;
+  }
+
+  /** Points a profile at `vault` ('' = default), offering to copy its notes there. Nothing is deleted. */
+  async function switchVault(id: string, vault: string) {
+    const folder = await checkVault(root, controller, (await store.load()).profiles, id, vault);
+    const status = await brainStatus(root, controller, id);
+    if (vaultsOverlap(folder, status.folder) && folder !== status.folder)
+      throw new Error('Choose a folder outside this profile’s current vault.');
+    if (folder !== status.folder && (await inspectVault(status.folder)).notes) {
+      const answer = await dialog.showMessageBox(context.window(), {
+        type: 'question',
+        buttons: ['Cancel', 'Just switch', 'Copy notes'],
+        defaultId: 2,
+        cancelId: 0,
+        message: 'Copy this profile’s notes to the new folder?',
+        detail: `Copying never replaces a file that’s already there. The current folder stays as it is:\n${status.folder}`,
+      });
+      if (answer.response === 0) return;
+      if (answer.response === 2) await copyVault(status.folder, folder);
+    }
+    await saveBrain(root, id, { enabled: status.enabled, vault });
+    await context.profilesChanged();
+  }
 
   async function snapshot(): Promise<Snapshot> {
     const state = await store.load();
@@ -274,17 +310,76 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
       await saveBrain(root, id, { enabled, vault: status.vault });
       await context.profilesChanged();
     },
-    async pickVault(payload) {
+    async newVault(payload) {
       const id = readId(payload);
       await controller.getProfile(id);
       const result = await dialog.showOpenDialog(context.window(), {
-        title: 'Choose the folder for this profile’s notes',
+        title: 'Choose or create an empty folder for a new vault',
         properties: ['openDirectory', 'createDirectory'],
       });
       if (result.canceled) return;
-      const status = await brainStatus(root, controller, id);
-      await saveBrain(root, id, { enabled: status.enabled, vault: result.filePaths[0] });
-      await context.profilesChanged();
+      if ((await inspectVault(result.filePaths[0])).used)
+        throw new Error('That folder isn’t empty. To use the notes in it, choose “Use existing folder…”.');
+      await switchVault(id, result.filePaths[0]);
+    },
+    async adoptVault(payload) {
+      const id = readId(payload);
+      await controller.getProfile(id);
+      const result = await dialog.showOpenDialog(context.window(), {
+        title: 'Choose an existing notes folder',
+        properties: ['openDirectory'],
+      });
+      if (result.canceled) return;
+      const folder = result.filePaths[0];
+      const info = await inspectVault(folder);
+      if (info.notes || info.obsidian) {
+        const answer = await dialog.showMessageBox(context.window(), {
+          type: 'question',
+          buttons: ['Cancel', 'Use this vault'],
+          defaultId: 1,
+          cancelId: 0,
+          message: `Use this ${info.obsidian ? 'Obsidian vault' : 'folder'} for this profile’s notes?`,
+          detail: `Found ${info.notes} note${info.notes === 1 ? '' : 's'}. Existing notes are not changed. ${
+            info.adds.length
+              ? `When the second brain is on, Hatstand adds only what’s missing:\n${info.adds.join('\n')}`
+              : 'Nothing needs adding.'
+          }`,
+        });
+        if (answer.response !== 1) return;
+      }
+      await switchVault(id, folder);
+    },
+    async resetVault(payload) {
+      const id = readId(payload);
+      await controller.getProfile(id);
+      await switchVault(id, '');
+    },
+    async template(payload) {
+      const { name } = payload as { name?: unknown };
+      assertTemplateName(name);
+      return readTemplate(await vaultOf(payload), name);
+    },
+    async saveTemplate(payload) {
+      const { name, text } = payload as { name?: unknown; text?: unknown };
+      assertTemplateName(name);
+      if (typeof text !== 'string') throw new Error('Invalid request.');
+      await saveTemplate(await vaultOf(payload), name, text);
+    },
+    async resetTemplate(payload) {
+      const { name } = payload as { name?: unknown };
+      assertTemplateName(name);
+      const vault = await vaultOf(payload);
+      const answer = await dialog.showMessageBox(context.window(), {
+        type: 'question',
+        buttons: ['Cancel', 'Restore default'],
+        defaultId: 0,
+        cancelId: 0,
+        message: `Restore the default ${name} template?`,
+        detail: 'Your changes to this template are replaced. Notes made from it are not changed.',
+      });
+      if (answer.response !== 1) return false;
+      await saveTemplate(vault, name, null);
+      return true;
     },
     async openVault(payload) {
       const id = readId(payload);
