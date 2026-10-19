@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Hatstand: Multiple Claude Desktop Accounts, No Signing Out</title>
-<meta name="description" content="Free, open-source launcher for running multiple Claude Desktop accounts on one computer. Give each client its own profile and switch without signing out.">
+<meta name="description" content="Free, open-source Windows and Mac launcher for running multiple Claude Desktop accounts. Give each client its own profile and switch without signing out.">
 <link rel="canonical" href="https://lordkelvinabellana.github.io/hatstand/">
 <meta name="author" content="Kelvin Abellana">
 <meta name="robots" content="index, follow, max-image-preview:large">
@@ -47,7 +47,7 @@
         { "@type": "Question", "name": "Can I use multiple Claude accounts on one computer?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Claude Desktop holds one account at a time, but Hatstand starts it with a separate profile for each client, so each account stays signed in and you can run several side by side." } },
         { "@type": "Question", "name": "Is Hatstand made by Anthropic?", "acceptedAnswer": { "@type": "Answer", "text": "No. Hatstand is an independent open-source project and isn't affiliated with, endorsed by, or supported by Anthropic." } },
         { "@type": "Question", "name": "Does Hatstand see my password or chats?", "acceptedAnswer": { "@type": "Answer", "text": "No. Sign-in happens entirely inside Claude. Hatstand stores client names, colors, and preferences on your computer, and its logs contain only profile IDs." } },
-        { "@type": "Question", "name": "Is there a Mac version?", "acceptedAnswer": { "@type": "Answer", "text": "A macOS preview for Apple silicon is in the repository. Signed Mac downloads come later; for now you can build it from source." } },
+        { "@type": "Question", "name": "Is there a Mac version?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Each release has a Mac download for Apple silicon (arm64) and Intel (x64), with a menu-bar pet for each client. The Mac app isn't signed by Apple yet, so the first time you open it, go to System Settings, Privacy & Security, and click Open Anyway." } },
         { "@type": "Question", "name": "What does it cost?", "acceptedAnswer": { "@type": "Answer", "text": "Nothing. Hatstand is free and MIT-licensed." } }
       ]
     }
@@ -249,7 +249,7 @@
 
 <main id="main">
   <div class="hero wrap" id="top">
-    <span class="eyebrow">Free &amp; open source · Windows · macOS preview</span>
+    <span class="eyebrow">Free &amp; open source · Windows &amp; Mac</span>
     <h1>One hat per client.</h1>
     <p class="lede">Hatstand lets you use multiple Claude Desktop accounts on one computer, each client in its own profile. Switch between clients in a keystroke, and never sign out and back in again.</p>
     <div class="cta">
@@ -257,12 +257,16 @@
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
         Download for Windows
       </a>
+      <a class="button secondary" href="https://github.com/lordkelvinabellana/hatstand/releases/latest">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+        Download for Mac
+      </a>
       <a class="button secondary" href="https://github.com/lordkelvinabellana/hatstand">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
         View on GitHub
       </a>
     </div>
-    <p class="fine">Windows 11 x64 · Requires the official Claude Desktop app · Preview release</p>
+    <p class="fine">Windows 11 x64 · macOS on Apple silicon or Intel · Requires the official Claude Desktop app · Preview release</p>
     <div class="shot">
       <img class="light-shot" src="images/profiles.png" width="1104" height="737" alt="Hatstand's client list with three sample clients, each with a colored avatar, status, and a Launch button">
       <img class="dark-shot" src="images/dark.png" width="1104" height="737" alt="" aria-hidden="true">
@@ -399,12 +403,12 @@
         <p>It keeps accounts and chats apart, but every profile runs as the same Windows user, with access to the same files and clipboard. If a client requires strict isolation, use a separate Windows account or virtual machine.</p>
       </details>
       <details>
-        <summary>Why does Windows warn me when I install it?</summary>
-        <p>Preview builds aren't code-signed yet, so SmartScreen may show an "unknown publisher" warning. Each release includes SHA-256 checksums so you can verify the download first.</p>
+        <summary>Why does my computer warn me when I install it?</summary>
+        <p>Preview builds aren't code-signed yet. On Windows, SmartScreen may show an "unknown publisher" warning. On a Mac, macOS blocks the first open: go to System Settings, Privacy &amp; Security, and click Open Anyway. Each release includes SHA-256 checksums so you can verify the download first.</p>
       </details>
       <details>
         <summary>Is there a Mac version?</summary>
-        <p>A macOS preview for Apple silicon is in the repository, with menu-bar pets for each client. Signed Mac downloads come later; for now you can <a href="https://github.com/lordkelvinabellana/hatstand/blob/main/docs/MACOS.md">build it from source</a>.</p>
+        <p>Yes. Each release has a Mac download: pick the <code>arm64</code> DMG for Apple silicon or <code>x64</code> for Intel. On a Mac, each client also gets a menu-bar pet. The Mac app isn't signed by Apple yet, so see the warning question above for the first open. More in the <a href="https://github.com/lordkelvinabellana/hatstand/blob/main/docs/MACOS.md">Mac notes</a>.</p>
       </details>
       <details>
         <summary>What does it cost?</summary>
@@ -418,8 +422,11 @@
       <div class="panel">
         <h2>Hang up the sign-out routine.</h2>
         <p>Download Hatstand, add your first client, and switch between accounts the way you switch between windows.</p>
-        <a class="button primary" href="https://github.com/lordkelvinabellana/hatstand/releases/latest">Download for Windows</a>
-        <div class="platforms"><span>Windows 11 x64</span><span>macOS: preview, build from source</span></div>
+        <div class="cta">
+          <a class="button primary" href="https://github.com/lordkelvinabellana/hatstand/releases/latest">Download for Windows</a>
+          <a class="button secondary" href="https://github.com/lordkelvinabellana/hatstand/releases/latest">Download for Mac</a>
+        </div>
+        <div class="platforms"><span>Windows 11 x64</span><span>macOS · Apple silicon &amp; Intel</span></div>
       </div>
     </div>
   </section>
