@@ -19,6 +19,7 @@ import type { HotkeyResult } from './integration.ts';
 import { handleSquirrelEvent } from './squirrel.ts';
 import { openClaudeSession } from '../core/macos.ts';
 import { Pets } from './pets.ts';
+import { ProfileSync } from './sync.ts';
 import { createTray, type TrayActions, trayMenu, updateTray } from './tray.ts';
 
 const testMode = process.env.HATSTAND_TEST_MODE === '1' && !app.isPackaged;
@@ -140,7 +141,9 @@ async function profilesChanged() {
   hotkeys = registerHotkeys(controller.settings, profiles, show, launchFromShell);
   updateJumpList(profiles);
   await syncShell();
+  sync.scheduleSoon();
 }
+const sync = new ProfileSync(root, store, () => controller.settings, profilesChanged, notify);
 async function launchStartupGroup() {
   const ids = (await store.load()).profiles.filter((p) => p.openAtStartup && !p.archived).map((p) => p.id);
   await handlers.launchMany({ ids });
@@ -165,6 +168,7 @@ const handlers = createHandlers({
   hotkeyErrors: () => hotkeys,
   profilesChanged,
   notify,
+  sync,
 });
 
 // Poll often while the manager is visible; rarely while it only lives in the tray.
@@ -263,6 +267,7 @@ async function start() {
   updateJumpList(profiles);
   await controller.refresh();
   await syncShell();
+  void sync.start();
   const background =
     process.argv.includes('--background') ||
     (process.platform === 'darwin' && app.getLoginItemSettings().wasOpenedAtLogin);

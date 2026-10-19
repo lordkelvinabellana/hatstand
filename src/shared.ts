@@ -4,6 +4,7 @@ import type { Settings } from './core/settings.ts';
 import type { Installation } from './core/platform.ts';
 import type { ReleaseInfo } from './core/project.ts';
 import type { StorageFolder } from './core/storage.ts';
+import type { SyncStatus } from './main/sync.ts';
 export type { ProfileStatus };
 
 export interface ProfileView extends Profile {
@@ -26,6 +27,7 @@ export interface Snapshot {
   version: string;
   packaged: boolean;
   dataFolder: string;
+  sync: SyncStatus;
 }
 export interface UpdateCheck {
   current: string;

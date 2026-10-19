@@ -21,6 +21,8 @@ export interface Profile {
   openAtStartup: boolean;
   archived: boolean;
   createdAt: string;
+  /** Last change to this profile's synced fields; newer wins when profiles sync. */
+  updatedAt: string;
 }
 export interface ProfileInput {
   name: string;
@@ -81,7 +83,8 @@ export function validateInput(input: unknown): Required<ProfileInput> {
   };
 }
 export function newProfile(input: unknown): Profile {
-  return { ...validateInput(input), id: randomUUID(), archived: false, createdAt: new Date().toISOString() };
+  const now = new Date().toISOString();
+  return { ...validateInput(input), id: randomUUID(), archived: false, createdAt: now, updatedAt: now };
 }
 /** Accepts schema 1 (0.0.1 preview) and 2; always returns schema 2. */
 export function validateState(input: unknown): ProfileState {
@@ -111,6 +114,11 @@ export function validateState(input: unknown): ProfileState {
       id: value.id,
       archived: value.archived,
       createdAt: value.createdAt,
+      // Profiles saved before sync existed count as last changed when they were created.
+      updatedAt:
+        typeof value.updatedAt === 'string' && Number.isFinite(Date.parse(value.updatedAt))
+          ? value.updatedAt
+          : value.createdAt,
     };
     if (profile.hotkey) {
       const key = acceleratorKey(profile.hotkey);

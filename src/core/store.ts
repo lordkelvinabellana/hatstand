@@ -66,7 +66,7 @@ export class ProfileStore {
     return this.mutate((state) => {
       const profile = state.profiles.find((p) => p.id === id);
       if (!profile) throw new Error('Profile not found.');
-      Object.assign(profile, values);
+      Object.assign(profile, values, { updatedAt: new Date().toISOString() });
       return profile;
     });
   }
@@ -77,6 +77,7 @@ export class ProfileStore {
       const profile = state.profiles.find((p) => p.id === id);
       if (!profile) throw new Error('Profile not found.');
       profile.archived = archived;
+      profile.updatedAt = new Date().toISOString();
     });
   }
   reorder(ids: string[]): Promise<void> {
@@ -89,6 +90,9 @@ export class ProfileStore {
         if (!p) throw new Error('Unknown profile.');
         return p;
       });
+      // A moved profile counts as changed, so its new position syncs.
+      const now = new Date().toISOString();
+      for (const [index, p] of mapped.entries()) if (state.profiles[index] !== p) p.updatedAt = now;
       state.profiles = mapped;
     });
   }
@@ -98,6 +102,12 @@ export class ProfileStore {
       if (!state.profiles.some((p) => p.id === id)) throw new Error('Profile not found.');
       state.profiles = state.profiles.filter((p) => p.id !== id);
       // Intentionally preserves authenticated data on disk.
+    });
+  }
+  /** Replaces every profile at once, as profile sync does after merging. */
+  replaceAll(profiles: Profile[]): Promise<void> {
+    return this.mutate((state) => {
+      state.profiles = profiles;
     });
   }
   importProfiles(inputs: unknown[]): Promise<Profile[]> {

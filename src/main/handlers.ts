@@ -8,7 +8,14 @@ import { checksFor, isTestedVersion } from '../core/compat.ts';
 import type { Controller } from '../core/controller.ts';
 import { assertId, exportMetadata, isRecord, parseImport, validateInput } from '../core/profiles.ts';
 import type { ProfileInput } from '../core/profiles.ts';
-import { isNewerVersion, issuesUrl, parseLatestRelease, releasesUrl, repository } from '../core/project.ts';
+import {
+  isNewerVersion,
+  issuesUrl,
+  parseLatestRelease,
+  releasesUrl,
+  repository,
+  syncGuideUrl,
+} from '../core/project.ts';
 import { saveSettings, validateSettings } from '../core/settings.ts';
 import { listProfileFolders, resolveRemovableFolder } from '../core/storage.ts';
 import type { ProfileStore } from '../core/store.ts';
@@ -18,6 +25,7 @@ const mac = process.platform === 'darwin';
 const trash = mac ? 'Trash' : 'Recycle Bin';
 import type { Snapshot, UpdateCheck } from '../shared.ts';
 import { applyLoginItem, createDesktopShortcut } from './integration.ts';
+import type { ProfileSync } from './sync.ts';
 
 export interface HandlerContext {
   root: string;
@@ -28,6 +36,7 @@ export interface HandlerContext {
   /** Re-registers shortcuts and refreshes tray, jump list and renderer. */
   profilesChanged(): Promise<void>;
   notify(): void;
+  sync: ProfileSync;
 }
 type Handler = (payload: unknown) => Promise<unknown>;
 
@@ -71,6 +80,7 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
       version: app.getVersion(),
       packaged: app.isPackaged,
       dataFolder: root,
+      sync: { ...context.sync.status },
     };
   }
 
@@ -179,6 +189,7 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
         if (folder) await moveToRecycleBin(folder);
       }
       await store.remove(id);
+      await context.sync.markDeleted(id);
       await context.profilesChanged();
     },
     async launch(payload) {
@@ -266,6 +277,20 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
       if (result.canceled) return null;
       await detectInstallation(result.filePaths[0]);
       return result.filePaths[0];
+    },
+    async syncSendCode() {
+      await context.sync.sendCode();
+    },
+    async syncVerify(payload) {
+      if (!isRecord(payload) || typeof payload.code !== 'string')
+        throw new Error('Enter the code from the email.');
+      await context.sync.verify(payload.code);
+    },
+    async syncNow() {
+      await context.sync.syncNow();
+    },
+    async syncSignOut() {
+      await context.sync.signOut();
     },
     async settings(payload) {
       const next = validateSettings(payload);
@@ -365,7 +390,7 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
     },
     async openExternal(payload) {
       if (!isRecord(payload) || typeof payload.url !== 'string') throw new Error('Invalid link.');
-      const allowed = ['https://claude.com/download', `${releasesUrl}`, issuesUrl];
+      const allowed = ['https://claude.com/download', `${releasesUrl}`, issuesUrl, syncGuideUrl];
       const url = payload.url;
       if (!allowed.some((prefix) => url === prefix || url.startsWith(`${prefix}/`)))
         throw new Error('That link is not allowed.');

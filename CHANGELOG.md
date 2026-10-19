@@ -9,6 +9,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 - **macOS preview**: menu bar and Dock actions, Cmd shortcuts, start at login, and `.app`/DMG/ZIP packaging.
 - **Menu-bar pets (macOS)**: one pixel pet per profile replaces Hatstand's menu bar icon and shows when that account's Claude Code is working, needs input, or is done, with a generated sound in each pet's own key. State comes from Claude Code hooks that Hatstand adds to each profile's settings.
 - **Session panel**: hover a pet to see that account's active sessions (title, folder, last prompt, task progress, background tasks, token usage, model); click to pin it; click a session to open that conversation in the right account's Claude.
+- **Optional profile sync**: keep profile names, labels, colors, pets, order and shortcuts in your own Supabase project, with email-code sign-in and newest-change-wins merging. Sign-ins, Claude data, settings and work folders never sync. Off by default; see [docs/SYNC.md](docs/SYNC.md).
 - **Pet settings (macOS)**: Settings → Menu-bar pets turns the pets off (the Hatstand icon comes back) or keeps them but silences their sounds.
 - **Pet picker**: eight pets, or initials, as each profile's picture. Existing profiles get a pet each, in order. Export and import include it.
 

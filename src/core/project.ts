@@ -3,6 +3,7 @@ export const repository = 'lordkelvinabellana/hatstand';
 export const repositoryUrl = `https://github.com/${repository}`;
 export const releasesUrl = `${repositoryUrl}/releases`;
 export const issuesUrl = `${repositoryUrl}/issues`;
+export const syncGuideUrl = `${repositoryUrl}/blob/main/docs/SYNC.md`;
 
 export interface ReleaseInfo {
   version: string;
