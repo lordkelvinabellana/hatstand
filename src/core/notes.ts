@@ -135,8 +135,7 @@ export async function moveEntry(vault: string, from: unknown, to: unknown) {
   // Case-only renames are allowed: on macOS and Windows the "existing" target is the source itself.
   const caseOnly = source.toLowerCase() === target.toLowerCase();
   if (!caseOnly && inside(source, target)) throw new Error('A folder can’t move inside itself.');
-  if (!caseOnly && (await exists(target)))
-    throw new Error('A file or folder with that name already exists.');
+  if (!caseOnly && (await exists(target))) throw new Error('A file or folder with that name already exists.');
   await fs.mkdir(path.dirname(target), { recursive: true });
   await fs.rename(source, target);
 }
