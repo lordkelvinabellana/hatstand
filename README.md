@@ -5,7 +5,7 @@
 
 **One hat per client.** Keep each client's Claude Desktop account in its own profile, and switch between them without signing out.
 
-**[Website](https://lordkelvinabellana.github.io/hatstand/)** · **[Download](https://github.com/lordkelvinabellana/hatstand/releases/latest)** · **[Compatibility](docs/COMPATIBILITY.md)**
+**[Website](https://hatstand.vercel.app/)** · **[Download](https://github.com/lordkelvinabellana/hatstand/releases/latest)** · **[Compatibility](docs/COMPATIBILITY.md)**
 
 Hatstand is a small, open-source Windows and macOS launcher for people who use Claude Desktop with several accounts, such as consultants and agencies working for multiple clients. Create a profile per client, sign in once inside the official Claude app, then launch or focus any client from a list, the tray, a keyboard shortcut, or a desktop shortcut. On a Mac, each client also gets a pixel pet in the menu bar that tells you when that account's Claude needs you or has finished.
 
