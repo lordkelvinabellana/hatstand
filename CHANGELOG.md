@@ -4,8 +4,13 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-19
+
+Adds the macOS app. Mac downloads are unsigned: the first time, open it from System Settings → Privacy & Security → Open Anyway.
+
 ### Added
 
+- **Mac downloads**: each release now includes DMGs for Apple silicon (arm64) and Intel (x64), and one `SHA256SUMS.txt` covers every file.
 - **macOS preview**: menu bar and Dock actions, Cmd shortcuts, start at login, and `.app`/DMG/ZIP packaging.
 - **Menu-bar pets (macOS)**: one pixel pet per profile replaces Hatstand's menu bar icon and shows when that account's Claude Code is working, needs input, or is done, with a generated sound in each pet's own key. State comes from Claude Code hooks that Hatstand adds to each profile's settings.
 - **Session panel**: hover a pet to see that account's active sessions (title, folder, last prompt, task progress, background tasks, token usage, model); click to pin it; click a session to open that conversation in the right account's Claude.
