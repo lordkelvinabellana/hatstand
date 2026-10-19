@@ -66,7 +66,7 @@ async function checkNotes(vault) {
   await main.getByRole('dialog').getByRole('button', { name: 'Open notes' }).click();
   const notes = main;
   await notes.locator('.n-app').waitFor();
-  await instance.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1400, 820));
+  await instance.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1280, 720));
   const profile = (await readProfiles()).find((p) => p.name === 'North Studio').id;
   const tree = notes.getByRole('navigation', { name: 'Notes and folders' });
   await tree.getByRole('button', { name: 'Clients' }).click();
@@ -189,7 +189,8 @@ async function checkNotes(vault) {
   // All vaults: one graph, a card per vault, and the way back into the profile's editor.
   await notes.getByRole('button', { name: 'All vaults' }).click();
   await notes.locator('.vault-card').first().waitFor();
-  await notes.locator('.vault-overview canvas').first().waitFor();
+  // Without WebGL (some CI runners) the overview shows its fallback note instead of a canvas.
+  await notes.locator('.vault-overview canvas, .vault-overview .n-graph-off').first().waitFor();
   await notes.screenshot({ path: path.join(screenshotFolder, 'vaults.png') });
   await notes.locator('.vault-person').first().click();
   await notes.locator('.profile-hero').waitFor();

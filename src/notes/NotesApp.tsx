@@ -942,7 +942,18 @@ export function NotesApp(props: { profile: string; theme: string }) {
       </main>
 
       {menu && (
-        <div className="n-menu" role="menu" style={{ left: menu.x, top: menu.y }}>
+        <div
+          className="n-menu"
+          role="menu"
+          style={{ left: menu.x, top: menu.y }}
+          ref={(el) => {
+            // Keep the menu inside the window, e.g. for a note near the bottom of the tree.
+            if (!el) return;
+            const r = el.getBoundingClientRect();
+            el.style.left = `${Math.max(4, Math.min(menu.x, innerWidth - r.width - 4))}px`;
+            el.style.top = `${Math.max(4, Math.min(menu.y, innerHeight - r.height - 4))}px`;
+          }}
+        >
           {menu.folder && (
             <>
               <button
