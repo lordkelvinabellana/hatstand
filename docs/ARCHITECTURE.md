@@ -21,21 +21,24 @@ core (plain Node, unit-tested)               src/core
 Claude.exe per profile, with its own --user-data-dir
 ```
 
-Notes windows (one per profile) are a second React renderer, `src/notes`, built to `dist/notes.html`.
-They talk to the main process over their own channel, `window.notes.request(action, payload)` →
-`notes:request`, handled by `src/main/notes.ts`. Each window is bound to its profile when it opens:
-requests never name a profile or a vault, and every path is vault-relative and checked by
-`src/core/notes.ts` (no `..`, no hidden folders, no symlinks out of the vault, writes to `.md` only,
-nothing overwritten, removal through the system trash). The main window can't use this channel and
-notes windows can't use `hatstand:request`. The vault is watched with `fs.watch` (recursive) and the
-window reloads on change. Wikilinks, aliases, backlinks and search (MiniSearch) live in
+The Second brain page lives in the main window: `src/notes` (the notes view) is bundled into the main
+renderer. Notes requests go over their own channel, `window.notes.request(profile, action, payload)` →
+`notes:request`, handled by `NotesService` in `src/main/notes.ts`. Only the main window's own page may
+use it, and each request is answered from the named profile's current vault, looked up fresh: the page
+never names a folder, and every path is vault-relative and checked by `src/core/notes.ts` (no `..`, no
+hidden folders, no symlinks out of the vault, writes to `.md` only, nothing overwritten, removal through
+the system trash). Every vault in use is watched with `fs.watch` (recursive) and the page reloads on change.
+A vault can be shared: `shareVault` points other profiles at one vault folder (a default vault inside a
+profile's own data first moves to `HatstandData/vaults/<name>`, since profiles never point into each
+other's data), and `checkVault` allows another profile's vault only for that explicit share. The
+all-vaults graph combines each vault's graph around its own hub (`combineVaults` in `src/core/graph.ts`). Wikilinks, aliases, backlinks and search (MiniSearch) live in
 `src/core/links.ts`, which is pure and unit-tested. The graph view builds its nodes and edges from
 that same link index in `src/core/graph.ts` (also pure: filters, local graph, search matches) and
 draws them with sigma.js 3 and graphology in `src/notes/GraphView.tsx`. ForceAtlas2 runs in a web
-worker that the library starts from a blob, which is why the notes page's CSP allows `worker-src blob:`.
+worker that the library starts from a blob, which is why the main page's CSP allows `worker-src blob:`.
 
-Claude features in the notes window never pick an account themselves: main builds a `claude://code/…`
-link (`src/core/ask.ts`) and delivers it to the window's own profile's running Claude through the macOS
+Claude features in the notes view never pick an account themselves: main builds a `claude://code/…`
+link (`src/core/ask.ts`) and delivers it to the open profile's running Claude through the macOS
 helper (`open-url`, by PID), launching the profile first when needed. "Open session" maps the note's
 Claude Code session id to Claude Desktop's `local_…` id from that profile's `claude-code-sessions/`.
 "Ask" opens `claude://code/new?q=…&folder=<vault>`. The read-only recall MCP server is

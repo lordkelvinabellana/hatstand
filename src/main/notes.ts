@@ -1,7 +1,6 @@
-import { BrowserWindow, clipboard, dialog, type IpcMainInvokeEvent, nativeTheme, shell } from 'electron';
+import { type BrowserWindow, clipboard, dialog, type IpcMainInvokeEvent, shell } from 'electron';
 import { type FSWatcher, watch } from 'node:fs';
 import * as fs from 'node:fs/promises';
-import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { askPrompt } from '../core/ask.ts';
 import { frontmatter } from '../core/brain.ts';
@@ -19,7 +18,7 @@ import {
 } from '../core/notes.ts';
 import { isRecord } from '../core/profiles.ts';
 
-/** What a notes window needs about its profile; throws when the profile has no vault Hatstand may open. */
+/** What the notes page needs about a profile's vault; throws when the profile has no vault Hatstand may open. */
 export type VaultLookup = (id: string) => Promise<{ folder: string; name: string; color: string }>;
 
 /** Hands work to the profile's own Claude Desktop. 'launched' means only the app could be opened. */
@@ -28,121 +27,78 @@ export interface ClaudeActions {
   ask(id: string, folder: string, question: string): Promise<'opened' | 'launched'>;
 }
 
-interface Entry {
-  window: BrowserWindow;
-  folder: string;
-  watcher?: FSWatcher;
-  timer?: NodeJS.Timeout;
-}
-
-const html = () => path.join(__dirname, 'notes.html');
 const text = (value: unknown) => {
   if (typeof value !== 'string' || value.length > 5_000_000) throw new Error('Invalid request.');
   return value;
 };
 
 /**
- * One notes window per profile. Each window is bound to its profile when created: its requests never
- * name a profile or a vault, so a window can only ever reach its own profile's notes.
+ * Notes for the Second brain page inside Hatstand's own window. Every request names a profile and is
+ * answered from that profile's current vault only, looked up fresh each time; requests from anything but
+ * the main window's own page are rejected. Each vault is watched so the page refreshes when Claude writes.
  */
-export class NotesWindows {
-  private entries = new Map<string, Entry>();
+export class NotesService {
+  private watchers = new Map<string, { watcher: FSWatcher; timer?: NodeJS.Timeout }>();
   constructor(
     private vaultFor: VaultLookup,
     private claude: ClaudeActions,
+    private window: () => BrowserWindow | undefined,
+    private page: string,
   ) {}
 
-  async open(id: string) {
-    const existing = this.entries.get(id);
-    if (existing) {
-      if (existing.window.isMinimized()) existing.window.restore();
-      existing.window.focus();
-      return;
-    }
-    const { folder, name } = await this.vaultFor(id);
-    const window = new BrowserWindow({
-      width: 1180,
-      height: 800,
-      minWidth: 640,
-      minHeight: 420,
-      show: false,
-      title: `${name} — Notes`,
-      backgroundColor: nativeTheme.shouldUseDarkColors ? '#1c2320' : '#f7f7f2',
-      webPreferences: {
-        preload: path.join(__dirname, 'preload.cjs'),
-        contextIsolation: true,
-        sandbox: true,
-        nodeIntegration: false,
-      },
-    });
-    const entry: Entry = { window, folder };
-    this.entries.set(id, entry);
-    window.webContents.setWindowOpenHandler(({ url }) => {
-      // Web links in notes open in the default browser; nothing opens inside Hatstand.
-      if (/^https?:\/\//i.test(url)) void shell.openExternal(url);
-      return { action: 'deny' };
-    });
-    window.webContents.on('will-navigate', (event) => event.preventDefault());
-    window.on('page-title-updated', (event) => event.preventDefault());
-    window.on('closed', () => {
-      this.unwatch(entry);
-      this.entries.delete(id);
-    });
-    window.once('ready-to-show', () => window.show());
-    this.watch(entry);
-    await window.loadFile(html());
-  }
-
-  /** After profile changes: follow a vault that moved, close windows of profiles that are gone or turned off. */
-  async sync() {
-    for (const [id, entry] of this.entries) {
-      const vault = await this.vaultFor(id).catch(() => null);
-      if (!vault) entry.window.close();
-      else if (vault.folder !== entry.folder) {
-        this.unwatch(entry);
-        entry.folder = vault.folder;
-        this.watch(entry);
-        entry.window.webContents.send('notes:changed');
-      }
-    }
-  }
-
-  private watch(entry: Entry) {
-    try {
-      entry.watcher = watch(entry.folder, { recursive: true }, (_event, file) => {
-        const rel = String(file ?? '');
-        if (rel.split(/[\\/]/).some((p) => p.startsWith('.')) || rel.endsWith('-tmp')) return;
+  /** Watches exactly these vault folders (all profiles with a second brain). */
+  sync(folders: string[]) {
+    const wanted = new Set(folders);
+    for (const [folder, entry] of this.watchers)
+      if (!wanted.has(folder)) {
         clearTimeout(entry.timer);
-        entry.timer = setTimeout(() => entry.window.webContents.send('notes:changed'), 250);
+        entry.watcher.close();
+        this.watchers.delete(folder);
+      }
+    for (const folder of wanted) if (!this.watchers.has(folder)) this.watch(folder);
+    this.window()?.webContents.send('notes:changed');
+  }
+
+  private watch(folder: string) {
+    try {
+      const entry: { watcher: FSWatcher; timer?: NodeJS.Timeout } = {
+        watcher: watch(folder, { recursive: true }, (_event, file) => {
+          const rel = String(file ?? '');
+          if (rel.split(/[\\/]/).some((p) => p.startsWith('.')) || rel.endsWith('-tmp')) return;
+          clearTimeout(entry.timer);
+          entry.timer = setTimeout(() => this.window()?.webContents.send('notes:changed'), 250);
+        }),
+      };
+      entry.watcher.on('error', () => {
+        entry.watcher.close();
+        this.watchers.delete(folder);
       });
-      entry.watcher.on('error', () => this.unwatch(entry));
+      this.watchers.set(folder, entry);
     } catch {
-      // A vault that can't be watched still works; it just won't refresh on its own.
+      // A vault that can't be watched (not created yet) still works; it just won't refresh on its own.
     }
   }
-  private unwatch(entry: Entry) {
-    clearTimeout(entry.timer);
-    entry.watcher?.close();
-    entry.watcher = undefined;
+
+  dispose() {
+    this.sync([]);
   }
 
   /** The `notes:request` IPC handler. */
   async handle(event: IpcMainInvokeEvent, request: unknown) {
-    const found = [...this.entries].find(([, e]) => e.window.webContents === event.sender);
+    const window = this.window();
     if (
-      !found ||
+      !window ||
+      event.sender !== window.webContents ||
       event.senderFrame !== event.sender.mainFrame ||
-      event.senderFrame?.url !== pathToFileURL(html()).href
+      event.senderFrame?.url !== pathToFileURL(this.page).href
     )
       return { ok: false, error: 'Request rejected.' };
     try {
-      if (!isRecord(request) || typeof request.action !== 'string') throw new Error('Unknown request.');
-      const [id, entry] = found;
-      // Looked up per request, so a vault switched in Hatstand meanwhile is followed, never a stale one.
-      const vault = await this.vaultFor(id);
-      entry.folder = vault.folder;
+      if (!isRecord(request) || typeof request.action !== 'string' || typeof request.profile !== 'string')
+        throw new Error('Unknown request.');
+      const vault = await this.vaultFor(request.profile);
       const payload = isRecord(request.payload) ? request.payload : {};
-      return { ok: true, value: await this.run(id, entry.window, vault, request.action, payload) };
+      return { ok: true, value: await this.run(request.profile, window, vault, request.action, payload) };
     } catch (error) {
       return { ok: false, error: (error as Error).message || 'The operation failed. Try again.' };
     }

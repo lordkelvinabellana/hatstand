@@ -37,7 +37,15 @@ const until = async (check, message) => {
   assert.fail(message);
 };
 
-/** Notes window: tree, live preview, autosave, wikilinks, backlinks, search, live disk changes, conflicts. */
+/** Profile rows open the profile page; its Edit button opens the editor dialog. */
+async function editProfile(page, n) {
+  await page.getByRole('button', { name: 'Client profiles', exact: true }).click();
+  await page.locator('.profile-identity').nth(n).click();
+  await page.locator('.profile-hero').waitFor();
+  await page.getByRole('button', { name: 'Edit', exact: true }).click();
+}
+
+/** Notes on the Second brain page: tree, live preview, autosave, wikilinks, backlinks, search, live disk changes, conflicts. */
 async function checkNotes(vault) {
   const main = await instance.firstWindow();
   const write = (rel, text) =>
@@ -54,17 +62,12 @@ async function checkNotes(vault) {
     'Sessions/2026-10-20 Fix invoices.md',
     '# Fix invoices\n\n## Summary\n- Fixed it\n\n<!-- auto:start -->\n## Prompts\n- fix the invoices\n<!-- auto:end -->\n',
   );
-  const [notes] = await Promise.all([
-    instance.waitForEvent('window'),
-    main.getByRole('button', { name: 'Open notes' }).click(),
-  ]);
-  await notes.emulateMedia({ reducedMotion: 'reduce', colorScheme: 'light' });
-  notes.on('pageerror', (error) => errors.push(`notes: ${error.message}`));
-  await instance.evaluate(({ BrowserWindow }) =>
-    BrowserWindow.getAllWindows()
-      .find((w) => w.getTitle().endsWith('Notes'))
-      .setSize(1180, 760),
-  );
+  // The notes open inside Hatstand's own window, on the Second brain page.
+  await main.getByRole('dialog').getByRole('button', { name: 'Open notes' }).click();
+  const notes = main;
+  await notes.locator('.n-app').waitFor();
+  await instance.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1280, 720));
+  const profile = (await readProfiles()).find((p) => p.name === 'North Studio').id;
   const tree = notes.getByRole('navigation', { name: 'Notes and folders' });
   await tree.getByRole('button', { name: 'Clients' }).click();
   await tree.getByRole('button', { name: 'Aether' }).click();
@@ -166,12 +169,12 @@ async function checkNotes(vault) {
 
   // Isolation: paths can't leave the vault, and the main window can't use the notes channel.
   await assert.rejects(
-    notes.evaluate(() => window.notes.request('read', { path: '../../notes.md' })),
+    notes.evaluate((id) => window.notes.request(id, 'read', { path: '../../notes.md' }), profile),
     /Invalid note path/,
   );
   await assert.rejects(
-    main.evaluate(() => window.notes.request('load')),
-    /Request rejected/,
+    main.evaluate(() => window.notes.request('00000000-0000-4000-8000-000000000000', 'load')),
+    /no longer exists/,
   );
 
   await checkGraph(notes, write);
@@ -182,7 +185,18 @@ async function checkNotes(vault) {
   await notes.screenshot({ path: path.join(screenshotFolder, 'notes.png') });
   await notes.emulateMedia({ colorScheme: 'dark' });
   await notes.screenshot({ path: path.join(screenshotFolder, 'notes-dark.png') });
-  await notes.close();
+  await notes.emulateMedia({ colorScheme: 'light' });
+  // All vaults: one graph, a card per vault, and the way back into the profile's editor.
+  await notes.getByRole('button', { name: 'All vaults' }).click();
+  await notes.locator('.vault-card').first().waitFor();
+  // Without WebGL (some CI runners) the overview shows its fallback note instead of a canvas.
+  await notes.locator('.vault-overview canvas, .vault-overview .n-graph-off').first().waitFor();
+  await notes.screenshot({ path: path.join(screenshotFolder, 'vaults.png') });
+  await notes.locator('.vault-person').first().click();
+  await notes.locator('.profile-hero').waitFor();
+  await notes.getByRole('heading', { name: 'Running tasks' }).waitFor();
+  await notes.screenshot({ path: path.join(screenshotFolder, 'profile-page.png') });
+  await editProfile(notes, 0);
   await instance.evaluate(({ dialog }) => {
     dialog.showMessageBox = globalThis.realMessageBox;
   });
@@ -359,7 +373,7 @@ try {
   await instance.evaluate(({ dialog }, folder) => {
     dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [folder] });
   }, workFolder);
-  await page.locator('.profile-identity').first().click();
+  await editProfile(page, 0);
   await page.getByLabel('Profile shortcut').focus();
   await page.keyboard.press('Control+Alt+Shift+F11');
   assert.equal(await page.getByLabel('Profile shortcut').inputValue(), 'Ctrl+Alt+Shift+F11');
@@ -376,10 +390,11 @@ try {
     { hotkey: north.hotkey, workFolder: north.workFolder, openAtStartup: north.openAtStartup },
     { hotkey: `${mac ? 'Control' : 'CommandOrControl'}+Alt+Shift+F11`, workFolder, openAtStartup: true },
   );
+  await page.getByRole('button', { name: 'Client profiles', exact: true }).click();
   await page.getByRole('button', { name: 'Open startup group (1)' }).waitFor();
 
   // A duplicate shortcut on another profile is refused.
-  await page.locator('.profile-identity').nth(1).click();
+  await editProfile(page, 1);
   await page.getByLabel('Profile shortcut').focus();
   await page.keyboard.press('Control+Alt+Shift+F11');
   await page.getByRole('button', { name: 'Save changes', exact: true }).click();
@@ -404,8 +419,8 @@ try {
   await fs.mkdir(acornCode, { recursive: true });
   const external = JSON.stringify({ hooks: { Stop: [{ hooks: [{ command: 'python3 capture.py' }] }] } });
   await fs.writeFile(path.join(acornCode, 'settings.json'), external);
-  await page.locator('.profile-identity').first().click();
-  await page.getByText('Second brain', { exact: true }).click();
+  await editProfile(page, 0);
+  await page.locator('summary', { hasText: 'Second brain' }).click();
   await page.getByLabel(/Keep notes from Claude Code sessions/).click();
   await page.getByText(/Second brain on\./).waitFor();
   const wired = JSON.parse(await fs.readFile(path.join(code, 'settings.json'), 'utf8'));
@@ -488,7 +503,7 @@ try {
   await page.getByRole('button', { name: 'New vault…' }).click();
   await page.getByRole('alert').filter({ hasText: 'isn’t empty' }).waitFor();
   await page.getByRole('button', { name: 'Use existing folder…' }).click();
-  await page.locator('.path-text').filter({ hasText: 'Existing vault' }).waitFor();
+  await page.getByRole('dialog').locator('.path-text').filter({ hasText: 'Existing vault' }).waitFor();
   assert.deepEqual(await instance.evaluate(() => globalThis.boxes.slice(1)), [
     'Use this Obsidian vault for this profile’s notes?',
     'Copy this profile’s notes to the new folder?',
@@ -532,8 +547,8 @@ try {
     });
   await fs.access(path.join(vault, 'To-Do.md'));
   await page.getByRole('button', { name: 'Close profile editor' }).click();
-  await page.locator('.profile-identity').nth(1).click();
-  await page.getByText('Second brain', { exact: true }).click();
+  await editProfile(page, 1);
+  await page.locator('summary', { hasText: 'Second brain' }).click();
   await page.getByText(/already runs its own capture\.py hooks/).waitFor();
   // Its vault and templates can't be changed through IPC either.
   await assert.rejects(
@@ -544,6 +559,7 @@ try {
   assert.ok(!(await fs.readFile(path.join(acornCode, 'settings.json'), 'utf8')).includes('capture.cjs'));
   await assert.rejects(fs.access(path.join(acornCode, 'CLAUDE.md')));
   await page.getByRole('button', { name: 'Close profile editor' }).click();
+  await page.getByRole('button', { name: 'Client profiles', exact: true }).click();
 
   // Actions menu is keyboard operable.
   await page.getByRole('button', { name: 'Actions for Acorn & Co.', exact: true }).click();
@@ -705,7 +721,7 @@ try {
     assert.ok(native.dock.includes('Open Hatstand'));
     assert.ok(native.dock.some((label) => label.includes('North Studio')));
     assert.ok(native.menu.includes('appmenu'));
-    await page.locator('.profile-identity').first().click();
+    await editProfile(page, 0);
     await page.getByLabel('Profile shortcut').focus();
     await page.keyboard.press('Meta+Alt+F10');
     assert.equal(await page.getByLabel('Profile shortcut').inputValue(), 'Cmd+Alt+F10');

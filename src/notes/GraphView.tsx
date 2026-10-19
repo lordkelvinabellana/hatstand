@@ -15,6 +15,9 @@ interface NodeAttrs {
   label: string;
   group: Group;
   ghost: boolean;
+  /** Set in the all-vaults view: the vault's colour, and its hub. */
+  tint?: string;
+  hub?: boolean;
 }
 
 // CommonJS typings read as namespaces under NodeNext; at runtime (esbuild) the default import is the export itself.
@@ -116,12 +119,13 @@ function SigmaGraph(props: {
           const { colors, hovered, near, highlight, active } = live.current;
           const out: Record<string, unknown> = {
             ...attrs,
-            color: attrs.ghost ? colors.ghost : colors[attrs.group],
+            color: attrs.ghost ? colors.ghost : (attrs.tint ?? colors[attrs.group]),
           };
           const focus = hovered ? near : highlight;
           if (focus && !focus.has(id)) Object.assign(out, { color: colors.dim, label: '', zIndex: 0 });
           else if (focus) Object.assign(out, { zIndex: 1, forceLabel: hovered !== null || focus.size <= 40 });
           if (id === active) Object.assign(out, { highlighted: true, forceLabel: true, zIndex: 2 });
+          if (attrs.hub && !(focus && !focus.has(id))) Object.assign(out, { forceLabel: true, zIndex: 2 });
           return out;
         },
         edgeReducer: (edge, attrs) => {
@@ -193,7 +197,13 @@ function SigmaGraph(props: {
         label: n.label,
         group: n.group,
         ghost: n.ghost,
-        size: compact ? 3 + Math.sqrt(n.links) * 1.4 : 2.5 + Math.min(Math.sqrt(n.links) * 2, 16),
+        tint: n.color,
+        hub: n.hub,
+        size: n.hub
+          ? 14
+          : compact
+            ? 3 + Math.sqrt(n.links) * 1.4
+            : 2.5 + Math.min(Math.sqrt(n.links) * 2, 16),
       };
       if (g.hasNode(n.id)) {
         g.mergeNodeAttributes(n.id, attrs);

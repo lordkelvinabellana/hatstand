@@ -1,14 +1,4 @@
-/* Notes window. Colours come from the Hatstand tokens in ../ui/style.css (light and dark). */
-html,
-body,
-#root {
-  height: 100%;
-}
-body {
-  background: var(--bg);
-  color: var(--ink);
-  overflow: hidden;
-}
+/* Notes view on the Second brain page. Colours come from the Hatstand tokens in ../ui/style.css (light and dark). */
 .n-app {
   display: grid;
   grid-template-columns: 260px 1fr;

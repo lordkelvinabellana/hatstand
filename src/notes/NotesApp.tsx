@@ -22,16 +22,22 @@ import { backlinks, buildIndex, createSearch, type NoteText, noteName, resolveLi
 import { editorExtensions, fromDisk, newState, reload } from './editor.ts';
 import { GraphView, type Positions } from './GraphView.tsx';
 
-interface NotesApi {
-  request(action: string, payload?: unknown): Promise<unknown>;
+interface NotesBridge {
+  request(profile: string, action: string, payload?: unknown): Promise<unknown>;
   onChange(callback: () => void): () => void;
 }
 declare global {
   interface Window {
-    notes: NotesApi;
+    notes: NotesBridge;
   }
 }
-const api = window.notes;
+/** The open vault's requests, all answered from `profile`'s vault by the main process. */
+const forProfile = (profile: string) => ({
+  request: (action: string, payload?: unknown) => window.notes.request(profile, action, payload),
+  onChange: (callback: () => void) => window.notes.onChange(callback),
+});
+// shortcut: one notes view is mounted at a time (keyed by profile), so a module binding serves its children.
+let api = forProfile('');
 const mac = navigator.platform.toLowerCase().includes('mac');
 const trashName = mac ? 'Trash' : 'Recycle Bin';
 
@@ -76,7 +82,9 @@ const templateFolders: Record<string, string> = {
 };
 const cleanName = (name: string) => name.trim().replace(/\.md$/i, '');
 
-export function NotesApp() {
+export function NotesApp(props: { profile: string; theme: string }) {
+  api = forProfile(props.profile);
+  const theme = props.theme;
   const [info, setInfo] = useState<{ name: string; color: string } | null>(null);
   const [vault, setVault] = useState<Vault>({ folders: [], notes: [] });
   const [tabs, setTabs] = useState<string[]>([]);
@@ -91,7 +99,6 @@ export function NotesApp() {
   const [menu, setMenu] = useState<Menu | null>(null);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [error, setError] = useState('');
-  const [theme, setTheme] = useState('light');
   // The graph is a tab of its own: `graphOpen` keeps the tab, `onGraph` shows it instead of the editor.
   const [graphOpen, setGraphOpen] = useState(false);
   const [onGraph, setOnGraph] = useState(false);
@@ -318,24 +325,20 @@ export function NotesApp() {
       .then((value) => {
         const i = value as { name: string; color: string };
         setInfo(i);
-        document.title = `${i.name} — Notes`;
       })
       .catch(fail);
     void load();
     return api.onChange(() => void load());
   }, [load, fail]);
+  const flush = useRef<() => Promise<void>>(async () => {});
+  flush.current = async () => {
+    for (const [path, doc] of docs.current) if (doc.conflict !== null) await keepBoth(path);
+    await saveAll();
+  };
+  // Leaving the page (another vault, another Hatstand page) saves what's pending.
+  useEffect(() => () => void flush.current(), []);
   useEffect(() => {
-    const media = matchMedia('(prefers-color-scheme: dark)');
-    const apply = () => {
-      document.documentElement.dataset.theme = media.matches ? 'dark' : 'light';
-      setTheme(document.documentElement.dataset.theme);
-    };
-    apply();
-    media.addEventListener('change', apply);
-    return () => media.removeEventListener('change', apply);
-  }, []);
-  useEffect(() => {
-    // Closing the window waits for pending saves; edits that conflict are kept as a copy.
+    // Quitting Hatstand waits for pending saves; edits that conflict are kept as a copy.
     const beforeUnload = (event: BeforeUnloadEvent) => {
       const pending = [...docs.current.values()].some((d) => d.dirty || d.saving);
       if (!pending) return;
@@ -939,7 +942,18 @@ export function NotesApp() {
       </main>
 
       {menu && (
-        <div className="n-menu" role="menu" style={{ left: menu.x, top: menu.y }}>
+        <div
+          className="n-menu"
+          role="menu"
+          style={{ left: menu.x, top: menu.y }}
+          ref={(el) => {
+            // Keep the menu inside the window, e.g. for a note near the bottom of the tree.
+            if (!el) return;
+            const r = el.getBoundingClientRect();
+            el.style.left = `${Math.max(4, Math.min(menu.x, innerWidth - r.width - 4))}px`;
+            el.style.top = `${Math.max(4, Math.min(menu.y, innerHeight - r.height - 4))}px`;
+          }}
+        >
           {menu.folder && (
             <>
               <button

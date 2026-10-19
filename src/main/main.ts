@@ -19,8 +19,8 @@ import type { HotkeyResult } from './integration.ts';
 import { handleSquirrelEvent } from './squirrel.ts';
 import { askLink, findDesktopSession, sessionLink } from '../core/ask.ts';
 import { openClaudeUrl } from '../core/macos.ts';
-import { brainStatus, wireBrains } from './brain.ts';
-import { NotesWindows } from './notes.ts';
+import { brainStatus, vaultFolders, vaultLabel, wireBrains } from './brain.ts';
+import { NotesService } from './notes.ts';
 import { Pets } from './pets.ts';
 import { ProfileSync } from './sync.ts';
 import { createTray, type TrayActions, trayMenu, updateTray } from './tray.ts';
@@ -164,7 +164,7 @@ async function syncShell() {
   }
   // After the pets, which also rewrite each profile's settings.json.
   await wireBrains(root, controller, profiles).catch(() => {});
-  await notes.sync();
+  notes.sync(await vaultFolders(root, controller, profiles).catch(() => []));
   if (tray) updateTray(tray, profiles, controller, trayActions);
   updateDockMenu(profiles, controller, show, launchFromShell);
   notify();
@@ -193,13 +193,14 @@ async function launchArgument(args: string[]) {
   }
 }
 
-const notes = new NotesWindows(
+const notes = new NotesService(
   async (id) => {
     const profile = await controller.getProfile(id);
     const status = await brainStatus(root, controller, id);
     if (status.external)
       throw new Error('This profile runs its own capture.py hooks; Hatstand leaves its notes alone.');
-    return { folder: status.folder, name: profile.name, color: profile.color };
+    const name = await vaultLabel(root, controller, (await store.load()).profiles, status.folder);
+    return { folder: status.folder, name, color: profile.color };
   },
   {
     // Both only ever reach the window's own profile: the session is looked up in its Desktop data, the link goes to its Claude.
@@ -215,6 +216,8 @@ const notes = new NotesWindows(
       return (await openInClaude(id, askLink(question, folder))) ? 'opened' : 'launched';
     },
   },
+  () => window,
+  html,
 );
 
 const handlers = createHandlers({
@@ -226,7 +229,8 @@ const handlers = createHandlers({
   profilesChanged,
   notify,
   sync,
-  notes,
+  sessions: async (id) => (await pets?.liveSessions(id)) ?? [],
+  openSession: (id, session) => void openSession(id, session),
 });
 
 // Poll often while the manager is visible; rarely while it only lives in the tray.

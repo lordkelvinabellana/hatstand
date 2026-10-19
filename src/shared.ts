@@ -6,6 +6,7 @@ import type { ReleaseInfo } from './core/project.ts';
 import type { StorageFolder } from './core/storage.ts';
 import type { SyncStatus } from './main/sync.ts';
 import type { BrainStatus } from './main/brain.ts';
+import type { SessionState, SessionSummary } from './core/pets.ts';
 export type { ProfileStatus };
 
 export interface ProfileView extends Profile {
@@ -15,8 +16,8 @@ export interface ProfileView extends Profile {
   /** Attached existing folder: Hatstand never removes its data. */
   bound: boolean;
   hotkeyError?: string;
-  /** Second brain: this profile's own notes vault. */
-  brain: BrainStatus;
+  /** Second brain: this profile's notes vault; `sharedWith` lists the other profiles writing to it. */
+  brain: BrainStatus & { sharedWith: string[] };
 }
 export interface Snapshot {
   platform: 'darwin' | 'win32';
@@ -41,4 +42,13 @@ export type { ReleaseInfo, StorageFolder };
 export interface Api {
   request(action: string, payload?: unknown): Promise<unknown>;
   onChange(callback: () => void): () => void;
+}
+/** A running Claude Code session, as the profile's menu-bar pet shows it. */
+export interface SessionView {
+  id: string;
+  state: SessionState['state'];
+  at: number;
+  /** The desktop app's id for the session (local_…), used to open it. */
+  host?: string;
+  summary?: SessionSummary;
 }

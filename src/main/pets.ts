@@ -22,6 +22,7 @@ import {
 } from '../core/pets.ts';
 import type { Profile } from '../core/profiles.ts';
 import { type PanelSession, panelHtml } from './panel.ts';
+import type { SessionView } from '../shared.ts';
 
 export const labels: Record<Mood, string> = {
   sleep: 'Not running',
@@ -227,6 +228,19 @@ export class Pets {
         at.x >= r.x - 2 && at.x <= r.x + r.width + 2 && at.y >= r.y - 2 && at.y <= r.y + r.height + 8;
       if (!inside(this.panelFor.tray.getBounds()) && !inside(this.panel.getBounds())) this.hidePanel();
     }
+  }
+
+  /** The profile's live sessions for its page in Hatstand; empty when it has no pet. */
+  async liveSessions(id: string): Promise<SessionView[]> {
+    const pet = this.pets.get(id);
+    if (!pet) return [];
+    return (await this.sessions(pet)).map(({ id, session, summary }) => ({
+      id,
+      state: session.state,
+      at: session.at,
+      host: session.host,
+      summary,
+    }));
   }
 
   /** Live sessions with what their transcripts say, most urgent first. */

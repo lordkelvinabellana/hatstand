@@ -3,6 +3,7 @@ import { app, dialog, nativeTheme, net, shell } from 'electron';
 import type { BrowserWindow } from 'electron';
 import * as fs from 'node:fs/promises';
 import os from 'node:os';
+import path from 'node:path';
 import { acceleratorKey } from '../core/accelerator.ts';
 import { checksFor, isTestedVersion } from '../core/compat.ts';
 import type { Controller } from '../core/controller.ts';
@@ -26,8 +27,9 @@ const trash = mac ? 'Trash' : 'Recycle Bin';
 import type { Snapshot, UpdateCheck } from '../shared.ts';
 import { applyLoginItem, createDesktopShortcut } from './integration.ts';
 import type { ProfileSync } from './sync.ts';
-import type { NotesWindows } from './notes.ts';
-import { brainStatus, checkVault, saveBrain } from './brain.ts';
+import { readAll } from '../core/notes.ts';
+import type { SessionView } from '../shared.ts';
+import { brainStatus, checkVault, saveBrain, sharersOf, vaultLabel } from './brain.ts';
 import {
   assertTemplateName,
   copyVault,
@@ -47,7 +49,10 @@ export interface HandlerContext {
   profilesChanged(): Promise<void>;
   notify(): void;
   sync: ProfileSync;
-  notes: NotesWindows;
+  /** Running Claude Code sessions of a profile, as its menu-bar pet shows them. */
+  sessions(id: string): Promise<SessionView[]>;
+  /** Brings up the profile's Claude at a desktop session (local_…), or just the app. */
+  openSession(id: string, session?: string): void;
 }
 type Handler = (payload: unknown) => Promise<unknown>;
 
@@ -113,7 +118,16 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
             directory: directories.base,
             bound: directories.bound,
             hotkeyError: hotkeys.profileErrors.get(p.id),
-            brain: await brainStatus(root, controller, p.id),
+            brain: {
+              ...(await brainStatus(root, controller, p.id)),
+              sharedWith: await sharersOf(
+                root,
+                controller,
+                state.profiles,
+                p.id,
+                (await brainStatus(root, controller, p.id)).folder,
+              ),
+            },
           };
         }),
       ),
@@ -399,8 +413,91 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
       const error = await shell.openPath(folder);
       if (error) throw new Error(error);
     },
-    async openNotes(payload) {
-      await context.notes.open(readId(payload));
+    /** Every vault with its notes, for the all-vaults graph. Shared vaults appear once. */
+    async vaults() {
+      const profiles = (await store.load()).profiles.filter((p) => !p.archived);
+      const vaults = new Map<string, { folder: string; name: string; color: string; profiles: string[] }>();
+      for (const p of profiles) {
+        const status = await brainStatus(root, controller, p.id);
+        if (!status.enabled || status.external) continue;
+        const entry = vaults.get(status.folder);
+        if (entry) entry.profiles.push(p.id);
+        else
+          vaults.set(status.folder, {
+            folder: status.folder,
+            name: await vaultLabel(root, controller, profiles, status.folder),
+            color: p.color,
+            profiles: [p.id],
+          });
+      }
+      return Promise.all(
+        [...vaults.values()].map(async (v) => ({ ...v, notes: await readAll(v.folder).catch(() => []) })),
+      );
+    },
+    /** Lets other profiles write to this profile's vault. A default vault first moves to its own folder. */
+    async shareVault(payload) {
+      const id = readId(payload);
+      const ids = readIds({ ids: (payload as { with?: unknown }).with });
+      const profiles = (await store.load()).profiles;
+      const owner = await controller.getProfile(id);
+      const status = await brainStatus(root, controller, id);
+      if (!status.enabled || status.external) throw new Error('Turn on this profile’s second brain first.');
+      let folder = status.folder;
+      if (!status.vault) {
+        // The default vault lives inside the profile's own data, which other profiles must never point into.
+        folder = path.join(root, 'vaults', owner.name.replace(/[^\p{L}\p{N} ._-]/gu, '').trim() || id);
+        for (let n = 2; (await inspectVault(folder)).used; n++)
+          folder = `${folder.replace(/ \d+$/, '')} ${n}`;
+        await checkVault(root, controller, profiles, id, folder);
+        await copyVault(status.folder, folder);
+        await saveBrain(root, id, { enabled: true, vault: folder });
+      }
+      for (const other of ids) {
+        if (other === id) continue;
+        const theirs = await brainStatus(root, controller, other);
+        if (theirs.external)
+          throw new Error('A profile that runs its own capture.py hooks can’t join a vault.');
+        await checkVault(root, controller, profiles, other, folder, true);
+        if (
+          path.resolve(theirs.folder) !== path.resolve(folder) &&
+          (await inspectVault(theirs.folder)).notes
+        ) {
+          const name = (await controller.getProfile(other)).name;
+          const answer = await dialog.showMessageBox(context.window(), {
+            type: 'question',
+            buttons: ['Cancel', 'Just share', 'Copy their notes in'],
+            defaultId: 2,
+            cancelId: 0,
+            message: `Copy ${name}’s notes into the shared vault?`,
+            detail: `Copying never replaces a file that’s already there. ${name}’s own vault stays as it is:\n${theirs.folder}`,
+          });
+          if (answer.response === 0) break;
+          if (answer.response === 2) await copyVault(theirs.folder, folder);
+        }
+        await saveBrain(root, other, { enabled: true, vault: folder });
+      }
+      await context.profilesChanged();
+    },
+    /** The profile leaves a shared vault for its own default one. Nothing is moved or deleted. */
+    async leaveVault(payload) {
+      const id = readId(payload);
+      await controller.getProfile(id);
+      const status = await brainStatus(root, controller, id);
+      await saveBrain(root, id, { enabled: status.enabled, vault: '' });
+      await context.profilesChanged();
+    },
+    async sessions(payload) {
+      const id = readId(payload);
+      await controller.getProfile(id);
+      return context.sessions(id);
+    },
+    async openSession(payload) {
+      const id = readId(payload);
+      await controller.getProfile(id);
+      const session = (payload as { session?: unknown }).session;
+      if (session !== undefined && (typeof session !== 'string' || !/^[A-Za-z0-9_-]{1,100}$/.test(session)))
+        throw new Error('Invalid request.');
+      context.openSession(id, session);
     },
     async pickWorkFolder() {
       const result = await dialog.showOpenDialog(context.window(), {

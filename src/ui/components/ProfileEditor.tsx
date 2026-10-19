@@ -25,7 +25,7 @@ export function initials(name: string) {
 }
 
 export function ProfileEditor(props: { editing: string; onClose(): void }) {
-  const { data, pending, run, fire } = useApp();
+  const { data, pending, run, fire, openVault } = useApp();
   const existing = data.profiles.find((p) => p.id === props.editing);
   const [form, setForm] = useState<Required<ProfileInput>>(() =>
     existing
@@ -289,7 +289,10 @@ export function ProfileEditor(props: { editing: string; onClose(): void }) {
                   <button
                     type="button"
                     className="secondary"
-                    onClick={() => fire('openNotes', { id: existing.id })}
+                    onClick={() => {
+                      props.onClose();
+                      openVault(existing.id);
+                    }}
                   >
                     <NotebookPen size={15} />
                     Open notes

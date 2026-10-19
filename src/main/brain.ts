@@ -100,6 +100,8 @@ export async function checkVault(
   profiles: Profile[],
   id: string,
   vault: string,
+  /** Joining a vault other profiles already use on purpose (Share): their vault is allowed, their data never. */
+  share = false,
 ) {
   if (vault && !path.isAbsolute(vault)) throw new Error('Choose a full folder path.');
   const own = controller.directories(id);
@@ -110,16 +112,55 @@ export async function checkVault(
     throw new Error('Choose a folder outside this profile’s Claude data.');
   for (const other of profiles) {
     if (other.id === id) continue;
-    const theirs = [
-      controller.directories(other.id).base,
-      (await brainStatus(root, controller, other.id)).folder,
-    ];
+    const vault = (await brainStatus(root, controller, other.id)).folder;
+    const theirs = [controller.directories(other.id).base];
+    if (!(share && path.resolve(vault) === path.resolve(folder))) theirs.push(vault);
     if (theirs.some((f) => vaultsOverlap(folder, f)))
       throw new Error(
         `That folder overlaps ${other.name}’s notes or data. Each profile keeps its own vault.`,
       );
   }
   return folder;
+}
+
+/** The vault folders of every profile with its second brain on (shared vaults once). */
+export async function vaultFolders(root: string, controller: Controller, profiles: Profile[]) {
+  const folders = new Set<string>();
+  for (const p of profiles) {
+    if (p.archived) continue;
+    const status = await brainStatus(root, controller, p.id);
+    if (status.enabled && !status.external) folders.add(status.folder);
+  }
+  return [...folders];
+}
+
+/** Ids of the other profiles whose second brain writes to `folder`. */
+export async function sharersOf(
+  root: string,
+  controller: Controller,
+  profiles: Profile[],
+  id: string,
+  folder: string,
+) {
+  const ids: string[] = [];
+  for (const p of profiles)
+    if (p.id !== id && !p.archived) {
+      const status = await brainStatus(root, controller, p.id);
+      if (status.enabled && !status.external && path.resolve(status.folder) === path.resolve(folder))
+        ids.push(p.id);
+    }
+  return ids;
+}
+
+/** A vault's display name: the profiles that use it, e.g. “Stakra + HnyX”. */
+export async function vaultLabel(root: string, controller: Controller, profiles: Profile[], folder: string) {
+  const names: string[] = [];
+  for (const p of profiles) {
+    if (p.archived) continue;
+    const status = await brainStatus(root, controller, p.id);
+    if (status.enabled && path.resolve(status.folder) === path.resolve(folder)) names.push(p.name);
+  }
+  return names.join(' + ') || 'Notes';
 }
 
 /** Copies a bundled script (the capture hook, the recall server) out of the app bundle to a stable path. */
