@@ -15,7 +15,7 @@ Releases are built by GitHub Actions and published by a maintainer.
    git push origin v0.1.0
    ```
 
-6. The **Release** workflow builds the installer and ZIP, verifies the package allowlist, writes `SHA256SUMS.txt`, and creates a **draft** GitHub release with those files.
+6. The **Release** workflow builds the Windows installer and ZIP and the Mac DMGs (arm64 and x64), verifies the package allowlist on each, writes one `SHA256SUMS.txt` for every file, and creates a **draft** GitHub release with them.
 7. Download the draft's installer on a clean Windows VM. Install it, upgrade from the previous release, launch, and uninstall. Confirm `%LOCALAPPDATA%\HatstandData` survives the uninstall.
 8. Edit the release notes (copy the changelog section), then publish.
 
@@ -36,4 +36,4 @@ Sign `Hatstand.exe` before packaging, and `Setup.exe` after `electron-forge make
 
 ## macOS
 
-See [macOS signing and distribution](MACOS.md#signing-and-distribution). Mac CI creates unsigned DMG and ZIP previews for arm64 and x64; it does not publish a release. A public Mac release requires Developer ID signing, notarization, Gatekeeper validation, and the manual checks listed there.
+See [macOS signing and distribution](MACOS.md#signing-and-distribution). Releases include unsigned Mac DMGs for arm64 and x64. macOS blocks their first open until the user clicks **Open Anyway** in System Settings → Privacy & Security; the website and release notes say so. Developer ID signing and notarization would remove that step.

@@ -5,11 +5,24 @@ on:
 permissions:
   contents: read
 jobs:
-  release:
-    runs-on: windows-latest
+  build:
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - runner: windows-latest
+            name: windows
+            arch: x64
+          - runner: macos-15
+            name: macos-arm64
+            arch: arm64
+          - runner: macos-15-intel
+            name: macos-x64
+            arch: x64
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
-    permissions:
-      contents: write # create the draft release
+    env:
+      HATSTAND_ARCH: ${{ matrix.arch }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
@@ -30,21 +43,56 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - if: runner.os == 'macOS'
+        run: npm run test:macos
       - run: npm run test:ui
       - run: npm run make
       - run: node scripts/verify-artifacts.mjs
-      - name: Create draft release
+      - name: Collect release files
         shell: bash
+        run: |
+          mkdir release
+          if [ "$RUNNER_OS" = Windows ]; then
+            cp out/make/squirrel.windows/x64/*Setup.exe \
+               out/make/squirrel.windows/x64/*.nupkg \
+               out/make/squirrel.windows/x64/RELEASES \
+               out/make/zip/win32/x64/*.zip release/
+          else
+            cp out/make/*.dmg release/
+          fi
+          ls -l release
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: release-${{ matrix.name }}
+          path: release/
+          retention-days: 7
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # create the draft release
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          pattern: release-*
+          path: release
+          merge-multiple: true
+      - name: Write checksums
+        working-directory: release
+        run: |
+          # GitHub turns spaces in asset names into dots; rename first so the sums match.
+          for f in *' '*; do if [ -e "$f" ]; then mv "$f" "${f// /.}"; fi; done
+          sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
+      - name: Create draft release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           prerelease=""
           case "$GITHUB_REF_NAME" in *-*) prerelease="--prerelease" ;; esac
           gh release create "$GITHUB_REF_NAME" --draft $prerelease \
             --title "Hatstand ${GITHUB_REF_NAME#v}" \
-            --notes "See CHANGELOG.md. Unsigned preview build: verify downloads against SHA256SUMS.txt." \
-            out/make/squirrel.windows/x64/*Setup.exe \
-            out/make/squirrel.windows/x64/*.nupkg \
-            out/make/squirrel.windows/x64/RELEASES \
-            out/make/zip/win32/x64/*.zip \
-            out/make/SHA256SUMS.txt
+            --notes "See CHANGELOG.md. Unsigned preview build: verify downloads against SHA256SUMS.txt. On a Mac, the first open needs right-click > Open (or System Settings > Privacy & Security > Open Anyway)." \
+            release/*
