@@ -3,15 +3,57 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hatstand · One hat per client</title>
-<meta name="description" content="Hatstand is a free, open-source Windows launcher that keeps each client's Claude Desktop account in its own profile, so you can switch clients without signing out.">
-<meta property="og:title" content="Hatstand: one hat per client">
-<meta property="og:description" content="Keep each client's Claude Desktop account in its own profile and switch without signing out. Free and open source for Windows.">
+<title>Hatstand: Multiple Claude Desktop Accounts, No Signing Out</title>
+<meta name="description" content="Free, open-source launcher for running multiple Claude Desktop accounts on one computer. Give each client its own profile and switch without signing out.">
+<link rel="canonical" href="https://lordkelvinabellana.github.io/hatstand/">
+<meta name="author" content="Kelvin Abellana">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<meta property="og:site_name" content="Hatstand">
+<meta property="og:title" content="Hatstand: one Claude Desktop account per client">
+<meta property="og:description" content="Run multiple Claude Desktop accounts side by side. Each client gets its own profile and sign-in, so you never sign out to switch. Free and open source.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://lordkelvinabellana.github.io/hatstand/">
 <meta property="og:image" content="https://lordkelvinabellana.github.io/hatstand/images/profiles.png">
+<meta property="og:image:width" content="1104">
+<meta property="og:image:height" content="737">
+<meta property="og:image:alt" content="Hatstand's client list with three sample clients, each with its own Claude profile and a Launch button">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Hatstand: one Claude Desktop account per client">
+<meta name="twitter:description" content="Run multiple Claude Desktop accounts side by side, without signing out. Free and open source.">
+<meta name="twitter:image" content="https://lordkelvinabellana.github.io/hatstand/images/profiles.png">
+<meta name="theme-color" content="#236553">
 <meta name="color-scheme" content="light dark">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "name": "Hatstand",
+      "description": "Open-source launcher that keeps each client's Claude Desktop account in its own profile, so you can run multiple Claude accounts and switch without signing out.",
+      "url": "https://lordkelvinabellana.github.io/hatstand/",
+      "downloadUrl": "https://github.com/lordkelvinabellana/hatstand/releases/latest",
+      "applicationCategory": "UtilitiesApplication",
+      "operatingSystem": "Windows 11, macOS",
+      "license": "https://opensource.org/licenses/MIT",
+      "isAccessibleForFree": true,
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "image": "https://lordkelvinabellana.github.io/hatstand/images/profiles.png",
+      "author": { "@type": "Person", "name": "Kelvin Abellana", "url": "https://github.com/lordkelvinabellana" }
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        { "@type": "Question", "name": "Can I use multiple Claude accounts on one computer?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Claude Desktop holds one account at a time, but Hatstand starts it with a separate profile for each client, so each account stays signed in and you can run several side by side." } },
+        { "@type": "Question", "name": "Is Hatstand made by Anthropic?", "acceptedAnswer": { "@type": "Answer", "text": "No. Hatstand is an independent open-source project and isn't affiliated with, endorsed by, or supported by Anthropic." } },
+        { "@type": "Question", "name": "Does Hatstand see my password or chats?", "acceptedAnswer": { "@type": "Answer", "text": "No. Sign-in happens entirely inside Claude. Hatstand stores client names, colors, and preferences on your computer, and its logs contain only profile IDs." } },
+        { "@type": "Question", "name": "Is there a Mac version?", "acceptedAnswer": { "@type": "Answer", "text": "A macOS preview for Apple silicon is in the repository. Signed Mac downloads come later; for now you can build it from source." } },
+        { "@type": "Question", "name": "What does it cost?", "acceptedAnswer": { "@type": "Answer", "text": "Nothing. Hatstand is free and MIT-licensed." } }
+      ]
+    }
+  ]
+}
+</script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%23236553'/%3E%3Cpath fill='%23f1f8f0' d='M7.2 5.6h9.6l-.7 6.8H7.9zM7.9 13.5h8.2v1.9H7.9z'/%3E%3Crect fill='%23f1f8f0' x='3.8' y='15.4' width='16.4' height='2.6' rx='1.3'/%3E%3C/svg%3E">
 <style>
   :root {
@@ -207,9 +249,9 @@
 
 <main id="main">
   <div class="hero wrap" id="top">
-    <span class="eyebrow">Free &amp; open source · Windows</span>
+    <span class="eyebrow">Free &amp; open source · Windows · macOS preview</span>
     <h1>One hat per client.</h1>
-    <p class="lede">Hatstand keeps each client's Claude Desktop account in its own profile. Switch between clients in a keystroke, and never sign out and back in again.</p>
+    <p class="lede">Hatstand lets you use multiple Claude Desktop accounts on one computer, each client in its own profile. Switch between clients in a keystroke, and never sign out and back in again.</p>
     <div class="cta">
       <a class="button primary" href="https://github.com/lordkelvinabellana/hatstand/releases/latest">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
@@ -337,6 +379,10 @@
         <h2>Questions</h2>
       </div>
       <details>
+        <summary>Can I use multiple Claude accounts on one computer?</summary>
+        <p>Yes. Claude Desktop holds one account at a time, but Hatstand starts it with a separate profile for each client, so each account stays signed in and you can run several side by side.</p>
+      </details>
+      <details>
         <summary>Is Hatstand made by Anthropic?</summary>
         <p>No. Hatstand is an independent open-source project and isn't affiliated with, endorsed by, or supported by Anthropic. You install Claude Desktop from Anthropic and sign in inside it; Hatstand only starts it with a separate profile folder.</p>
       </details>
@@ -358,7 +404,7 @@
       </details>
       <details>
         <summary>Is there a Mac version?</summary>
-        <p>Not yet. A macOS version is planned; you can follow the <a href="https://github.com/lordkelvinabellana/hatstand/blob/main/docs/MACOS.md">plan on GitHub</a>.</p>
+        <p>A macOS preview for Apple silicon is in the repository, with menu-bar pets for each client. Signed Mac downloads come later; for now you can <a href="https://github.com/lordkelvinabellana/hatstand/blob/main/docs/MACOS.md">build it from source</a>.</p>
       </details>
       <details>
         <summary>What does it cost?</summary>
@@ -373,7 +419,7 @@
         <h2>Hang up the sign-out routine.</h2>
         <p>Download Hatstand, add your first client, and switch between accounts the way you switch between windows.</p>
         <a class="button primary" href="https://github.com/lordkelvinabellana/hatstand/releases/latest">Download for Windows</a>
-        <div class="platforms"><span>Windows 11 x64</span><span>macOS: planned</span></div>
+        <div class="platforms"><span>Windows 11 x64</span><span>macOS: preview, build from source</span></div>
       </div>
     </div>
   </section>
