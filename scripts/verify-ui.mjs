@@ -206,7 +206,10 @@ async function checkClaude(notes, write, vault) {
   await until(async () => (await opened()).length === 1, 'session link sent');
   assert.equal((await opened())[0].url, 'claude://code/continue?session=local_338c5e40-ec45');
   // Ordinary notes have no session bar.
-  await notes.getByRole('tab', { name: 'Northwind' }).click();
+  await notes.keyboard.press(`${primaryKey}+O`);
+  await notes.getByLabel('Note name').fill('Northwind');
+  await notes.keyboard.press('Enter');
+  await notes.getByRole('tab', { name: 'Northwind', selected: true }).waitFor();
   assert.equal(await notes.getByRole('button', { name: /^Open in / }).count(), 0);
 
   await notes.getByRole('button', { name: 'Ask', exact: true }).click();
