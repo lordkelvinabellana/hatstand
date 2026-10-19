@@ -18,7 +18,8 @@ import { applyLoginItem, registerHotkeys, updateJumpList, updateDockMenu } from 
 import type { HotkeyResult } from './integration.ts';
 import { handleSquirrelEvent } from './squirrel.ts';
 import { openClaudeSession } from '../core/macos.ts';
-import { wireBrains } from './brain.ts';
+import { brainStatus, wireBrains } from './brain.ts';
+import { NotesWindows } from './notes.ts';
 import { Pets } from './pets.ts';
 import { ProfileSync } from './sync.ts';
 import { createTray, type TrayActions, trayMenu, updateTray } from './tray.ts';
@@ -135,6 +136,7 @@ async function syncShell() {
   }
   // After the pets, which also rewrite each profile's settings.json.
   await wireBrains(root, controller, profiles).catch(() => {});
+  await notes.sync();
   if (tray) updateTray(tray, profiles, controller, trayActions);
   updateDockMenu(profiles, controller, show, launchFromShell);
   notify();
@@ -163,6 +165,14 @@ async function launchArgument(args: string[]) {
   }
 }
 
+const notes = new NotesWindows(async (id) => {
+  const profile = await controller.getProfile(id);
+  const status = await brainStatus(root, controller, id);
+  if (status.external)
+    throw new Error('This profile runs its own capture.py hooks; Hatstand leaves its notes alone.');
+  return { folder: status.folder, name: profile.name, color: profile.color };
+});
+
 const handlers = createHandlers({
   root,
   store,
@@ -172,6 +182,7 @@ const handlers = createHandlers({
   profilesChanged,
   notify,
   sync,
+  notes,
 });
 
 // Poll often while the manager is visible; rarely while it only lives in the tray.
@@ -264,6 +275,7 @@ async function start() {
       return { ok: false, error: (error as Error).message || 'The operation failed. Try again.' };
     }
   });
+  ipcMain.handle('notes:request', (event, request: unknown) => notes.handle(event, request));
   if (process.platform !== 'darwin' || !controller.settings.pets) tray = createTray(show);
   await window.loadFile(html);
   hotkeys = registerHotkeys(controller.settings, profiles, show, launchFromShell);

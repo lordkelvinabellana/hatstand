@@ -40,5 +40,16 @@ await Promise.all([
     jsx: 'automatic',
     minify: true,
   }),
+  build({
+    entryPoints: ['src/notes/index.tsx'],
+    outfile: 'dist/notes.js',
+    bundle: true,
+    platform: 'browser',
+    target: 'chrome130',
+    format: 'iife',
+    jsx: 'automatic',
+    minify: true,
+  }),
 ]);
 await fs.copyFile('src/ui/index.html', 'dist/index.html');
+await fs.copyFile('src/notes/notes.html', 'dist/notes.html');

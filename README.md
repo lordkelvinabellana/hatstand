@@ -27,6 +27,7 @@ Hatstand starts Claude with a separate data folder for each profile by setting `
 - **Status you can trust**: shows whether that profile's Claude process is running. It never claims an account is signed in, and only reports a task as finished when Claude Code itself says so (see [menu-bar pets](#menu-bar-pets-macos)).
 - **Menu-bar pets (macOS)**: one pet per client that shows working, needs input, or done, with its own sound, and a panel of that account's active sessions.
 - **Second brain (optional, per profile)**: each profile can keep its own Markdown notes vault. Claude Code logs every session there and keeps notes on clients, projects, people and tools. Off by default; see [Second brain](#second-brain).
+- **Notes editor**: open a profile's vault in its own Notes window, with live-preview Markdown, `[[wikilinks]]`, search and backlinks. See [Notes](#notes).
 - **Keyboard first**: a global shortcut opens Hatstand (Ctrl+Shift+Space by default), per-profile shortcuts jump straight to a client, and Ctrl+K searches.
 - **Windows integration**: tray menu, taskbar jump list, per-client desktop shortcuts, optional start with Windows, and profiles that open at sign-in.
 - **Client work folders**: one click to open the client's files. This is a convenience only; it doesn't restrict what Claude can access.
@@ -163,6 +164,33 @@ needs installing:
 Turning it off removes only the hooks and the block Hatstand added; notes are never deleted.
 A profile that already runs its own `capture.py` hooks is left alone. Only Claude Code sessions
 (Code tab) fire hooks, not plain chats. Notes are plain Markdown, so any Markdown editor opens them.
+
+## Notes
+
+**Open notes** (profile actions menu, or the profile's details → Second brain) opens that profile's
+vault in its own window. Each window only ever sees its own profile's vault; the check happens in
+Hatstand's main process, not the window.
+
+![The Notes window: file tree, a client note in live preview, and backlinks](docs/images/notes.png)
+
+- **Files**: folders and `.md` notes (hidden folders such as `.obsidian` are skipped). New note
+  (optionally from a template in `_templates/`, filled with the title and date), new folder, rename
+  (double-click), drag onto a folder to move, and **Move to Trash / Recycle Bin**. Nothing is ever
+  hard-deleted, and nothing is replaced: a name that's taken gets a number.
+- **Live preview** (CodeMirror 6): headings, bold, italic, code, quotes, lists, links and
+  checkboxes render in place; the line you're on shows the raw Markdown. Checkboxes are clickable.
+- **Wikilinks**: typing `[[` suggests note names and frontmatter `aliases`. Click a link to open it
+  (Cmd/Ctrl-click on the line you're editing); a link to a missing note creates it in the vault's
+  top folder. Renaming a note offers to update links to it.
+- **Search** (Cmd/Ctrl+Shift+F) over names, aliases and text; **Cmd/Ctrl+O** jumps to a note by
+  name. The **Backlinks** panel lists notes linking to the open one.
+- **Autosave** to the plain `.md` file shortly after you stop typing.
+- **Live from disk**: notes Claude writes through the hooks appear as they're written. An open note
+  with no unsaved edits reloads by itself. If a note changes on disk while you have unsaved edits,
+  nothing is overwritten: choose **Reload theirs**, **Keep mine** or **Keep both** (saves your
+  version as `Name (my edits).md`).
+- The `<!-- auto:start -->` / `<!-- auto:end -->` markers in session notes are shaded and can't be
+  edited by hand, so the capture hook keeps working.
 
 ## Where your data lives
 
