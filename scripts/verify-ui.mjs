@@ -174,6 +174,8 @@ async function checkNotes(vault) {
     /Request rejected/,
   );
 
+  await checkGraph(notes, write);
+
   await tree.getByRole('button', { name: 'Aether' }).click();
   await notes.locator('.cm-h1', { hasText: 'Aether' }).waitFor();
   await notes.screenshot({ path: path.join(screenshotFolder, 'notes.png') });
@@ -184,6 +186,91 @@ async function checkNotes(vault) {
     dialog.showMessageBox = globalThis.realMessageBox;
   });
 }
+/** Graph tab: draws the vault, filters, live updates, clicking a node opens it; local graph beside a note. */
+async function checkGraph(notes, write) {
+  const clients = ['Northwind', 'Lumen Co', 'Harbor & Pine'];
+  const people = ['Ana', 'Jun', 'Priya'];
+  const tools = ['Slack', 'Figma', 'GitHub', 'Airtable'];
+  const projects = ['Website refresh', 'Invoice flow', 'Onboarding guide', 'Brand kit', 'KPI dashboard'];
+  const pick = (list, i) => list[i % list.length];
+  for (const [i, name] of clients.entries())
+    await write(`Clients/${name}.md`, `# ${name}\n\nContact: [[${pick(people, i)}]]\n`);
+  for (const [i, name] of people.entries())
+    await write(`People/${name}.md`, `Works at [[${pick(clients, i)}]].\n`);
+  for (const name of tools) await write(`Tools/${name}.md`, `# ${name}\n`);
+  for (const [i, name] of projects.entries())
+    await write(
+      `Projects/${name}.md`,
+      `---\nclient: "[[${pick(clients, i)}]]"\n---\nUses [[${pick(tools, i)}]] and [[${pick(tools, i + 1)}]]. Owner [[${pick(people, i + 1)}]]. Draft in [[${name} spec]].\n`,
+    );
+  for (let i = 0; i < 14; i++)
+    await write(
+      `Sessions/2026-10-${String(6 + i).padStart(2, '0')} session.md`,
+      `Worked on [[${pick(projects, i)}]] with [[${pick(tools, i * 3)}]].\n`,
+    );
+  for (let i = 0; i < 7; i++)
+    await write(
+      `Daily/2026-10-${String(6 + i * 2).padStart(2, '0')}.md`,
+      `- [[2026-10-${String(6 + i * 2).padStart(2, '0')} session]]\n- [[2026-10-${String(7 + i * 2).padStart(2, '0')} session]]\n`,
+    );
+  await write('Lonely idea.md', 'Nothing links here yet.\n');
+
+  await notes.getByRole('button', { name: 'Graph', exact: true }).click();
+  const graph = notes.getByRole('region', { name: 'Graph' });
+  const count = async () => Number((await graph.getByText(/^\d+ notes/).textContent()).match(/\d+/)[0]);
+  await graph.locator('canvas').first().waitFor();
+  await until(async () => (await count()) > 40, 'graph shows the vault');
+  const all = await count();
+
+  // Filters.
+  await graph.getByLabel('Hide Sessions and Daily').check();
+  await until(async () => (await count()) <= all - 21, 'sessions and daily hidden');
+  await graph.getByLabel('Hide Sessions and Daily').uncheck();
+  await graph.getByLabel('Hide orphans').check();
+  await until(async () => (await count()) < all, 'orphans hidden');
+  await graph.getByLabel('Hide orphans').uncheck();
+  await graph.getByRole('button', { name: /^Tools/ }).click();
+  await until(async () => (await count()) < all, 'tools hidden');
+  await graph.getByRole('button', { name: /^Tools/ }).click();
+  await graph.getByLabel('Show missing notes').check();
+  await until(async () => (await count()) >= all + projects.length, 'ghost nodes shown');
+  await graph.getByLabel('Show missing notes').uncheck();
+  await graph.getByLabel('Highlight notes').fill('flow');
+  await graph.getByText(/, 1 match/).waitFor();
+  await graph.getByLabel('Highlight notes').fill('');
+  await graph.getByLabel('Highlight notes').blur();
+
+  // Live: a note Claude writes appears without reopening the graph.
+  await write('Projects/Pricing page.md', 'For [[Northwind]].\n');
+  await until(async () => (await count()) === all + 1, 'graph updates live');
+
+  // Let the layout settle, then click a node.
+  await new Promise((resolve) => setTimeout(resolve, 2500));
+  await notes.screenshot({ path: path.join(screenshotFolder, 'graph.png') });
+  await notes.emulateMedia({ colorScheme: 'dark' });
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  await notes.screenshot({ path: path.join(screenshotFolder, 'graph-dark.png') });
+  await notes.emulateMedia({ colorScheme: 'light' });
+  const point = await graph.locator('.n-graph-canvas').evaluate((el) => {
+    const data = el.sigma.getNodeDisplayData('Clients/Northwind.md');
+    return el.sigma.framedGraphToViewport(data);
+  });
+  const box = await graph.locator('.n-graph-canvas').boundingBox();
+  await notes.mouse.click(box.x + point.x, box.y + point.y);
+  await notes.getByRole('tab', { name: 'Northwind', selected: true }).waitFor();
+  await notes.locator('.cm-h1', { hasText: 'Northwind' }).waitFor();
+
+  // Local graph beside the note, depth 1 then 2.
+  const local = notes.getByRole('img', { name: 'Notes linked with Northwind' });
+  await local.locator('canvas').first().waitFor();
+  const localCount = () => local.evaluate((el) => el.sigma.getGraph().order);
+  const near = await localCount();
+  assert.ok(near >= 3, `local graph has neighbours (${near})`);
+  await notes.getByRole('group', { name: 'Depth' }).getByRole('button', { name: '2' }).click();
+  await until(async () => (await localCount()) > near, 'depth 2 shows more');
+  await notes.getByRole('button', { name: 'Close Graph' }).click();
+}
+
 try {
   const page = await instance.firstWindow();
   await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: 'light' });
@@ -558,7 +645,7 @@ try {
   }
   assert.deepEqual(errors, []);
   console.log(
-    'UI checks passed: setup, create, search, selection, shortcuts, work folder, second brain, menu keyboard, reorder past archived, archive/restore, settings, export/import, leftover data, compact layout, dark theme, sandbox.',
+    'UI checks passed: setup, create, search, selection, shortcuts, work folder, second brain, notes graph, menu keyboard, reorder past archived, archive/restore, settings, export/import, leftover data, compact layout, dark theme, sandbox.',
   );
   console.log(`Screenshots: ${screenshotFolder}`);
 } finally {

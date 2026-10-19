@@ -444,3 +444,161 @@ body {
   font-size: 11px;
   color: var(--muted);
 }
+
+/* Graph. Folder colours are tokens so the canvas (which reads them) and the legend always agree. */
+:root {
+  --g-clients: #2f6fb0;
+  --g-projects: #c2571a;
+  --g-people: #2e8b57;
+  --g-tools: #8a4fbf;
+  --g-sessions: #98a29a;
+  --g-daily: #b98f12;
+  --g-other: #5f6b66;
+  --g-ghost: #cdd3ca;
+  --g-dim: #e3e6df;
+  --g-edge: #cfd5cb;
+  --g-edge-on: #66786e;
+}
+[data-theme="dark"] {
+  --g-clients: #7fb2ec;
+  --g-projects: #f0955a;
+  --g-people: #7fd19b;
+  --g-tools: #c39af0;
+  --g-sessions: #7a857c;
+  --g-daily: #e3c45a;
+  --g-other: #a3aea6;
+  --g-ghost: #4a564d;
+  --g-dim: #2c362f;
+  --g-edge: #3b473e;
+  --g-edge-on: #a3b7aa;
+}
+.n-graph {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.n-graph-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+.n-graph-bar input[type="search"] {
+  width: 220px;
+}
+.n-graph-bar label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.n-graph-canvas {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+.n-legend {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.n-legend button {
+  justify-content: flex-start;
+  gap: 8px;
+  height: 26px;
+  padding: 0 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+.n-legend button[aria-pressed="false"] {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.n-legend button[aria-pressed="false"] .n-swatch {
+  opacity: 0.3;
+}
+.n-count {
+  margin-left: auto;
+  padding-left: 10px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.n-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.g-clients {
+  background: var(--g-clients);
+}
+.g-projects {
+  background: var(--g-projects);
+}
+.g-people {
+  background: var(--g-people);
+}
+.g-tools {
+  background: var(--g-tools);
+}
+.g-sessions {
+  background: var(--g-sessions);
+}
+.g-daily {
+  background: var(--g-daily);
+}
+.g-other {
+  background: var(--g-other);
+}
+.n-local {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.n-local h2 {
+  margin-bottom: 0;
+}
+.n-depth {
+  display: flex;
+  gap: 2px;
+  margin-right: 6px;
+}
+.n-depth button {
+  width: 24px;
+  height: 22px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.n-depth button[aria-pressed="true"] {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.n-backlinks .n-graph-canvas {
+  flex: none;
+  height: 220px;
+  margin: 6px 0 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  overflow: hidden;
+}
+fieldset.n-legend,
+fieldset.n-depth {
+  min-width: 0;
+  margin: 0;
+}
+fieldset.n-depth {
+  border: 0;
+  padding: 0;
+}

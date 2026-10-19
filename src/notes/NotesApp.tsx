@@ -10,12 +10,15 @@ import {
   FolderPlus,
   Link2,
   Search,
+  Waypoints,
   X,
 } from 'lucide-react';
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { buildGraph, filterGraph, GROUPS, type Group, localGraph, matchNodes } from '../core/graph.ts';
 import { backlinks, buildIndex, createSearch, type NoteText, noteName, resolveLink } from '../core/links.ts';
 import { editorExtensions, fromDisk, newState, reload } from './editor.ts';
+import { GraphView, type Positions } from './GraphView.tsx';
 
 interface NotesApi {
   request(action: string, payload?: unknown): Promise<unknown>;
@@ -85,6 +88,17 @@ export function NotesApp() {
   const [menu, setMenu] = useState<Menu | null>(null);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [error, setError] = useState('');
+  const [theme, setTheme] = useState('light');
+  // The graph is a tab of its own: `graphOpen` keeps the tab, `onGraph` shows it instead of the editor.
+  const [graphOpen, setGraphOpen] = useState(false);
+  const [onGraph, setOnGraph] = useState(false);
+  const [hidden, setHidden] = useState<Set<Group>>(new Set());
+  const [ghosts, setGhosts] = useState(false);
+  const [orphans, setOrphans] = useState(true);
+  const [graphQuery, setGraphQuery] = useState('');
+  const [depth, setDepth] = useState(1);
+  const globalPositions = useRef<Positions>(new Map());
+  const localPositions = useRef<Positions>(new Map());
   const [, bump] = useReducer((n: number) => n + 1, 0);
 
   const docs = useRef(new Map<string, Doc>());
@@ -97,6 +111,19 @@ export function NotesApp() {
   const indexRef = useRef(index);
   indexRef.current = index;
   const search = useMemo(() => (panel === 'search' ? createSearch(index) : null), [index, panel]);
+  const graph = useMemo(() => buildGraph(index), [index]);
+  const shown = useMemo(
+    () => filterGraph(graph, { hidden, ghosts, orphans }),
+    [graph, hidden, ghosts, orphans],
+  );
+  const matches = useMemo(() => matchNodes(shown, graphQuery), [shown, graphQuery]);
+  const local = useMemo(
+    () =>
+      active
+        ? localGraph(filterGraph(graph, { hidden: new Set(), ghosts, orphans: true }), active, depth)
+        : null,
+    [graph, active, ghosts, depth],
+  );
 
   const fail = useCallback((err: unknown) => setError((err as Error).message), []);
   const textOf = (path: string, doc: Doc) =>
@@ -188,6 +215,7 @@ export function NotesApp() {
     if (view && previous && docs.current.has(previous)) docs.current.get(previous)!.state = view.state;
     activeRef.current = path;
     setActive(path);
+    setOnGraph(false);
     if (view && path) {
       view.setState(docs.current.get(path)!.state);
       view.focus();
@@ -297,6 +325,7 @@ export function NotesApp() {
     const media = matchMedia('(prefers-color-scheme: dark)');
     const apply = () => {
       document.documentElement.dataset.theme = media.matches ? 'dark' : 'light';
+      setTheme(document.documentElement.dataset.theme);
     };
     apply();
     media.addEventListener('change', apply);
@@ -332,6 +361,10 @@ export function NotesApp() {
       } else if (k === 'n' && !e.shiftKey) {
         e.preventDefault();
         setDialog({ kind: 'note', folder });
+      } else if (k === 'g' && !e.shiftKey) {
+        e.preventDefault();
+        setGraphOpen(true);
+        setOnGraph(true);
       } else if (k === 'f' && e.shiftKey) {
         e.preventDefault();
         setPanel('search');
@@ -341,6 +374,13 @@ export function NotesApp() {
     window.addEventListener('keydown', key);
     return () => window.removeEventListener('keydown', key);
   }, [save, folder]);
+
+  function openGraph() {
+    setGraphOpen(true);
+    setOnGraph(true);
+  }
+  const openFromGraph = (id: string, label: string) =>
+    void (id.startsWith('ghost:') ? openLink(label) : openNote(id));
 
   // ---- Conflicts ----
   async function keepBoth(path: string) {
@@ -570,6 +610,15 @@ export function NotesApp() {
           >
             <Search size={16} />
           </button>
+          <button
+            type="button"
+            className={onGraph ? 'on' : ''}
+            onClick={openGraph}
+            title={`Graph (${mac ? '⌘G' : 'Ctrl+G'})`}
+            aria-label="Graph"
+          >
+            <Waypoints size={16} />
+          </button>
           <span className="n-spacer" />
           <button
             type="button"
@@ -631,14 +680,32 @@ export function NotesApp() {
 
       <main className="n-main">
         <div className="n-tabs" role="tablist">
+          {graphOpen && (
+            <div className={`n-tab${onGraph ? ' active' : ''}`}>
+              <button type="button" role="tab" aria-selected={onGraph} onClick={() => setOnGraph(true)}>
+                <Waypoints size={13} /> Graph
+              </button>
+              <button
+                type="button"
+                className="n-close"
+                aria-label="Close Graph"
+                onClick={() => {
+                  setGraphOpen(false);
+                  setOnGraph(false);
+                }}
+              >
+                <X size={13} />
+              </button>
+            </div>
+          )}
           {tabs.map((path) => {
             const doc = docs.current.get(path);
             return (
-              <div key={path} className={`n-tab${path === active ? ' active' : ''}`}>
+              <div key={path} className={`n-tab${path === active && !onGraph ? ' active' : ''}`}>
                 <button
                   type="button"
                   role="tab"
-                  aria-selected={path === active}
+                  aria-selected={path === active && !onGraph}
                   title={path}
                   onClick={() => show(path)}
                   onAuxClick={(e) => e.button === 1 && closeTab(path)}
@@ -692,8 +759,82 @@ export function NotesApp() {
           </div>
         )}
         <div className="n-body">
-          <div className="n-editor" ref={host} hidden={!active} />
-          {!active && (
+          <div className="n-editor" ref={host} hidden={!active || onGraph} />
+          {onGraph && (
+            <section className="n-graph" aria-label="Graph">
+              <div className="n-graph-bar">
+                <input
+                  type="search"
+                  aria-label="Highlight notes"
+                  placeholder="Highlight notes"
+                  value={graphQuery}
+                  onChange={(e) => setGraphQuery(e.target.value)}
+                />
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={hidden.has('Sessions') && hidden.has('Daily')}
+                    onChange={(e) =>
+                      setHidden((h) => {
+                        const next = new Set(h);
+                        for (const g of ['Sessions', 'Daily'] as const)
+                          if (e.target.checked) next.add(g);
+                          else next.delete(g);
+                        return next;
+                      })
+                    }
+                  />
+                  Hide Sessions and Daily
+                </label>
+                <label>
+                  <input type="checkbox" checked={!orphans} onChange={(e) => setOrphans(!e.target.checked)} />
+                  Hide orphans
+                </label>
+                <label>
+                  <input type="checkbox" checked={ghosts} onChange={(e) => setGhosts(e.target.checked)} />
+                  Show missing notes
+                </label>
+                <span className="n-spacer" />
+                <span className="n-hint">
+                  {shown.nodes.length} notes{matches ? `, ${matches.size} match` : ''}
+                </span>
+              </div>
+              <GraphView
+                data={shown}
+                theme={theme}
+                active={active}
+                highlight={matches}
+                positions={globalPositions.current}
+                label="Graph of the notes in this vault"
+                onOpen={openFromGraph}
+              />
+              <fieldset className="n-legend" aria-label="Folders">
+                {GROUPS.map((g) => (
+                  <button
+                    type="button"
+                    key={g}
+                    aria-pressed={!hidden.has(g)}
+                    title={hidden.has(g) ? `Show ${g}` : `Hide ${g}`}
+                    onClick={() =>
+                      setHidden((h) => {
+                        const next = new Set(h);
+                        if (next.has(g)) next.delete(g);
+                        else next.add(g);
+                        return next;
+                      })
+                    }
+                  >
+                    <span className={`n-swatch g-${g.toLowerCase()}`} />
+                    {g}
+                    <span className="n-count">
+                      {graph.nodes.filter((n) => n.group === g && !n.ghost).length}
+                    </span>
+                  </button>
+                ))}
+              </fieldset>
+            </section>
+          )}
+          {!active && !onGraph && (
             <div className="n-empty">
               <p>{vault.notes.length ? 'Open a note from the list, or' : 'No notes yet.'}</p>
               <button type="button" className="primary" onClick={() => setDialog({ kind: 'note', folder })}>
@@ -702,8 +843,30 @@ export function NotesApp() {
               <p className="n-hint">{mac ? '⌘O' : 'Ctrl+O'} to jump to a note</p>
             </div>
           )}
-          {showLinks && active && (
+          {showLinks && active && !onGraph && (
             <aside className="n-backlinks" aria-label="Backlinks">
+              <div className="n-local">
+                <h2>Local graph</h2>
+                <fieldset className="n-depth" aria-label="Depth">
+                  {[1, 2].map((d) => (
+                    <button type="button" key={d} aria-pressed={depth === d} onClick={() => setDepth(d)}>
+                      {d}
+                    </button>
+                  ))}
+                </fieldset>
+              </div>
+              {local && (
+                <GraphView
+                  compact
+                  data={local}
+                  theme={theme}
+                  active={active}
+                  highlight={null}
+                  positions={localPositions.current}
+                  label={`Notes linked with ${noteName(active)}`}
+                  onOpen={openFromGraph}
+                />
+              )}
               <h2>Backlinks</h2>
               {links.length ? (
                 <ul>
