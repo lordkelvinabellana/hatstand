@@ -9,8 +9,14 @@ import {
   BLOCK_START,
   brainBlock,
   captureCommand,
+  copyVault,
+  defaultTemplates,
   hasExternalCapture,
+  inspectVault,
+  readTemplate,
+  saveTemplate,
   seedVault,
+  vaultsOverlap,
   withBrainBlock,
   withBrainHooks,
 } from '../src/core/vault.ts';
@@ -176,8 +182,94 @@ test('seeding a vault never overwrites existing files', async () => {
     'Client.md',
     'Person.md',
     'Project.md',
+    'To-Do format.md',
     'Tool.md',
   ]);
   for (const folder of ['Clients', 'Projects', 'People', 'Tools', 'Sessions', 'Daily'])
     await fs.access(path.join(vault, folder));
+});
+
+async function snapshotFiles(folder: string) {
+  const files: Record<string, string> = {};
+  for (const entry of await fs.readdir(folder, { recursive: true })) {
+    const file = path.join(folder, entry);
+    if ((await fs.stat(file)).isFile()) files[entry] = await fs.readFile(file, 'utf8');
+  }
+  return files;
+}
+
+test('adopting an Obsidian-style vault only adds what is missing', async () => {
+  const vault = await temp();
+  await fs.mkdir(path.join(vault, '.obsidian'));
+  await fs.writeFile(path.join(vault, '.obsidian', 'app.json'), '{}');
+  await fs.mkdir(path.join(vault, 'Clients'));
+  await fs.writeFile(path.join(vault, 'Clients', 'Acme.md'), '# Acme\nmine\n');
+  await fs.mkdir(path.join(vault, '_templates'));
+  await fs.writeFile(path.join(vault, '_templates', 'Client.md'), 'my client template');
+  await fs.writeFile(path.join(vault, 'To-Do.md'), '# My list\n');
+  const info = await inspectVault(vault);
+  assert.equal(info.notes, 3);
+  assert.equal(info.obsidian, true);
+  assert.equal(info.used, true);
+  assert.ok(!info.adds.includes('Clients/') && info.adds.includes('People/'));
+  assert.ok(!info.adds.includes('_templates/Client.md') && info.adds.includes('_templates/To-Do format.md'));
+  assert.ok(!info.adds.includes('To-Do.md'));
+
+  const before = await snapshotFiles(vault);
+  await seedVault(vault, '2026-10-19');
+  const after = await snapshotFiles(vault);
+  for (const [file, text] of Object.entries(before)) assert.equal(after[file], text, file);
+  assert.equal(after[path.join('_templates', 'Project.md')], defaultTemplates.Project);
+  assert.deepEqual((await inspectVault(vault)).adds, []);
+});
+
+test('an empty or missing folder is an unused vault', async () => {
+  const folder = await temp();
+  await fs.writeFile(path.join(folder, '.DS_Store'), '');
+  assert.equal((await inspectVault(folder)).used, false);
+  const missing = await inspectVault(path.join(folder, 'new'));
+  assert.equal(missing.used, false);
+  assert.equal(missing.notes, 0);
+  assert.ok(missing.adds.includes('To-Do.md'));
+});
+
+test('vaults overlap when one is, contains or sits inside the other', () => {
+  const base = path.resolve('/vaults');
+  assert.ok(vaultsOverlap(path.join(base, 'a'), path.join(base, 'a')));
+  assert.ok(vaultsOverlap(path.join(base, 'a'), `${path.join(base, 'a')}${path.sep}`));
+  assert.ok(vaultsOverlap(path.join(base, 'a', 'b'), path.join(base, 'a')));
+  assert.ok(vaultsOverlap(base, path.join(base, 'a')));
+  assert.ok(vaultsOverlap(path.join(base, 'A'), path.join(base, 'a')));
+  assert.ok(!vaultsOverlap(path.join(base, 'a'), path.join(base, 'ab')));
+});
+
+test('templates are edited in place and restore to the default', async () => {
+  const vault = await temp();
+  assert.deepEqual(await readTemplate(vault, 'Tool'), { text: defaultTemplates.Tool, edited: false });
+  await saveTemplate(vault, 'Tool', '# {{title}}\n');
+  assert.deepEqual(await readTemplate(vault, 'Tool'), { text: '# {{title}}\n', edited: true });
+  await saveTemplate(vault, 'Tool', null);
+  assert.equal(await fs.readFile(path.join(vault, '_templates', 'Tool.md'), 'utf8'), defaultTemplates.Tool);
+  assert.equal((await readTemplate(vault, 'Tool')).edited, false);
+});
+
+test('the To-Do format lives in _templates and Claude is pointed at it', async () => {
+  const vault = await temp();
+  await seedVault(vault, '2026-10-19');
+  assert.match(await fs.readFile(path.join(vault, 'To-Do.md'), 'utf8'), /_templates\/To-Do format\.md/);
+  assert.match(brainBlock(vault, 'capture'), /in the format in `_templates\/To-Do format\.md`/);
+});
+
+test('copying notes to another vault never replaces a file and keeps the source', async () => {
+  const from = await temp();
+  const to = await temp();
+  await fs.mkdir(path.join(from, 'Clients'));
+  await fs.writeFile(path.join(from, 'Clients', 'Acme.md'), 'old vault');
+  await fs.writeFile(path.join(from, 'Home.md'), 'home');
+  await fs.mkdir(path.join(to, 'Clients'));
+  await fs.writeFile(path.join(to, 'Clients', 'Acme.md'), 'new vault');
+  await copyVault(from, to);
+  assert.equal(await fs.readFile(path.join(to, 'Clients', 'Acme.md'), 'utf8'), 'new vault');
+  assert.equal(await fs.readFile(path.join(to, 'Home.md'), 'utf8'), 'home');
+  assert.equal(await fs.readFile(path.join(from, 'Clients', 'Acme.md'), 'utf8'), 'old vault');
 });
