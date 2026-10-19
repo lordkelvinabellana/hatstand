@@ -101,10 +101,11 @@ if args.count == 2 && args[1] == "list" {
             fail("Could not reopen this Claude window. Open it from the Dock and try again.")
         }
         if args[1] == "open-url" {
-            // Only a Claude Code session link, delivered to this PID: every Claude shares one bundle ID,
-            // so a normal URL open would reach whichever account macOS picks.
-            guard args[6].range(of: "^claude://code/continue\\?session=local_[A-Za-z0-9-]{1,64}$",
-                                options: .regularExpression) != nil else { fail("Invalid session link.") }
+            // Only a Claude Code session link, or a new session with a prompt and folder, delivered to this PID:
+            // every Claude shares one bundle ID, so a normal URL open would reach whichever account macOS picks.
+            let allowed = "^claude://code/(continue\\?session=local_[A-Za-z0-9-]{1,64}"
+                + "|new\\?q=[A-Za-z0-9%._~!*'()-]{1,20000}&folder=[A-Za-z0-9%._~!*'()-]{1,4000})$"
+            guard args[6].range(of: allowed, options: .regularExpression) != nil else { fail("Invalid Claude link.") }
             let open = NSAppleEventDescriptor(eventClass: AEEventClass(kInternetEventClass),
                 eventID: AEEventID(kAEGetURL),
                 targetDescriptor: NSAppleEventDescriptor(processIdentifier: pid),

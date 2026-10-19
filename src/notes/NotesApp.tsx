@@ -8,8 +8,10 @@ import {
   Files,
   Folder,
   FolderPlus,
+  ExternalLink,
   Link2,
   Search,
+  Sparkles,
   Waypoints,
   X,
 } from 'lucide-react';
@@ -79,7 +81,8 @@ export function NotesApp() {
   const [vault, setVault] = useState<Vault>({ folders: [], notes: [] });
   const [tabs, setTabs] = useState<string[]>([]);
   const [active, setActive] = useState<string | null>(null);
-  const [panel, setPanel] = useState<'files' | 'search'>('files');
+  const [panel, setPanel] = useState<'files' | 'search' | 'ask'>('files');
+  const [notice, setNotice] = useState('');
   const [showLinks, setShowLinks] = useState(true);
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState<Set<string>>(new Set());
@@ -483,6 +486,25 @@ export function NotesApp() {
     .filter((n) => parentOf(n.path) === '_templates' && noteName(n.path) !== 'To-Do format')
     .map((n) => noteName(n.path));
   const activeDoc = active ? docs.current.get(active) : undefined;
+  // Session notes written by the capture hook name the Claude Code session they log.
+  const activeText = active ? (index.notes.get(active)?.text ?? '') : '';
+  const front = /^---\r?\n([\s\S]*?)\r?\n---/.exec(activeText)?.[1] ?? '';
+  const isSession = /^session:\s*[0-9a-f-]{36}\s*$/m.test(front);
+  const claudeName = `${info?.name ?? 'this profile'}’s Claude`;
+  async function openSession(path: string) {
+    try {
+      const result = await api.request('openSession', { path });
+      setNotice(
+        result === 'opened'
+          ? ''
+          : result === 'missing'
+            ? `This session isn’t in ${claudeName} Desktop (it may have run in a terminal). Opened ${claudeName} instead.`
+            : `Opened ${claudeName}. Find the session in its Code tab.`,
+      );
+    } catch (err) {
+      fail(err);
+    }
+  }
   const links = active ? backlinks(index, active) : [];
 
   function tree(prefix: string, depth: number): React.ReactNode {
@@ -612,6 +634,15 @@ export function NotesApp() {
           </button>
           <button
             type="button"
+            className={panel === 'ask' ? 'on' : ''}
+            onClick={() => setPanel('ask')}
+            title="Ask Claude about your notes"
+            aria-label="Ask"
+          >
+            <Sparkles size={16} />
+          </button>
+          <button
+            type="button"
             className={onGraph ? 'on' : ''}
             onClick={openGraph}
             title={`Graph (${mac ? '⌘G' : 'Ctrl+G'})`}
@@ -653,6 +684,8 @@ export function NotesApp() {
           >
             {tree('', 0)}
           </nav>
+        ) : panel === 'ask' ? (
+          <AskPanel claudeName={claudeName} onError={fail} />
         ) : (
           <div className="n-search">
             <input
@@ -755,6 +788,22 @@ export function NotesApp() {
             </button>
             <button type="button" onClick={() => void keepBoth(active)}>
               Keep both
+            </button>
+          </div>
+        )}
+        {notice && (
+          <div className="banner n-banner" role="status">
+            <span>{notice}</span>
+            <button type="button" aria-label="Dismiss" onClick={() => setNotice('')}>
+              <X size={14} />
+            </button>
+          </div>
+        )}
+        {active && !onGraph && isSession && (
+          <div className="n-session">
+            <span>Claude Code session</span>
+            <button type="button" onClick={() => void openSession(active)}>
+              <ExternalLink size={14} /> Open in {claudeName}
             </button>
           </div>
         )}
@@ -944,6 +993,67 @@ export function NotesApp() {
         />
       )}
     </div>
+  );
+}
+
+/** Sends a question to the profile's own Claude, as a new Code session in the vault with the recall tools. */
+function AskPanel(props: { claudeName: string; onError(err: unknown): void }) {
+  const [question, setQuestion] = useState('');
+  const [status, setStatus] = useState('');
+  const [busy, setBusy] = useState(false);
+  async function ask() {
+    if (!question.trim() || busy) return;
+    setBusy(true);
+    setStatus('');
+    try {
+      const result = await api.request('ask', { question });
+      setStatus(
+        result === 'opened'
+          ? `Asked in ${props.claudeName}: a new Code session in this vault, with your question filled in. Press Return there to send it.`
+          : `Opened ${props.claudeName}. The question is on the clipboard: start a Code session in this vault and paste it.`,
+      );
+      setQuestion('');
+    } catch (err) {
+      props.onError(err);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <form
+      className="n-ask"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void ask();
+      }}
+    >
+      <label htmlFor="n-ask-question">Ask {props.claudeName} about your notes</label>
+      <textarea
+        id="n-ask-question"
+        rows={5}
+        placeholder="What did we decide about pricing for Northwind?"
+        value={question}
+        onChange={(e) => setQuestion(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && (mac ? e.metaKey : e.ctrlKey)) {
+            e.preventDefault();
+            void ask();
+          }
+        }}
+      />
+      <button type="submit" className="primary" disabled={!question.trim() || busy}>
+        <Sparkles size={15} /> Ask
+      </button>
+      <p className="n-hint">
+        Opens in this profile’s own Claude, never another account. It searches and reads this vault and cites
+        notes as [[links]].
+      </p>
+      {status && (
+        <p className="n-ask-status" role="status">
+          {status}
+        </p>
+      )}
+    </form>
   );
 }
 

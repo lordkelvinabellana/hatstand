@@ -17,7 +17,8 @@ import { createHandlers } from './handlers.ts';
 import { applyLoginItem, registerHotkeys, updateJumpList, updateDockMenu } from './integration.ts';
 import type { HotkeyResult } from './integration.ts';
 import { handleSquirrelEvent } from './squirrel.ts';
-import { openClaudeSession } from '../core/macos.ts';
+import { askLink, findDesktopSession, sessionLink } from '../core/ask.ts';
+import { openClaudeUrl } from '../core/macos.ts';
 import { brainStatus, wireBrains } from './brain.ts';
 import { NotesWindows } from './notes.ts';
 import { Pets } from './pets.ts';
@@ -92,13 +93,40 @@ async function openSession(id: string, session?: string) {
   const installation = controller.installation;
   if (session && installation && process.platform === 'darwin' && controller.owned(id)) {
     try {
-      if (await openClaudeSession(installation, controller.directories(id).desktop, session)) return;
+      if (await openClaudeUrl(installation, controller.directories(id).desktop, sessionLink(session))) return;
     } catch (error) {
       reportError(error);
       return;
     }
   }
   launchFromShell(id);
+}
+
+/**
+ * Delivers a `claude://code/…` link to this profile's own Claude, launching it first when it isn't running.
+ * Returns false where Hatstand can only launch the profile (Windows, or Claude never came up).
+ */
+async function openInClaude(id: string, url: string): Promise<boolean> {
+  if (testMode) {
+    // The UI checks read what would have been opened; tests never drive a real Claude.
+    const record = globalThis as { openedInClaude?: unknown[] };
+    record.openedInClaude = [...(record.openedInClaude ?? []), { id, url }];
+    return true;
+  }
+  const installation = controller.installation;
+  const { desktop } = controller.directories(id);
+  if (process.platform !== 'darwin' || !installation || !controller.owned(id)) {
+    await controller.launch(id);
+    return false;
+  }
+  if (await openClaudeUrl(installation, desktop, url)) return true;
+  await controller.launch(id);
+  // shortcut: a fixed wait for Claude to finish starting before the link; a readiness signal would be better.
+  for (let i = 0; i < 20; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    if (i >= 2 && (await openClaudeUrl(installation, desktop, url).catch(() => false))) return true;
+  }
+  return false;
 }
 
 const trayActions: TrayActions = {
@@ -165,13 +193,29 @@ async function launchArgument(args: string[]) {
   }
 }
 
-const notes = new NotesWindows(async (id) => {
-  const profile = await controller.getProfile(id);
-  const status = await brainStatus(root, controller, id);
-  if (status.external)
-    throw new Error('This profile runs its own capture.py hooks; Hatstand leaves its notes alone.');
-  return { folder: status.folder, name: profile.name, color: profile.color };
-});
+const notes = new NotesWindows(
+  async (id) => {
+    const profile = await controller.getProfile(id);
+    const status = await brainStatus(root, controller, id);
+    if (status.external)
+      throw new Error('This profile runs its own capture.py hooks; Hatstand leaves its notes alone.');
+    return { folder: status.folder, name: profile.name, color: profile.color };
+  },
+  {
+    // Both only ever reach the window's own profile: the session is looked up in its Desktop data, the link goes to its Claude.
+    async openSession(id, cliSession) {
+      const local = await findDesktopSession(controller.directories(id).desktop, cliSession);
+      if (!local) {
+        await controller.launch(id);
+        return 'missing';
+      }
+      return (await openInClaude(id, sessionLink(local))) ? 'opened' : 'launched';
+    },
+    async ask(id, folder, question) {
+      return (await openInClaude(id, askLink(question, folder))) ? 'opened' : 'launched';
+    },
+  },
+);
 
 const handlers = createHandlers({
   root,

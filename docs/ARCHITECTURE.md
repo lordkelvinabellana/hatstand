@@ -34,6 +34,16 @@ that same link index in `src/core/graph.ts` (also pure: filters, local graph, se
 draws them with sigma.js 3 and graphology in `src/notes/GraphView.tsx`. ForceAtlas2 runs in a web
 worker that the library starts from a blob, which is why the notes page's CSP allows `worker-src blob:`.
 
+Claude features in the notes window never pick an account themselves: main builds a `claude://code/…`
+link (`src/core/ask.ts`) and delivers it to the window's own profile's running Claude through the macOS
+helper (`open-url`, by PID), launching the profile first when needed. "Open session" maps the note's
+Claude Code session id to Claude Desktop's `local_…` id from that profile's `claude-code-sessions/`.
+"Ask" opens `claude://code/new?q=…&folder=<vault>`. The read-only recall MCP server is
+`src/core/recall.ts` (JSON-RPC over stdio, no SDK), bundled as `dist/recall.cjs`, copied to
+`<data>/second-brain/recall.cjs` and registered by `wireBrains` in the profile's `code/.claude.json` and
+`desktop/claude_desktop_config.json` (only its own `hatstand-notes` entry, only in files that already
+exist and parse), run as `ELECTRON_RUN_AS_NODE=1 <Hatstand> recall.cjs --vault <vault>`.
+
 ## Principles
 
 - **Measured status only.** "Running" means a Claude main process with that profile's exact `--user-data-dir` exists. Hatstand never infers sign-in state or task progress.

@@ -208,6 +208,24 @@ Daily, everything else) and sized by how many notes they link with.
 - The graph follows the vault live: notes Claude writes slot in next to what they link to.
 - Beside an open note, **Local graph** shows the notes it links with, one or two links away.
 
+### Claude, with your notes
+
+Everything here goes to the profile's **own** Claude account, never another one.
+
+![The Ask panel beside a client note](docs/images/notes-ask.png)
+
+- **Open the session behind a note**: a session note shows **Open in <profile>'s Claude**, which
+  opens that Claude Code session in the profile's Claude Desktop (starting it if needed). A session
+  that ran in a terminal rather than Claude Desktop just opens the app.
+- **Ask** (the sparkles button): type a question and Hatstand starts a new Claude Code session in
+  this vault, in this profile's Claude, with your question filled in. Press Return there to send it.
+  Claude searches and reads the notes and cites them as `[[links]]`.
+- **Recall tools**: with the second brain on, Hatstand adds a read-only MCP server, `hatstand-notes`,
+  to the profile's Claude Code and Claude Desktop settings (`search_notes`, `read_note`,
+  `note_links`). It can only read that profile's vault. Turning the second brain off removes it.
+- On Windows, Hatstand can't hand a link to one particular Claude window, so **Open** and **Ask**
+  open the profile's Claude and put the question on the clipboard to paste.
+
 ## Where your data lives
 
 | What | Location |

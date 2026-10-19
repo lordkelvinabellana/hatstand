@@ -175,6 +175,7 @@ async function checkNotes(vault) {
   );
 
   await checkGraph(notes, write);
+  await checkClaude(notes, write, vault);
 
   await tree.getByRole('button', { name: 'Aether' }).click();
   await notes.locator('.cm-h1', { hasText: 'Aether' }).waitFor();
@@ -186,6 +187,45 @@ async function checkNotes(vault) {
     dialog.showMessageBox = globalThis.realMessageBox;
   });
 }
+/** Session notes open in the profile's own Claude; the Ask box starts a Code session in the vault there. */
+async function checkClaude(notes, write, vault) {
+  const opened = () => instance.evaluate(() => globalThis.openedInClaude ?? []);
+  const cli = 'cfe779c8-051c-41b9-9f4f-4204303cb625';
+  const sessions = path.join(path.dirname(vault), 'desktop', 'claude-code-sessions', 'org', 'account');
+  await fs.mkdir(sessions, { recursive: true });
+  await fs.writeFile(path.join(sessions, 'local_338c5e40-ec45.json'), JSON.stringify({ cliSessionId: cli }));
+  await write(
+    'Sessions/2026-10/2026-10-20 North Studio – Pricing call (cfe779c8).md',
+    `---\ntype: session\nsession: ${cli}\n---\n# Pricing call\n\n## Summary\n- Agreed pricing with [[Northwind]].\n`,
+  );
+  await notes.keyboard.press(`${primaryKey}+O`);
+  await notes.getByLabel('Note name').fill('Pricing call');
+  // The watcher picks the new note up within a moment.
+  await notes.locator('.n-switch button', { hasText: 'Pricing call (cfe779c8)' }).click();
+  await notes.getByRole('button', { name: 'Open in North Studio’s Claude' }).click();
+  await until(async () => (await opened()).length === 1, 'session link sent');
+  assert.equal((await opened())[0].url, 'claude://code/continue?session=local_338c5e40-ec45');
+  // Ordinary notes have no session bar.
+  await notes.keyboard.press(`${primaryKey}+O`);
+  await notes.getByLabel('Note name').fill('Northwind');
+  await notes.keyboard.press('Enter');
+  await notes.getByRole('tab', { name: 'Northwind', selected: true }).waitFor();
+  assert.equal(await notes.getByRole('button', { name: /^Open in / }).count(), 0);
+
+  await notes.getByRole('button', { name: 'Ask', exact: true }).click();
+  await notes
+    .getByLabel('Ask North Studio’s Claude about your notes')
+    .fill('What did we agree with Northwind?');
+  await notes.getByRole('button', { name: 'Ask', exact: true }).last().click();
+  await notes.getByRole('status').filter({ hasText: 'Asked in North Studio’s Claude' }).waitFor();
+  const asked = new URL((await opened())[1].url);
+  assert.equal(asked.protocol + asked.host + asked.pathname, 'claude:code/new');
+  assert.equal(asked.searchParams.get('folder'), vault);
+  assert.match(asked.searchParams.get('q'), /^What did we agree with Northwind\?\n\nAnswer from my notes/);
+  await notes.screenshot({ path: path.join(screenshotFolder, 'notes-ask.png') });
+  await notes.getByRole('button', { name: 'Files', exact: true }).click();
+}
+
 /** Graph tab: draws the vault, filters, live updates, clicking a node opens it; local graph beside a note. */
 async function checkGraph(notes, write) {
   const clients = ['Northwind', 'Lumen Co', 'Harbor & Pine'];
@@ -353,6 +393,12 @@ try {
   const userHook = { Stop: [{ hooks: [{ type: 'command', command: 'echo mine' }] }] };
   await fs.writeFile(path.join(code, 'settings.json'), JSON.stringify({ hooks: userHook }));
   await fs.writeFile(path.join(code, 'CLAUDE.md'), '# My rules\n');
+  // Claude's own config files, where the recall MCP server goes beside the user's servers.
+  const desktopDir = path.join(root, 'profiles', northProfile.id, 'desktop');
+  await fs.mkdir(desktopDir, { recursive: true });
+  const mcpFiles = [path.join(code, '.claude.json'), path.join(desktopDir, 'claude_desktop_config.json')];
+  for (const file of mcpFiles)
+    await fs.writeFile(file, JSON.stringify({ keep: 1, mcpServers: { mine: { command: 'echo' } } }));
   // A profile that already runs its own capture.py is left alone.
   const acornCode = path.join(root, 'profiles', acorn.id, 'code');
   await fs.mkdir(acornCode, { recursive: true });
@@ -375,6 +421,26 @@ try {
   );
   const vault = path.join(root, 'profiles', northProfile.id, 'vault');
   await fs.access(path.join(vault, '_templates', 'Client.md'));
+  const recallServer = async (file) =>
+    JSON.parse(await fs.readFile(file, 'utf8')).mcpServers?.['hatstand-notes'];
+  for (const file of mcpFiles) {
+    const config = JSON.parse(await fs.readFile(file, 'utf8'));
+    assert.ok(config.keep === 1 && config.mcpServers.mine, 'other settings and servers kept');
+    assert.deepEqual((await recallServer(file)).args.slice(1), ['--vault', vault]);
+  }
+  {
+    // The recall server really runs: Hatstand's own executable acting as Node, speaking MCP over stdio.
+    const { execFileSync } = await import('node:child_process');
+    const server = await recallServer(mcpFiles[0]);
+    await fs.writeFile(path.join(vault, 'Clients', 'Recall check.md'), 'Pricing is 40 per seat.\n');
+    const reply = execFileSync(server.command, server.args, {
+      env: { ...process.env, ...server.env },
+      input: `${JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'search_notes', arguments: { query: 'pricing' } } })}\n`,
+      encoding: 'utf8',
+    });
+    assert.match(JSON.parse(reply).result.content[0].text, /\[\[Recall check\]\]/);
+    await fs.rm(path.join(vault, 'Clients', 'Recall check.md'));
+  }
   if (process.platform !== 'win32') {
     // The hook really runs: Hatstand's own executable acting as Node, through sh.
     const { execFileSync } = await import('node:child_process');
@@ -459,6 +525,11 @@ try {
   const unwired = await fs.readFile(path.join(code, 'settings.json'), 'utf8');
   assert.ok(unwired.includes('echo mine') && !unwired.includes('capture.cjs'));
   assert.equal(await fs.readFile(path.join(code, 'CLAUDE.md'), 'utf8'), '# My rules\n');
+  for (const file of mcpFiles)
+    assert.deepEqual(JSON.parse(await fs.readFile(file, 'utf8')), {
+      keep: 1,
+      mcpServers: { mine: { command: 'echo' } },
+    });
   await fs.access(path.join(vault, 'To-Do.md'));
   await page.getByRole('button', { name: 'Close profile editor' }).click();
   await page.locator('.profile-identity').nth(1).click();
@@ -652,7 +723,7 @@ try {
   }
   assert.deepEqual(errors, []);
   console.log(
-    'UI checks passed: setup, create, search, selection, shortcuts, work folder, second brain, notes graph, menu keyboard, reorder past archived, archive/restore, settings, export/import, leftover data, compact layout, dark theme, sandbox.',
+    'UI checks passed: setup, create, search, selection, shortcuts, work folder, second brain, notes graph, Claude links, menu keyboard, reorder past archived, archive/restore, settings, export/import, leftover data, compact layout, dark theme, sandbox.',
   );
   console.log(`Screenshots: ${screenshotFolder}`);
 } finally {
