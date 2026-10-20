@@ -581,7 +581,9 @@ try {
   });
   assert.equal(await page.evaluate(() => window.hatstand.request('removeChanges')), true);
   const removed = await fs.readFile(path.join(code, 'settings.json'), 'utf8');
-  assert.ok(removed.includes('echo mine') && !removed.includes('pet-hook.sh') && !removed.includes('capture.cjs'));
+  assert.ok(
+    removed.includes('echo mine') && !removed.includes('pet-hook.sh') && !removed.includes('capture.cjs'),
+  );
   await instance.evaluate(({ dialog }) => {
     dialog.showMessageBox = globalThis.realMessageBox;
   });
