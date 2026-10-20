@@ -4,6 +4,7 @@ import * as fs from 'node:fs/promises';
 import path from 'node:path';
 import { BrowserWindow, Menu, type MenuItemConstructorOptions, nativeImage, screen, Tray } from 'electron';
 import type { Controller } from '../core/controller.ts';
+import { withFileLock, writeFileAtomic } from '../core/files.ts';
 import {
   drawPet,
   encodePng,
@@ -168,17 +169,19 @@ export class Pets {
     // A profile that was never launched has no folders; creating them would look like leftover data.
     if (!(await fs.stat(code).catch(() => undefined))?.isDirectory()) return;
     const file = path.join(code, 'settings.json');
-    let text = '{}';
-    try {
-      text = await fs.readFile(file, 'utf8');
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') return;
-    }
-    const settings = JSON.parse(text);
-    const next = `${JSON.stringify(withPetHooks(settings, this.script), null, 2)}\n`;
-    if (next === text) return;
-    await fs.writeFile(`${file}.hatstand-tmp`, next);
-    await fs.rename(`${file}.hatstand-tmp`, file);
+    // The second brain edits the same settings.json; one queue per file keeps either from dropping the other's hooks.
+    await withFileLock(file, async () => {
+      let text = '{}';
+      try {
+        text = await fs.readFile(file, 'utf8');
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') return;
+      }
+      const settings = JSON.parse(text);
+      const next = `${JSON.stringify(withPetHooks(settings, this.script), null, 2)}\n`;
+      if (next === text) return;
+      await writeFileAtomic(file, next);
+    });
   }
 
   private async scan(pet: Pet, quiet = false) {

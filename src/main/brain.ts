@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import type { Controller } from '../core/controller.ts';
+import { withFileLock, writeFileAtomic } from '../core/files.ts';
 import { assertId, isRecord, type Profile } from '../core/profiles.ts';
 import {
   brainBlock,
@@ -57,8 +58,7 @@ export async function saveBrain(root: string, id: string, choice: BrainChoice) {
   const brains = await readBrains(root);
   brains[id] = choice;
   const file = stateFile(root);
-  await fs.writeFile(`${file}.tmp`, JSON.stringify(brains, null, 2));
-  await fs.rename(`${file}.tmp`, file);
+  await writeFileAtomic(file, JSON.stringify(brains, null, 2));
 }
 
 /** Reads a Claude Code settings.json; null when it exists but cannot be read or parsed. */
@@ -73,8 +73,7 @@ async function readJson(file: string): Promise<Record<string, unknown> | null> {
 async function replace(file: string, next: string) {
   const current = await fs.readFile(file, 'utf8').catch(() => null);
   if (current === next || (current === null && next === '')) return;
-  await fs.writeFile(`${file}.hatstand-tmp`, next);
-  await fs.rename(`${file}.hatstand-tmp`, file);
+  await writeFileAtomic(file, next);
 }
 
 export async function brainStatus(root: string, controller: Controller, id: string): Promise<BrainStatus> {
@@ -202,10 +201,15 @@ export async function wireBrains(root: string, controller: Controller, profiles:
       ? captureCommand(process.execPath, script, folder, profile.name, backup)
       : null;
     if (command) await seedVault(folder, new Date().toISOString().slice(0, 10));
-    const next = withBrainHooks(settings, command);
-    // Unchanged content is not rewritten, so a missing settings.json is not created just to stay empty.
-    if (JSON.stringify(next) !== JSON.stringify(settings))
-      await replace(settingsFile, `${JSON.stringify(next, null, 2)}\n`);
+    // Re-read under the lock: the pets edit the same settings.json.
+    await withFileLock(settingsFile, async () => {
+      const current = await readJson(settingsFile);
+      if (!current || hasExternalCapture(current)) return;
+      const next = withBrainHooks(current, command);
+      // Unchanged content is not rewritten, so a missing settings.json is not created just to stay empty.
+      if (JSON.stringify(next) !== JSON.stringify(current))
+        await replace(settingsFile, `${JSON.stringify(next, null, 2)}\n`);
+    });
     const claudeFile = path.join(code, 'CLAUDE.md');
     const claude = await fs.readFile(claudeFile, 'utf8').catch(() => '');
     await replace(claudeFile, withBrainBlock(claude, command && brainBlock(folder, command)));

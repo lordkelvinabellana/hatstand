@@ -8,6 +8,7 @@ import path from 'node:path';
 import { acceleratorKey } from '../core/accelerator.ts';
 import { checksFor, isTestedVersion } from '../core/compat.ts';
 import type { Controller } from '../core/controller.ts';
+import { withFileLock, writeFileAtomic } from '../core/files.ts';
 import { assertId, exportMetadata, isRecord, parseImport, validateInput } from '../core/profiles.ts';
 import type { ProfileInput } from '../core/profiles.ts';
 import {
@@ -422,20 +423,19 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
       await context.profilesChanged();
       for (const p of (await store.load()).profiles) {
         const file = path.join(controller.directories(p.id).code, 'settings.json');
-        const text = await fs.readFile(file, 'utf8').catch(() => null);
-        if (text === null) continue;
-        let settings: unknown;
-        try {
-          settings = JSON.parse(text);
-        } catch {
-          continue;
-        }
-        if (!isRecord(settings)) continue;
-        const cleaned = `${JSON.stringify(withoutPetHooks(settings), null, 2)}\n`;
-        if (cleaned !== text) {
-          await fs.writeFile(`${file}.hatstand-tmp`, cleaned);
-          await fs.rename(`${file}.hatstand-tmp`, file);
-        }
+        await withFileLock(file, async () => {
+          const text = await fs.readFile(file, 'utf8').catch(() => null);
+          if (text === null) return;
+          let settings: unknown;
+          try {
+            settings = JSON.parse(text);
+          } catch {
+            return;
+          }
+          if (!isRecord(settings)) return;
+          const cleaned = `${JSON.stringify(withoutPetHooks(settings), null, 2)}\n`;
+          if (cleaned !== text) await writeFileAtomic(file, cleaned);
+        });
       }
       return true;
     },

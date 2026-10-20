@@ -1,4 +1,5 @@
 import * as fs from 'node:fs/promises';
+import { writeFileAtomic } from './files.ts';
 import path from 'node:path';
 
 /**
@@ -215,8 +216,7 @@ export async function readTemplate(vault: string, name: TemplateName) {
 export async function saveTemplate(vault: string, name: TemplateName, text: string | null) {
   const file = templateFile(vault, name);
   await fs.mkdir(path.dirname(file), { recursive: true });
-  await fs.writeFile(`${file}.hatstand-tmp`, text ?? defaultTemplates[name]);
-  await fs.rename(`${file}.hatstand-tmp`, file);
+  await writeFileAtomic(file, text ?? defaultTemplates[name]);
 }
 
 /** POSIX single-quoting; Claude Code runs hook commands through a POSIX shell (Git Bash on Windows). */
