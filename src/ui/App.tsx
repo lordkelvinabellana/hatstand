@@ -238,7 +238,9 @@ export function App() {
               <span className="status-dot" />
               <span>Stored on this computer</span>
             </div>
-            <span className="version">Hatstand {data.version} · Preview</span>
+            <span className="version" title={data.build ? `Built from commit ${data.build}` : undefined}>
+              Hatstand {data.version} · Preview{data.build ? ` · ${data.build}` : ''}
+            </span>
           </div>
         </aside>
         <main className="workspace">

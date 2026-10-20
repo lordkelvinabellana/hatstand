@@ -127,8 +127,9 @@ export const ProfilesPage = forwardRef<HTMLInputElement, Props>(function Profile
       {data.installation && !data.installationTested && !data.installationConfirmed && (
         <div className="banner warning">
           <span>
-            Claude {data.installation.version} hasn’t been tested with Hatstand yet. If your profiles open and
-            stay signed in, mark it as working and this won’t show again.
+            {data.settings.confirmedVersions.length
+              ? `Claude updated to ${data.installation.version} (profiles last worked on ${data.settings.confirmedVersions.at(-1)}). Check that each profile still opens in its own account, then mark it as working.`
+              : `Claude ${data.installation.version} hasn’t been tested with Hatstand yet. If your profiles open and stay signed in, mark it as working and this won’t show again.`}
           </span>
           <button
             type="button"

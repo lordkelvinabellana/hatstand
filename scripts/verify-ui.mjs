@@ -460,7 +460,8 @@ try {
     await fs.readFile(path.join(code, 'CLAUDE.md'), 'utf8'),
     /^# My rules\n\n<!-- hatstand:second-brain:start -->/,
   );
-  const vault = path.join(root, 'profiles', northProfile.id, 'vault');
+  // A first vault goes to Documents/Hatstand Notes/<profile> (the test's own Documents folder).
+  const vault = path.join(root, 'Documents', 'Hatstand Notes', 'North Studio');
   await fs.access(path.join(vault, '_templates', 'Client.md'));
   const recallServer = async (file) =>
     JSON.parse(await fs.readFile(file, 'utf8')).mcpServers?.['hatstand-notes'];
@@ -554,13 +555,15 @@ try {
     JSON.parse(await fs.readFile(path.join(root, 'second-brain.json'), 'utf8'))[northProfile.id].vault,
     '',
   );
-  assert.ok((await fs.readFile(path.join(code, 'CLAUDE.md'), 'utf8')).includes(vault));
+  // "Use default" is the folder inside the profile's data, where earlier versions kept every vault.
+  const defaultVault = path.join(root, 'profiles', northProfile.id, 'vault');
+  assert.ok((await fs.readFile(path.join(code, 'CLAUDE.md'), 'utf8')).includes(defaultVault));
   await fs.access(acme);
   await instance.evaluate(({ dialog }) => {
     dialog.showMessageBox = globalThis.realMessageBox;
   });
 
-  await checkNotes(vault);
+  await checkNotes(defaultVault);
   await page.getByLabel(/Keep notes from Claude Code sessions/).click();
   await page.getByText(/Second brain off\./).waitFor();
   const unwired = await fs.readFile(path.join(code, 'settings.json'), 'utf8');
@@ -572,6 +575,20 @@ try {
       mcpServers: { mine: { command: 'echo' } },
     });
   await fs.access(path.join(vault, 'To-Do.md'));
+  // Remove Hatstand's changes: pet and second brain hooks go, the user's own hooks stay. Pets come back on after.
+  await instance.evaluate(({ dialog }) => {
+    dialog.showMessageBox = async () => ({ response: 1 });
+  });
+  assert.equal(await page.evaluate(() => window.hatstand.request('removeChanges')), true);
+  const removed = await fs.readFile(path.join(code, 'settings.json'), 'utf8');
+  assert.ok(removed.includes('echo mine') && !removed.includes('pet-hook.sh') && !removed.includes('capture.cjs'));
+  await instance.evaluate(({ dialog }) => {
+    dialog.showMessageBox = globalThis.realMessageBox;
+  });
+  await page.evaluate(async () => {
+    const { settings } = await window.hatstand.request('snapshot');
+    await window.hatstand.request('settings', { ...settings, pets: true });
+  });
   await page.getByRole('button', { name: 'Close profile editor' }).click();
   await editProfile(page, 1);
   await page.locator('summary', { hasText: 'Second brain' }).click();

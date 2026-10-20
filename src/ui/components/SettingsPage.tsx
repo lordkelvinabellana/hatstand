@@ -409,6 +409,41 @@ export function SettingsPage() {
       </section>
 
       <section className="setting-section transfer">
+        <h2>Second brain backup</h2>
+        <p>
+          After every Claude reply, each vault is copied into its own folder here, for example a folder you
+          open in Obsidian. The backup only adds and updates notes; it never deletes any.
+        </p>
+        {data.settings.backupFolder ? (
+          <p className="path-text">{data.settings.backupFolder}</p>
+        ) : (
+          <p className="n-hint">Off.</p>
+        )}
+        <div className="button-row">
+          <button
+            type="button"
+            className="secondary"
+            disabled={!!pending}
+            onClick={() =>
+              fire('backupFolder', { pick: true }, 'Backups go to that folder after each Claude reply.')
+            }
+          >
+            {data.settings.backupFolder ? 'Change folder…' : 'Choose folder…'}
+          </button>
+          {data.settings.backupFolder && (
+            <button
+              type="button"
+              className="text-button"
+              disabled={!!pending}
+              onClick={() => fire('backupFolder', {}, 'Backups are off. Existing backups are kept.')}
+            >
+              Turn off
+            </button>
+          )}
+        </div>
+      </section>
+
+      <section className="setting-section transfer">
         <h2>Local data</h2>
         <p>
           Profiles are stored in <span className="path-text inline">{data.dataFolder}</span>. Uninstalling
@@ -418,7 +453,31 @@ export function SettingsPage() {
           <button type="button" className="secondary" disabled={!!pending} onClick={loadStorage}>
             {storage ? 'Check again' : 'Find leftover data'}
           </button>
+          <button
+            type="button"
+            className="secondary danger-text"
+            disabled={!!pending}
+            onClick={() =>
+              void run('removeChanges')
+                .then((removed) => {
+                  if (removed)
+                    void run(
+                      'refresh',
+                      undefined,
+                      'Hatstand’s changes to Claude are removed. Notes are kept.',
+                    );
+                })
+                .catch(() => {})
+            }
+          >
+            Remove Hatstand’s changes from Claude…
+          </button>
         </div>
+        <p>
+          Hatstand adds menu-bar pet and second brain hooks, a section in each profile’s CLAUDE.md, and a
+          notes tool to Claude’s settings. Removing them turns both features off and leaves your notes where
+          they are.
+        </p>
         {storage && (
           <div className="storage-list">
             <p>

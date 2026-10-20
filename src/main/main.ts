@@ -33,6 +33,8 @@ const root =
     ? path.resolve(process.env.HATSTAND_TEST_ROOT)
     : dataRoot(process.platform === 'darwin' ? app.getPath('appData') : localAppData);
 app.setPath('userData', path.join(root, 'manager'));
+// Tests must never write into the real Documents folder (new vaults go there).
+if (testMode && process.env.HATSTAND_TEST_ROOT) app.setPath('documents', path.join(root, 'Documents'));
 const html = path.join(__dirname, 'index.html');
 const store = new ProfileStore(root);
 let window: BrowserWindow | undefined;

@@ -313,3 +313,21 @@ export function withPetHooks(settings: Record<string, unknown>, script: string):
   }
   return { ...settings, hooks };
 }
+
+/** Returns `settings` without Hatstand's pet hooks; other hooks are kept and emptied events dropped. */
+export function withoutPetHooks(settings: Record<string, unknown>): Record<string, unknown> {
+  const hooks: Record<string, unknown> = {};
+  for (const [event, groups] of Object.entries((settings.hooks ?? {}) as Record<string, unknown>)) {
+    if (!Array.isArray(groups)) {
+      hooks[event] = groups;
+      continue;
+    }
+    const kept = groups.filter(
+      (g) => !JSON.stringify((g as { hooks?: unknown })?.hooks ?? '').includes('pet-hook.sh'),
+    );
+    if (kept.length || !groups.length) hooks[event] = kept;
+  }
+  const next = { ...settings, hooks };
+  if (!Object.keys(hooks).length) delete (next as { hooks?: unknown }).hooks;
+  return next;
+}

@@ -2,6 +2,7 @@
 import { app, dialog, nativeTheme, net, shell } from 'electron';
 import type { BrowserWindow } from 'electron';
 import * as fs from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { acceleratorKey } from '../core/accelerator.ts';
@@ -29,7 +30,8 @@ import { applyLoginItem, createDesktopShortcut } from './integration.ts';
 import type { ProfileSync } from './sync.ts';
 import { readAll, readInferred } from '../core/notes.ts';
 import type { SessionView } from '../shared.ts';
-import { brainStatus, checkVault, saveBrain, sharersOf, vaultLabel } from './brain.ts';
+import { brainStatus, checkVault, readBrains, saveBrain, sharersOf, vaultLabel } from './brain.ts';
+import { withoutPetHooks } from '../core/pets.ts';
 import {
   assertTemplateName,
   copyVault,
@@ -66,6 +68,19 @@ function readIds(payload: unknown): string[] {
     throw new Error('Invalid request.');
   for (const id of payload.ids) assertId(id);
   return [...new Set(payload.ids as string[])];
+}
+
+let commit: string | undefined;
+/** The commit the running build came from, read once from dist/build.json. */
+function buildCommit() {
+  if (commit === undefined)
+    try {
+      const value = JSON.parse(readFileSync(path.join(__dirname, 'build.json'), 'utf8')).commit;
+      commit = typeof value === 'string' && /^[0-9a-f]{4,40}(-dirty)?$/.test(value) ? value : '';
+    } catch {
+      commit = '';
+    }
+  return commit;
 }
 
 export function createHandlers(context: HandlerContext): Record<string, Handler> {
@@ -141,6 +156,7 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
       processError: controller.processError,
       hotkeyError: hotkeys.managerError,
       version: app.getVersion(),
+      build: buildCommit(),
       packaged: app.isPackaged,
       dataFolder: root,
       sync: { ...context.sync.status },
@@ -333,8 +349,95 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
         throw new Error(
           'This profile already runs its own capture.py hooks. Remove them from its Claude Code settings.json first.',
         );
-      await saveBrain(root, id, { enabled, vault: status.vault });
+      let vault = status.vault;
+      // A first-time vault goes where people can find it, not inside Hatstand's data folder. A default
+      // vault that already holds notes stays put.
+      if (enabled && !vault && !(await inspectVault(status.folder)).notes) {
+        const profiles = (await store.load()).profiles;
+        const name = (await controller.getProfile(id)).name.replace(/[\\/:*?"<>|]/g, '-').trim() || id;
+        const base = path.join(app.getPath('documents'), 'Hatstand Notes', name);
+        let folder = base;
+        for (let n = 2; ; n++) {
+          const free = !(await inspectVault(folder)).used;
+          const allowed = await checkVault(root, controller, profiles, id, folder).then(
+            () => true,
+            () => false,
+          );
+          if (free && allowed) break;
+          if (n > 50) {
+            folder = '';
+            break;
+          }
+          folder = `${base} ${n}`;
+        }
+        vault = folder;
+      }
+      await saveBrain(root, id, { enabled, vault });
       await context.profilesChanged();
+    },
+    /** Where every vault is backed up after each capture (e.g. a folder Obsidian opens); '' turns it off. */
+    async backupFolder(payload) {
+      let folder = '';
+      if ((payload as { pick?: unknown })?.pick === true) {
+        const result = await dialog.showOpenDialog(context.window(), {
+          title: 'Choose a folder for second brain backups',
+          properties: ['openDirectory', 'createDirectory'],
+        });
+        if (result.canceled) return;
+        folder = result.filePaths[0];
+        if ([os.homedir(), path.parse(folder).root].some((f) => path.resolve(f) === path.resolve(folder)))
+          throw new Error('Choose a folder for backups, not your whole home folder or drive.');
+        if (
+          path.resolve(folder).startsWith(path.resolve(root) + path.sep) ||
+          path.resolve(folder) === path.resolve(root)
+        )
+          throw new Error('Choose a folder outside Hatstand’s own data.');
+      }
+      const next = { ...controller.settings, backupFolder: folder };
+      await saveSettings(root, next);
+      controller.settings = next;
+      await context.profilesChanged();
+    },
+    /**
+     * Undoes everything Hatstand added to Claude: turns off pets and every second brain, which removes their
+     * hooks, CLAUDE.md sections and notes tool. Notes, vaults and backups are kept.
+     */
+    async removeChanges() {
+      const answer = await dialog.showMessageBox(context.window(), {
+        type: 'warning',
+        buttons: ['Cancel', 'Remove changes'],
+        defaultId: 0,
+        cancelId: 0,
+        message: 'Remove everything Hatstand added to Claude?',
+        detail:
+          'Turns off menu-bar pets and every profile’s second brain, and removes their hooks, CLAUDE.md sections and notes tool from each profile’s Claude settings. Your notes, vaults and backups are kept. Profiles and sign-ins are not touched.',
+      });
+      if (answer.response !== 1) return false;
+      for (const [id, choice] of Object.entries(await readBrains(root)))
+        if (choice.enabled) await saveBrain(root, id, { ...choice, enabled: false });
+      const next = { ...controller.settings, pets: false };
+      await saveSettings(root, next);
+      controller.settings = next;
+      // Removes the second brain's hooks, CLAUDE.md block and MCP entries, and stops the pets.
+      await context.profilesChanged();
+      for (const p of (await store.load()).profiles) {
+        const file = path.join(controller.directories(p.id).code, 'settings.json');
+        const text = await fs.readFile(file, 'utf8').catch(() => null);
+        if (text === null) continue;
+        let settings: unknown;
+        try {
+          settings = JSON.parse(text);
+        } catch {
+          continue;
+        }
+        if (!isRecord(settings)) continue;
+        const cleaned = `${JSON.stringify(withoutPetHooks(settings), null, 2)}\n`;
+        if (cleaned !== text) {
+          await fs.writeFile(`${file}.hatstand-tmp`, cleaned);
+          await fs.rename(`${file}.hatstand-tmp`, file);
+        }
+      }
+      return true;
     },
     async newVault(payload) {
       const id = readId(payload);
