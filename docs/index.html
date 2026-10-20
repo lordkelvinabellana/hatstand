@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Hatstand: Multiple Claude Desktop Accounts, No Signing Out</title>
-<meta name="description" content="Free, open-source Windows and Mac launcher for running multiple Claude Desktop accounts. Give each client its own profile and switch without signing out.">
+<meta name="description" content="Free, open-source Windows and Mac launcher for running multiple Claude Desktop accounts. Give each client its own profile and its own second brain, and switch without signing out.">
 <link rel="canonical" href="https://hatstand.vercel.app/">
 <meta name="author" content="Kelvin Abellana">
 <meta name="robots" content="index, follow, max-image-preview:large">
 <meta property="og:site_name" content="Hatstand">
 <meta property="og:title" content="Hatstand: one Claude Desktop account per client">
-<meta property="og:description" content="Run multiple Claude Desktop accounts side by side. Each client gets its own profile and sign-in, so you never sign out to switch. Free and open source.">
+<meta property="og:description" content="Run multiple Claude Desktop accounts side by side. Each client gets its own profile, sign-in and notes, so you never sign out to switch. Free and open source.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://hatstand.vercel.app/">
 <meta property="og:image" content="https://hatstand.vercel.app/images/profiles.png">
@@ -147,6 +147,9 @@
   .shot { margin: 56px auto 0; max-width: 1040px; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); box-shadow: var(--shadow); background: var(--surface); }
   .shot img { width: 100%; height: auto; }
   .shot .dark-shot { display: none; }
+  .shot.video { margin-top: 0; }
+  .shot video { display: block; width: 100%; height: auto; }
+  #second-brain .features { margin-bottom: 28px; }
   @media (prefers-color-scheme: dark) { .shot .light-shot { display: none; } .shot .dark-shot { display: block; } }
 
   section { padding: 84px 0; }
@@ -239,6 +242,7 @@
     <nav class="links" aria-label="Page">
       <a href="#how">How it works</a>
       <a href="#features">Features</a>
+      <a href="#second-brain">Second brain</a>
       <a href="#honest">What's separate</a>
       <a href="#faq">FAQ</a>
       <a href="https://github.com/lordkelvinabellana/hatstand">GitHub</a>
@@ -251,7 +255,7 @@
   <div class="hero wrap" id="top">
     <span class="eyebrow">Free &amp; open source · Windows &amp; Mac</span>
     <h1>One hat per client.</h1>
-    <p class="lede">Hatstand lets you use multiple Claude Desktop accounts on one computer, each client in its own profile. Switch between clients in a keystroke, and never sign out and back in again.</p>
+    <p class="lede">Hatstand lets you use multiple Claude Desktop accounts on one computer, each client in its own profile. Switch between clients in a keystroke, never sign out and back in again, and give each client its own second brain.</p>
     <div class="cta">
       <a class="button primary" href="https://github.com/lordkelvinabellana/hatstand/releases/latest">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
@@ -303,6 +307,20 @@
     </div>
   </section>
 
+  <section id="watch">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="kicker">Watch</div>
+        <h2>Hatstand in under a minute.</h2>
+      </div>
+      <div class="shot video">
+        <video controls playsinline preload="none" poster="media/hatstand-explainer-poster.jpg" width="1920" height="1080">
+          <source src="media/hatstand-explainer.mp4" type="video/mp4">
+        </video>
+      </div>
+    </div>
+  </section>
+
   <section id="features">
     <div class="wrap">
       <div class="section-head">
@@ -334,6 +352,48 @@
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
           <h3>Private by design</h3><p>No accounts, no telemetry, and it never sees your password. It only goes online when you check for updates.</p>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="second-brain">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="kicker">Second brain</div>
+        <h2>Every client gets its own second brain.</h2>
+        <p>Turn it on for a profile and Claude keeps notes as you work: clients, projects, people, tools, and a log of every session. They're plain Markdown files on your computer, and each client's notes stay with that client unless you share them.</p>
+      </div>
+      <div class="features">
+        <div class="feature">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>
+          <h3>Notes that write themselves</h3><p>Claude Code logs each session and keeps the client, project, people and tool notes current, with a to-do list.</p>
+        </div>
+        <div class="feature">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M7.3 7.2 10.6 16M16.7 7.2 13.4 16M7.5 6h9"/></svg>
+          <h3>See how it connects</h3><p>A graph of every note and link. Deep graph asks that client's own Claude to find the links you missed, drawn in orange with its reason.</p>
+        </div>
+        <div class="feature">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16M6 16l9.5-9.5a2.1 2.1 0 0 1 3 3L9 19H6Z"/></svg>
+          <h3>Edit them right inside</h3><p>A notes editor with tabs, wikilinks, search and backlinks. Notes Claude writes show up live.</p>
+        </div>
+        <div class="feature">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><path d="M12 10v6M9 13l3 3 3-3"/></svg>
+          <h3>Back it up to your note-taking app</h3><p>Pick a folder and every vault is copied there after each Claude reply. It only adds and updates, never deletes.</p>
+        </div>
+        <div class="feature">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+          <h3>Undo it in one click</h3><p>Remove Hatstand's changes turns off pets and second brains and takes out their hooks and settings. Your notes are kept.</p>
+        </div>
+        <div class="feature">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5a6 6 0 0 1 3 5.5"/></svg>
+          <h3>Share when you want to</h3><p>Point two profiles at one vault when the same work spans accounts. Each can leave again any time.</p>
+        </div>
+      </div>
+      <div class="gallery">
+        <figure><img src="images/second-brain.jpg" width="1600" height="1002" loading="lazy" alt="Second brain page showing four sample clients' vaults as separate clusters in one graph, with a card per vault"><figcaption>Every client's notes in one view, each around its own hub.</figcaption></figure>
+        <figure><img src="images/vault-graph.jpg" width="1600" height="1002" loading="lazy" alt="One client's vault graph with notes coloured by type and AI-suggested links drawn in orange"><figcaption>One client's graph. Orange lines are links Claude found.</figcaption></figure>
+        <figure><img src="images/note-editor.jpg" width="1600" height="1002" loading="lazy" alt="Notes editor with a client note, its links and log, a local graph, AI-suggested links and backlinks"><figcaption>The editor, with a local graph, AI-suggested links and backlinks.</figcaption></figure>
+        <figure><img src="images/profile-page.jpg" width="1600" height="1002" loading="lazy" alt="A client's profile page with its running Claude Code tasks and its second brain"><figcaption>Each profile's page: running tasks, its second brain and details.</figcaption></figure>
       </div>
     </div>
   </section>
@@ -409,6 +469,10 @@
       <details>
         <summary>Is there a Mac version?</summary>
         <p>Yes. Each release has a Mac download: pick the <code>arm64</code> DMG for Apple silicon or <code>x64</code> for Intel. On a Mac, each client also gets a menu-bar pet. The Mac app isn't signed by Apple yet, so see the warning question above for the first open. More in the <a href="https://github.com/lordkelvinabellana/hatstand/blob/main/docs/MACOS.md">Mac notes</a>.</p>
+      </details>
+      <details>
+        <summary>Where do the second brain notes go?</summary>
+        <p>Into plain Markdown files on your computer, in <code>Documents/Hatstand Notes</code> with a folder per client, or any folder you pick. Hatstand never uploads them. Each client's notes are only read by that client's own Claude, and the second brain is off until you turn it on.</p>
       </details>
       <details>
         <summary>What does it cost?</summary>
