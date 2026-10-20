@@ -21,6 +21,7 @@ import { askLink, findDesktopSession, sessionLink } from '../core/ask.ts';
 import { openClaudeUrl } from '../core/macos.ts';
 import { brainStatus, vaultFolders, vaultLabel, wireBrains } from './brain.ts';
 import { NotesService } from './notes.ts';
+import { deepGraphLink } from '../core/inferred.ts';
 import { Pets } from './pets.ts';
 import { ProfileSync } from './sync.ts';
 import { createTray, type TrayActions, trayMenu, updateTray } from './tray.ts';
@@ -214,6 +215,10 @@ const notes = new NotesService(
     },
     async ask(id, folder, question) {
       return (await openInClaude(id, askLink(question, folder))) ? 'opened' : 'launched';
+    },
+    async deepGraph(id, folder) {
+      const today = new Date().toISOString().slice(0, 10);
+      return (await openInClaude(id, deepGraphLink(folder, today))) ? 'opened' : 'launched';
     },
   },
   () => window,

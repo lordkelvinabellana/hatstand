@@ -13,11 +13,21 @@ import {
   Search,
   Sparkles,
   Waypoints,
+  Wand2,
   X,
 } from 'lucide-react';
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { buildGraph, filterGraph, GROUPS, type Group, localGraph, matchNodes } from '../core/graph.ts';
+import {
+  buildGraph,
+  filterGraph,
+  GROUPS,
+  type Group,
+  localGraph,
+  matchNodes,
+  withInferred,
+} from '../core/graph.ts';
+import { parseInferred } from '../core/inferred.ts';
 import { backlinks, buildIndex, createSearch, type NoteText, noteName, resolveLink } from '../core/links.ts';
 import { editorExtensions, fromDisk, newState, reload } from './editor.ts';
 import { GraphView, type Positions } from './GraphView.tsx';
@@ -54,6 +64,8 @@ interface Doc {
 interface Vault {
   folders: string[];
   notes: NoteText[];
+  /** The deep-graph file Claude wrote (`.hatstand/inferred-links.json`), as text. */
+  inferred?: string;
 }
 type Dialog =
   | { kind: 'note'; folder: string }
@@ -107,6 +119,7 @@ export function NotesApp(props: { profile: string; theme: string }) {
   const [orphans, setOrphans] = useState(true);
   const [graphQuery, setGraphQuery] = useState('');
   const [depth, setDepth] = useState(1);
+  const [showAi, setShowAi] = useState(true);
   const globalPositions = useRef<Positions>(new Map());
   const localPositions = useRef<Positions>(new Map());
   const [, bump] = useReducer((n: number) => n + 1, 0);
@@ -121,7 +134,11 @@ export function NotesApp(props: { profile: string; theme: string }) {
   const indexRef = useRef(index);
   indexRef.current = index;
   const search = useMemo(() => (panel === 'search' ? createSearch(index) : null), [index, panel]);
-  const graph = useMemo(() => buildGraph(index), [index]);
+  const inferred = useMemo(() => parseInferred(vault.inferred ?? '', index), [vault.inferred, index]);
+  const graph = useMemo(
+    () => (showAi ? withInferred(buildGraph(index), inferred) : buildGraph(index)),
+    [index, inferred, showAi],
+  );
   const shown = useMemo(
     () => filterGraph(graph, { hidden, ghosts, orphans }),
     [graph, hidden, ghosts, orphans],
@@ -509,6 +526,24 @@ export function NotesApp(props: { profile: string; theme: string }) {
     }
   }
   const links = active ? backlinks(index, active) : [];
+  const suggested = active
+    ? inferred
+        .filter((l) => l.from === active || l.to === active)
+        .map((l) => ({ ...l, other: l.from === active ? l.to : l.from }))
+    : [];
+
+  async function deepGraph() {
+    try {
+      const result = await api.request('deepGraph');
+      setNotice(
+        result === 'opened'
+          ? `${claudeName} is building the deep graph in a new Code session. Its links show up here, in orange, when it’s done.`
+          : `${claudeName} is opening. The deep-graph prompt is on your clipboard: paste it into a new Code session in this vault.`,
+      );
+    } catch (err) {
+      fail(err);
+    }
+  }
 
   function tree(prefix: string, depth: number): React.ReactNode {
     const folders = vault.folders.filter((f) => parentOf(f) === prefix);
@@ -846,10 +881,23 @@ export function NotesApp(props: { profile: string; theme: string }) {
                   <input type="checkbox" checked={ghosts} onChange={(e) => setGhosts(e.target.checked)} />
                   Show missing notes
                 </label>
+                <label title="Connections Claude found that aren’t linked in your notes">
+                  <input type="checkbox" checked={showAi} onChange={(e) => setShowAi(e.target.checked)} />
+                  AI links{inferred.length ? ` (${inferred.length})` : ''}
+                </label>
                 <span className="n-spacer" />
                 <span className="n-hint">
                   {shown.nodes.length} notes{matches ? `, ${matches.size} match` : ''}
                 </span>
+                <button
+                  type="button"
+                  className="secondary n-deep"
+                  title="Ask this profile’s Claude to find connections your notes don’t link yet"
+                  onClick={() => void deepGraph()}
+                >
+                  <Wand2 size={14} />
+                  {inferred.length ? 'Refresh deep graph' : 'Deep graph'}
+                </button>
               </div>
               <GraphView
                 data={shown}
@@ -918,6 +966,21 @@ export function NotesApp(props: { profile: string; theme: string }) {
                   label={`Notes linked with ${noteName(active)}`}
                   onOpen={openFromGraph}
                 />
+              )}
+              {suggested.length > 0 && (
+                <>
+                  <h2>AI-suggested links</h2>
+                  <ul className="n-suggested">
+                    {suggested.map((l) => (
+                      <li key={l.other}>
+                        <button type="button" onClick={() => void openNote(l.other)}>
+                          <strong>{noteName(l.other)}</strong>
+                          {l.reason && <span>{l.reason}</span>}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </>
               )}
               <h2>Backlinks</h2>
               {links.length ? (

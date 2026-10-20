@@ -27,7 +27,7 @@ const trash = mac ? 'Trash' : 'Recycle Bin';
 import type { Snapshot, UpdateCheck } from '../shared.ts';
 import { applyLoginItem, createDesktopShortcut } from './integration.ts';
 import type { ProfileSync } from './sync.ts';
-import { readAll } from '../core/notes.ts';
+import { readAll, readInferred } from '../core/notes.ts';
 import type { SessionView } from '../shared.ts';
 import { brainStatus, checkVault, saveBrain, sharersOf, vaultLabel } from './brain.ts';
 import {
@@ -437,7 +437,11 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
           });
       }
       return Promise.all(
-        [...vaults.values()].map(async (v) => ({ ...v, notes: await readAll(v.folder).catch(() => []) })),
+        [...vaults.values()].map(async (v) => ({
+          ...v,
+          notes: await readAll(v.folder).catch(() => []),
+          inferred: await readInferred(v.folder),
+        })),
       );
     },
     /** Lets other profiles write to this profile's vault. A default vault first moves to its own folder. */

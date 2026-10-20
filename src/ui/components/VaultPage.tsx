@@ -8,7 +8,9 @@ import {
   type Group,
   ringPositions,
   splitVaultNode,
+  withInferred,
 } from '../../core/graph.ts';
+import { parseInferred } from '../../core/inferred.ts';
 import { buildIndex, type NoteText } from '../../core/links.ts';
 import { GraphView, type Positions } from '../../notes/GraphView.tsx';
 import { NotesApp } from '../../notes/NotesApp.tsx';
@@ -137,6 +139,7 @@ interface LoadedVault {
   color: Color;
   profiles: string[];
   notes: NoteText[];
+  inferred: string;
 }
 
 /** Loads every vault's notes, again whenever a vault changes on disk. */
@@ -170,19 +173,24 @@ function Overview(props: { vaults: VaultEntry[] }) {
   const key = props.vaults.map((v) => v.folder).join('\n');
   const loaded = useVaults(key);
   const [sessions, setSessions] = useState(false);
+  const [ai, setAi] = useState(true);
   const graphs = useMemo(
     () =>
-      loaded.map((v) => ({
-        key: v.folder,
-        label: v.name,
-        color: tints[v.color] ?? tints.teal,
-        graph: filterGraph(buildGraph(buildIndex(v.notes)), {
-          hidden: sessions ? new Set<Group>() : quiet,
-          ghosts: false,
-          orphans: true,
-        }),
-      })),
-    [loaded, sessions],
+      loaded.map((v) => {
+        const index = buildIndex(v.notes);
+        const graph = buildGraph(index);
+        return {
+          key: v.folder,
+          label: v.name,
+          color: tints[v.color] ?? tints.teal,
+          graph: filterGraph(ai ? withInferred(graph, parseInferred(v.inferred, index)) : graph, {
+            hidden: sessions ? new Set<Group>() : quiet,
+            ghosts: false,
+            orphans: true,
+          }),
+        };
+      }),
+    [loaded, sessions, ai],
   );
   const data = useMemo(() => combineVaults(graphs), [graphs]);
   const positions = useRef<{ key: string; map: Positions }>({ key: '', map: new Map() });
@@ -192,10 +200,16 @@ function Overview(props: { vaults: VaultEntry[] }) {
     <div className="vault-overview">
       <div className="vault-overview-bar">
         <span className="n-hint">Each circle is one vault. Click a note or a vault’s name to open it.</span>
-        <label className="checkbox-row compact">
-          <input type="checkbox" checked={sessions} onChange={(e) => setSessions(e.target.checked)} />
-          <span>Show session logs</span>
-        </label>
+        <span className="vault-toggles">
+          <label className="checkbox-row compact">
+            <input type="checkbox" checked={ai} onChange={(e) => setAi(e.target.checked)} />
+            <span>AI links</span>
+          </label>
+          <label className="checkbox-row compact">
+            <input type="checkbox" checked={sessions} onChange={(e) => setSessions(e.target.checked)} />
+            <span>Show session logs</span>
+          </label>
+        </span>
       </div>
       {loaded.length ? (
         <GraphView

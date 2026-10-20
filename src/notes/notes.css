@@ -448,6 +448,7 @@
   --g-dim: #e3e6df;
   --g-edge: #cfd5cb;
   --g-edge-on: #66786e;
+  --g-ai: #c2410c;
 }
 [data-theme="dark"] {
   --g-clients: #7fb2ec;
@@ -461,6 +462,7 @@
   --g-dim: #2c362f;
   --g-edge: #3b473e;
   --g-edge-on: #a3b7aa;
+  --g-ai: #fb923c;
 }
 .n-graph {
   position: relative;
@@ -651,4 +653,15 @@ fieldset.n-depth {
   padding: 8px 10px;
   border-radius: 8px;
   background: var(--accent-soft);
+}
+
+/* Deep graph */
+.n-deep {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.n-suggested button {
+  border-left: 3px solid var(--g-ai);
+  padding-left: 8px;
 }

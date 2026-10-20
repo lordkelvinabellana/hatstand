@@ -3,6 +3,7 @@ import { type FSWatcher, watch } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { askPrompt } from '../core/ask.ts';
+import { deepGraphPrompt } from '../core/inferred.ts';
 import { frontmatter } from '../core/brain.ts';
 import { backlinks, buildIndex, noteName } from '../core/links.ts';
 import {
@@ -11,6 +12,7 @@ import {
   listVault,
   moveEntry,
   readAll,
+  readInferred,
   readNote,
   relinkVault,
   saveNote,
@@ -25,6 +27,8 @@ export type VaultLookup = (id: string) => Promise<{ folder: string; name: string
 export interface ClaudeActions {
   openSession(id: string, cliSession: string): Promise<'opened' | 'launched' | 'missing'>;
   ask(id: string, folder: string, question: string): Promise<'opened' | 'launched'>;
+  /** Starts a Code session in the vault that writes the deep-graph links file. */
+  deepGraph(id: string, folder: string): Promise<'opened' | 'launched'>;
 }
 
 const text = (value: unknown) => {
@@ -64,7 +68,8 @@ export class NotesService {
       const entry: { watcher: FSWatcher; timer?: NodeJS.Timeout } = {
         watcher: watch(folder, { recursive: true }, (_event, file) => {
           const rel = String(file ?? '');
-          if (rel.split(/[\\/]/).some((p) => p.startsWith('.')) || rel.endsWith('-tmp')) return;
+          const deep = rel.replaceAll('\\', '/') === '.hatstand/inferred-links.json';
+          if ((!deep && rel.split(/[\\/]/).some((p) => p.startsWith('.'))) || rel.endsWith('-tmp')) return;
           clearTimeout(entry.timer);
           entry.timer = setTimeout(() => this.window()?.webContents.send('notes:changed'), 250);
         }),
@@ -117,7 +122,11 @@ export class NotesService {
         return { name: vault.name, color: vault.color, platform: process.platform };
       case 'load': {
         await fs.mkdir(folder, { recursive: true });
-        return { folders: (await listVault(folder)).folders, notes: await readAll(folder) };
+        return {
+          folders: (await listVault(folder)).folders,
+          notes: await readAll(folder),
+          inferred: await readInferred(folder),
+        };
       }
       case 'read':
         return readNote(folder, payload.path);
@@ -143,6 +152,12 @@ export class NotesService {
         const result = await this.claude.ask(id, folder, question);
         // Where the link can't be delivered, the question waits on the clipboard.
         if (result === 'launched') clipboard.writeText(askPrompt(question));
+        return result;
+      }
+      case 'deepGraph': {
+        const today = new Date().toISOString().slice(0, 10);
+        const result = await this.claude.deepGraph(id, folder);
+        if (result === 'launched') clipboard.writeText(deepGraphPrompt(today));
         return result;
       }
       case 'move':

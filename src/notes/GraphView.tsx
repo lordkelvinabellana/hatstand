@@ -31,6 +31,7 @@ const palette = () => ({
   dim: css('--g-dim'),
   edge: css('--g-edge'),
   edgeOn: css('--g-edge-on'),
+  ai: css('--g-ai'),
   ink: css('--ink'),
   surface: css('--surface'),
 });
@@ -136,6 +137,8 @@ function SigmaGraph(props: {
               : { ...attrs, hidden: true };
           if (highlight && !g.extremities(edge).every((id) => highlight.has(id)))
             return { ...attrs, color: colors.dim, size: 0.5 };
+          // Deep graph: Claude's suggested links, in their own colour.
+          if (attrs.ai) return { ...attrs, color: colors.ai, size: props.compact ? 1.4 : 1.2 };
           return { ...attrs, color: colors.edge, size: props.compact ? 1 : 0.8 };
         },
       });
@@ -226,11 +229,14 @@ function SigmaGraph(props: {
       g.dropEdge(edge);
       changed = true;
     });
-    for (const [a, b] of data.edges)
-      if (!g.hasEdge(`${a}\n${b}`)) {
-        g.addEdgeWithKey(`${a}\n${b}`, a, b);
+    for (const [a, b] of data.edges) {
+      const key = `${a}\n${b}`;
+      const ai = data.ai?.has(key) ?? false;
+      if (!g.hasEdge(key)) {
+        g.addEdgeWithKey(key, a, b, { ai });
         changed = true;
-      }
+      } else g.setEdgeAttribute(key, 'ai', ai);
+    }
     if (!changed || g.order < 2) return;
 
     const settings = {
