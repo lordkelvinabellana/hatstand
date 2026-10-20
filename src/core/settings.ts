@@ -25,6 +25,8 @@ export interface Settings {
   syncEmail: string;
   /** Claude Desktop versions the user marked as working here, which silences the untested-version warning. */
   confirmedVersions: string[];
+  /** Second brain backup: each vault is copied into a subfolder here after every capture. '' = off. */
+  backupFolder: string;
 }
 export const defaults: Settings = {
   theme: 'system',
@@ -40,6 +42,7 @@ export const defaults: Settings = {
   syncKey: '',
   syncEmail: '',
   confirmedVersions: [],
+  backupFolder: '',
 };
 /** Secret and service-role keys bypass row-level security; they must never be stored here. */
 export function isSecretSupabaseKey(key: string) {
@@ -87,7 +90,10 @@ export function validateSettings(input: unknown): Settings {
     (value.executable !== '' && !path.win32.isAbsolute(value.executable)) ||
     !Array.isArray(value.confirmedVersions) ||
     value.confirmedVersions.length > 50 ||
-    !value.confirmedVersions.every((v) => typeof v === 'string' && /^[\w.+-]{1,50}$/.test(v))
+    !value.confirmedVersions.every((v) => typeof v === 'string' && /^[\w.+-]{1,50}$/.test(v)) ||
+    typeof value.backupFolder !== 'string' ||
+    value.backupFolder.length > 1000 ||
+    (value.backupFolder !== '' && !path.isAbsolute(value.backupFolder))
   )
     throw new Error('Invalid settings.');
   return {
@@ -104,6 +110,7 @@ export function validateSettings(input: unknown): Settings {
     syncKey: value.syncKey,
     syncEmail: value.syncEmail.trim(),
     confirmedVersions: [...new Set(value.confirmedVersions as string[])],
+    backupFolder: value.backupFolder,
   };
 }
 export async function readSettings(root: string): Promise<Settings> {

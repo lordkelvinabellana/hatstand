@@ -223,8 +223,16 @@ export async function saveTemplate(vault: string, name: TemplateName, text: stri
 export const shellQuote = (value: string) => `'${value.replaceAll("'", `'\\''`)}'`;
 
 /** Runs the bundled capture script with Hatstand's own executable acting as Node. */
-export function captureCommand(executable: string, script: string, vault: string, profile: string) {
-  return `ELECTRON_RUN_AS_NODE=1 ${[executable, script].map(shellQuote).join(' ')} --vault ${shellQuote(vault)} --profile ${shellQuote(profile)}`;
+export function captureCommand(
+  executable: string,
+  script: string,
+  vault: string,
+  profile: string,
+  /** Where the vault is copied after each capture (the backup folder); omitted when there's none. */
+  backup = '',
+) {
+  const base = `ELECTRON_RUN_AS_NODE=1 ${[executable, script].map(shellQuote).join(' ')} --vault ${shellQuote(vault)} --profile ${shellQuote(profile)}`;
+  return backup ? `${base} --backup ${shellQuote(backup)}` : base;
 }
 
 /** The `hatstand-notes` MCP server entry for a profile's Claude Code and Claude Desktop configs. */

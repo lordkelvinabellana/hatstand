@@ -31,6 +31,8 @@ export interface Snapshot {
   processError?: string;
   hotkeyError?: string;
   version: string;
+  /** The commit this build came from (dist/build.json), '' when unknown. */
+  build: string;
   packaged: boolean;
   dataFolder: string;
   sync: SyncStatus;

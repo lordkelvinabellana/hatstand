@@ -1,6 +1,6 @@
 {
   "name": "hatstand",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Open-source Windows and macOS launcher that keeps each client’s Claude Desktop account in its own profile.",
   "keywords": [

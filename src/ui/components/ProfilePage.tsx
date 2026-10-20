@@ -122,9 +122,11 @@ export function ProfilePage(props: { id: string }) {
             </ul>
           ) : (
             <p className="n-hint">
-              {data.platform === 'darwin' && data.settings.pets
-                ? 'Nothing running right now. Sessions show up here while Claude Code works.'
-                : 'Running tasks come from the menu-bar pets. Turn them on in Settings to see them here.'}
+              {data.platform !== 'darwin'
+                ? 'Running tasks show on macOS for now; Windows support is coming.'
+                : data.settings.pets
+                  ? 'Nothing running right now. Sessions show up here while Claude Code works.'
+                  : 'Running tasks come from the menu-bar pets. Turn them on in Settings to see them here.'}
             </p>
           )}
         </div>

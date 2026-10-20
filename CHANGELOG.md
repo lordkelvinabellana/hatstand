@@ -4,7 +4,19 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-20
+
 ### Added
+
+- **Remove Hatstand’s changes** (Settings → Local data): turns off menu-bar pets and every second brain and removes their hooks, CLAUDE.md sections and notes tool from each profile’s Claude settings. Notes, vaults and backups are kept; your own hooks and settings are left alone.
+- **Second brain backup** (Settings): pick a folder (for example one Obsidian opens) and every vault is copied into its own subfolder after each Claude reply. It only adds and updates notes, never deletes.
+- **Notes you can find**: a profile’s first vault now goes to `Documents/Hatstand Notes/<profile>` instead of Hatstand’s data folder. Existing vaults stay where they are.
+- **Build marker**: the sidebar shows the commit a build came from next to the version.
+- After a Claude update, the untested-version banner says which version profiles last worked on.
+
+### Changed
+
+- On Windows, the profile page says running tasks are macOS-only for now instead of pointing to a pets setting that doesn’t exist there.
 
 - Clicking anywhere on a profile's row opens its page; the checkbox, drag handle, Launch and actions menu keep their own jobs.
 - A vault now opens on its graph; clicking a note opens the editor as before.

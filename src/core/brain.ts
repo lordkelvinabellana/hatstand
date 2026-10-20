@@ -386,6 +386,35 @@ function transcriptFor(sessionId: string) {
   return transcripts(sessionId).sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)[0];
 }
 
+/**
+ * Copies the vault into `dest` (a backup, e.g. inside an Obsidian folder): new and changed files only,
+ * hidden files skipped, nothing in `dest` ever deleted. Returns how many files were copied.
+ */
+export function backupVault(vault: string, dest: string): number {
+  let copied = 0;
+  const walk = (rel: string) => {
+    for (const entry of fs.readdirSync(path.join(vault, rel), { withFileTypes: true })) {
+      if (entry.name.startsWith('.') || entry.name.endsWith('-tmp') || entry.isSymbolicLink()) continue;
+      const child = path.join(rel, entry.name);
+      if (entry.isDirectory()) walk(child);
+      else if (entry.isFile()) {
+        const from = path.join(vault, child);
+        const to = path.join(dest, child);
+        const a = fs.statSync(from);
+        const b = fs.statSync(to, { throwIfNoEntry: false });
+        // Copied times can lose sub-millisecond precision, hence the 1 ms slack.
+        if (b && b.size === a.size && b.mtimeMs + 1 >= a.mtimeMs) continue;
+        fs.mkdirSync(path.dirname(to), { recursive: true });
+        fs.copyFileSync(from, to);
+        fs.utimesSync(to, a.atime, a.mtime);
+        copied++;
+      }
+    }
+  };
+  walk('');
+  return copied;
+}
+
 /** The capture command line: hook mode, `--context`, `--path` or `--backfill`. Never throws in hook mode. */
 export function runCapture(args: string[], stdin: () => string, print: (text: string) => void) {
   const value = (flag: string) => {
@@ -394,7 +423,9 @@ export function runCapture(args: string[], stdin: () => string, print: (text: st
   };
   const vault = value('--vault');
   if (!vault) {
-    print('Usage: capture --vault <folder> [--profile <name>] [--context | --path | --backfill]');
+    print(
+      'Usage: capture --vault <folder> [--profile <name>] [--backup <folder>] [--context | --path | --backfill]',
+    );
     return;
   }
   // Cleaned once so file names and [[links]] agree.
@@ -431,6 +462,8 @@ export function runCapture(args: string[], stdin: () => string, print: (text: st
         typeof hook.session_id === 'string' ? hook.session_id : path.basename(t, '.jsonl'),
         t,
       );
+    const backup = value('--backup');
+    if (backup && path.isAbsolute(backup)) backupVault(vault, backup);
   } catch (error) {
     // A logging failure must never disturb the session.
     try {

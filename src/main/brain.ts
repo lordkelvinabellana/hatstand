@@ -191,7 +191,16 @@ export async function wireBrains(root: string, controller: Controller, profiles:
     const settings = await readJson(settingsFile);
     if (!settings || hasExternalCapture(settings)) continue;
     const { folder } = await brainStatus(root, controller, profile.id);
-    const command = choice.enabled ? captureCommand(process.execPath, script, folder, profile.name) : null;
+    const backupRoot = controller.settings.backupFolder;
+    const backup = backupRoot
+      ? path.join(
+          backupRoot,
+          (await vaultLabel(root, controller, profiles, folder)).replace(/[\\/:*?"<>|]/g, '-'),
+        )
+      : '';
+    const command = choice.enabled
+      ? captureCommand(process.execPath, script, folder, profile.name, backup)
+      : null;
     if (command) await seedVault(folder, new Date().toISOString().slice(0, 10));
     const next = withBrainHooks(settings, command);
     // Unchanged content is not rewritten, so a missing settings.json is not created just to stay empty.
