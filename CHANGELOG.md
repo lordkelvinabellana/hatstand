@@ -6,6 +6,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ### Added
 
+- Clicking anywhere on a profile's row opens its page; the checkbox, drag handle, Launch and actions menu keep their own jobs.
 - A vault now opens on its graph; clicking a note opens the editor as before.
 - **Deep graph**: a button on a vault's graph asks that profile's own Claude (a new Code session in the vault, via the usual `claude://` link) to find connections the notes don't link yet and write them to `.hatstand/inferred-links.json`. Hatstand checks the file (only notes that exist, no repeats, capped) and draws those links in orange on the vault graph and the all-vaults graph, with an **AI links** toggle and an **AI-suggested links** list (with Claude's reason) beside each note. Notes are never edited, and nothing beyond the signed-in Claude is needed.
 - **“Works for me” for untested Claude versions**: the untested-version banner has a **Works for me** button; once you mark your installed Claude version as working, the banner stays away for that version. Undo it, or report a problem, under Compatibility. The diagnostic summary says whether you confirmed the version.

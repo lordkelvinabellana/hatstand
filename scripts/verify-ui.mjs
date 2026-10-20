@@ -40,7 +40,8 @@ const until = async (check, message) => {
 /** Profile rows open the profile page; its Edit button opens the editor dialog. */
 async function editProfile(page, n) {
   await page.getByRole('button', { name: 'Client profiles', exact: true }).click();
-  await page.locator('.profile-identity').nth(n).click();
+  // Anywhere on the row opens the profile, not just its name.
+  await page.locator('.profile-row .profile-status').nth(n).click();
   await page.locator('.profile-hero').waitFor();
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
 }

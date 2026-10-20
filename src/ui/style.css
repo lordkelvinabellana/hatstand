@@ -322,6 +322,9 @@ p {
 .profile-row:last-child {
   border-bottom: 0;
 }
+.profile-row {
+  cursor: pointer;
+}
 .profile-row.selected {
   background: var(--accent-soft);
 }
