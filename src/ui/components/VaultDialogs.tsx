@@ -110,7 +110,7 @@ export function SetupVault(props: { profile: ProfileView; onClose(): void }) {
     >
       <p className="vault-lead">
         Claude Code sessions in this profile will log themselves and keep client, project, people and tool
-        notes.
+        notes. This works in Claude’s Code tab only; regular chats aren’t captured.
       </p>
       <div className="choice-list" role="radiogroup" aria-label="Where notes go">
         <label className={`choice ${choice === 'own' ? 'chosen' : ''}`}>
