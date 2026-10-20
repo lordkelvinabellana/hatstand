@@ -243,6 +243,7 @@ export const ProfilesPage = forwardRef<HTMLInputElement, Props>(function Profile
           ) : (
             <div className="profile-list">
               {visible.map((profile) => (
+                // biome-ignore lint/a11y/useKeyWithClickEvents: keyboard users open the profile with its name button.
                 <article
                   className={`profile-row ${props.editing === profile.id ? 'selected' : ''} ${dragging === profile.id ? 'dragging' : ''} ${dropTarget === profile.id && dragging !== profile.id ? 'drop-target' : ''}`}
                   key={profile.id}
