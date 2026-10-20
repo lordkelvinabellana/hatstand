@@ -411,8 +411,8 @@ export function SettingsPage() {
       <section className="setting-section transfer">
         <h2>Second brain backup</h2>
         <p>
-          After every Claude reply, each vault is copied into its own folder here, for example a folder you
-          open in Obsidian. The backup only adds and updates notes; it never deletes any.
+          After every Claude reply, each vault is copied into its own folder here, for example a folder your
+          note-taking app opens. The backup only adds and updates notes; it never deletes any.
         </p>
         {data.settings.backupFolder ? (
           <p className="path-text">{data.settings.backupFolder}</p>
