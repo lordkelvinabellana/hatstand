@@ -112,8 +112,9 @@ export function NotesApp(props: { profile: string; theme: string }) {
   const [dialog, setDialog] = useState<Dialog>(null);
   const [error, setError] = useState('');
   // The graph is a tab of its own: `graphOpen` keeps the tab, `onGraph` shows it instead of the editor.
-  const [graphOpen, setGraphOpen] = useState(false);
-  const [onGraph, setOnGraph] = useState(false);
+  // A vault opens on its graph; opening a note switches to the editor.
+  const [graphOpen, setGraphOpen] = useState(true);
+  const [onGraph, setOnGraph] = useState(true);
   const [hidden, setHidden] = useState<Set<Group>>(new Set());
   const [ghosts, setGhosts] = useState(false);
   const [orphans, setOrphans] = useState(true);

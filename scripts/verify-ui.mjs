@@ -66,6 +66,7 @@ async function checkNotes(vault) {
   await main.getByRole('dialog').getByRole('button', { name: 'Open notes' }).click();
   const notes = main;
   await notes.locator('.n-app').waitFor();
+  await notes.locator('section.n-graph').waitFor(); // a vault opens on its graph
   await instance.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1280, 720));
   const profile = (await readProfiles()).find((p) => p.name === 'North Studio').id;
   const tree = notes.getByRole('navigation', { name: 'Notes and folders' });
