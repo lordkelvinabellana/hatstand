@@ -246,6 +246,17 @@ export const ProfilesPage = forwardRef<HTMLInputElement, Props>(function Profile
                 <article
                   className={`profile-row ${props.editing === profile.id ? 'selected' : ''} ${dragging === profile.id ? 'dragging' : ''} ${dropTarget === profile.id && dragging !== profile.id ? 'drop-target' : ''}`}
                   key={profile.id}
+                  // The whole row opens the profile; its own controls (select, drag, launch, menu) keep their jobs.
+                  // Keyboard users have the name button, which does the same.
+                  onClick={(e) => {
+                    if (
+                      (e.target as HTMLElement).closest(
+                        'button, input, a, label, [role="menu"], .drag-handle',
+                      )
+                    )
+                      return;
+                    openProfile(profile.id);
+                  }}
                   onDragOver={(e) => {
                     if (!dragging) return;
                     e.preventDefault();
