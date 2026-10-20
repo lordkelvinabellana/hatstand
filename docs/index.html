@@ -157,6 +157,7 @@
   .section-head { max-width: 46rem; margin-bottom: 44px; }
   .section-head h2 { font-size: clamp(28px, 3.6vw, 40px); line-height: 1.15; letter-spacing: -0.025em; margin: 0 0 12px; }
   .section-head p { color: var(--muted); margin: 0; }
+  .section-head p.scope { margin-top: 14px; }
   .kicker { font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
 
   /* Problem */
@@ -244,6 +245,7 @@
       <a href="#features">Features</a>
       <a href="#second-brain">Second brain</a>
       <a href="#honest">What's separate</a>
+      <a href="#roadmap">Roadmap</a>
       <a href="#faq">FAQ</a>
       <a href="https://github.com/lordkelvinabellana/hatstand">GitHub</a>
       <a class="button primary small" href="https://github.com/lordkelvinabellana/hatstand/releases/latest">Download</a>
@@ -364,6 +366,7 @@
         <div class="kicker">Second brain</div>
         <h2>Every client gets its own second brain.</h2>
         <p>Turn it on for a profile and Claude keeps notes as you work: clients, projects, people, tools, and a log of every session. They're plain Markdown files on your computer, and each client's notes stay with that client unless you share them.</p>
+        <p class="scope"><span class="tag wait">Claude Code only</span> Notes come from Claude Code sessions (the Code tab in Claude Desktop). Regular Claude chats aren't captured.</p>
       </div>
       <div class="features">
         <div class="feature">
@@ -433,6 +436,45 @@
         <div class="card">
           <h3><span class="tag wait">Not yet verified</span></h3>
           <ul><li>Cowork and Desktop Code separation</li><li>Signing out of one client only</li><li>Staying signed in after a reboot</li></ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="roadmap">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="kicker">Roadmap</div>
+        <h2>What's coming next.</h2>
+        <p>Ideas, not promises. Tell me what you'd use, or what's missing, in <a href="https://github.com/lordkelvinabellana/hatstand/issues">GitHub issues</a>.</p>
+      </div>
+      <div class="honest">
+        <div class="card">
+          <h3><span class="tag yes">Next</span></h3>
+          <ul>
+            <li><b>Signed builds</b> for Mac and Windows, so they open without a warning.</li>
+            <li><b>Pets on Windows</b>, in the tray.</li>
+            <li><b>Which client is this?</b> A clear marker on every Claude window.</li>
+            <li><b>Answers in the Ask box</b>, straight from that client's notes.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3><span class="tag wait">Exploring</span></h3>
+          <ul>
+            <li><b>ChatGPT and Codex</b>: one profile per client for them too, next to Claude.</li>
+            <li><b>Agent view</b>: a pixel-art office where each client's pet works at its desk, so you see which account is busy and on what.</li>
+            <li><b>Time and usage per client</b>: sessions and tokens per client, handy for invoices.</li>
+            <li><b>A morning brief</b>: each client's open to-dos and what's waiting on whom, from its second brain.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3><span class="tag no">Later</span></h3>
+          <ul>
+            <li><b>Encrypted sync</b> of your notes between computers.</li>
+            <li><b>Automatic updates</b> that you control.</li>
+            <li><b>Window layouts</b> restored per client.</li>
+            <li><b>Windows on ARM</b> builds.</li>
+          </ul>
         </div>
       </div>
     </div>

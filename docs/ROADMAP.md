@@ -24,6 +24,15 @@ Done: capture, per-profile vaults, hook and CLAUDE.md wiring, opt-in toggle, vau
 2. Editor extras if wanted: images and attachments, tables, split panes, links by path updated when a folder moves.
 3. Maybe later: one-way linking between vaults on one machine, and end-to-end-encrypted hosted sync.
 
+## Exploring
+
+Ideas from early users and the website's roadmap; each needs a feasibility check before any commitment.
+
+- **ChatGPT and Codex**: the same one-profile-per-client launcher for ChatGPT's desktop app and Codex, next to Claude.
+- **Agent view**: a pixel-art office where each client's pet works at its desk, showing which account is busy and on what (from the same Claude Code hooks the pets use).
+- **Time and usage per client**: sessions and tokens per client from Claude Code transcripts, for invoicing.
+- **A morning brief**: each client's open to-dos and what's waiting on whom, from its second brain.
+
 ## Later, only if compatibility allows
 
 - Per-profile MCP configuration editor with validation and backup.
