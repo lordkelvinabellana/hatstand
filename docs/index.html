@@ -22,7 +22,7 @@
 <meta name="twitter:description" content="Run multiple Claude Desktop accounts side by side, without signing out. Free and open source.">
 <meta name="twitter:image" content="https://hatstand.vercel.app/images/profiles.png">
 <meta name="theme-color" content="#236553">
-<meta name="color-scheme" content="light dark">
+<meta name="color-scheme" content="light">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -71,29 +71,6 @@
     --warn-ink: #6b501a;
     --shadow: 0 24px 60px -28px rgba(21, 45, 36, 0.35);
     color-scheme: light;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg: #161c19;
-      --surface: #1f2723;
-      --sunk: #1b221e;
-      --ink: #e8ede5;
-      --muted: #aab6ab;
-      --line: #334037;
-      --accent: #94d4b6;
-      --accent-strong: #b1e2ca;
-      --accent-soft: #283d33;
-      --on-accent: #142219;
-      --warn-bg: #3d3422;
-      --warn-ink: #edd6a7;
-      --shadow: 0 24px 60px -28px rgba(0, 0, 0, 0.7);
-      color-scheme: dark;
-    }
-  }
-  :root[data-theme="dark"] {
-    --bg: #161c19; --surface: #1f2723; --sunk: #1b221e; --ink: #e8ede5; --muted: #aab6ab; --line: #334037;
-    --accent: #94d4b6; --accent-strong: #b1e2ca; --accent-soft: #283d33; --on-accent: #142219;
-    --warn-bg: #3d3422; --warn-ink: #edd6a7; --shadow: 0 24px 60px -28px rgba(0, 0, 0, 0.7); color-scheme: dark;
   }
 
   * { box-sizing: border-box; }
@@ -146,11 +123,9 @@
   .fine { font-size: 14px; color: var(--muted); margin-top: 16px; }
   .shot { margin: 56px auto 0; max-width: 1040px; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); box-shadow: var(--shadow); background: var(--surface); }
   .shot img { width: 100%; height: auto; }
-  .shot .dark-shot { display: none; }
   .shot.video { margin-top: 0; }
   .shot video { display: block; width: 100%; height: auto; }
   #second-brain .features { margin-bottom: 28px; }
-  @media (prefers-color-scheme: dark) { .shot .light-shot { display: none; } .shot .dark-shot { display: block; } }
 
   section { padding: 84px 0; }
   section + section { border-top: 1px solid var(--line); }
@@ -274,8 +249,7 @@
     </div>
     <p class="fine">Windows 11 x64 · macOS on Apple silicon or Intel · Requires the official Claude Desktop app · Preview release</p>
     <div class="shot">
-      <img class="light-shot" src="images/profiles.png" width="1104" height="737" alt="Hatstand's client list with three sample clients, each with a colored avatar, status, and a Launch button">
-      <img class="dark-shot" src="images/dark.png" width="1104" height="737" alt="" aria-hidden="true">
+      <img src="images/profiles.png" width="1104" height="737" alt="Hatstand's client list with three sample clients, each with a colored avatar, status, and a Launch button">
     </div>
   </div>
 
