@@ -5,9 +5,9 @@
 
 **One hat per client.** Keep each client's Claude Desktop account in its own profile, and switch between them without signing out.
 
-**[Website](https://hatstand.vercel.app/)** · **[Download](https://github.com/lordkelvinabellana/hatstand/releases/latest)** · **[Compatibility](docs/COMPATIBILITY.md)**
+**[Website](https://hatstand.vercel.app/)** · **[Watch the 52 s video](https://hatstand.vercel.app/#watch)** · **[Download](https://github.com/lordkelvinabellana/hatstand/releases/latest)** · **[Compatibility](docs/COMPATIBILITY.md)**
 
-Hatstand is a small, open-source Windows and macOS launcher for people who use Claude Desktop with several accounts, such as consultants and agencies working for multiple clients. Create a profile per client, sign in once inside the official Claude app, then launch or focus any client from a list, the tray, a keyboard shortcut, or a desktop shortcut. On a Mac, each client also gets a pixel pet in the menu bar that tells you when that account's Claude needs you or has finished.
+Hatstand is a small, open-source Windows and macOS launcher for people who use Claude Desktop with several accounts, such as consultants and agencies working for multiple clients. Create a profile per client, sign in once inside the official Claude app, then launch or focus any client from a list, the tray, a keyboard shortcut, or a desktop shortcut. On a Mac, each client also gets a pixel pet in the menu bar that tells you when that account's Claude needs you or has finished. Each client can also keep its own second brain: notes Claude writes as you work, a graph of how they connect, and links Claude finds that you missed.
 
 ![Hatstand profile list with three sample clients](docs/images/profiles.png)
 
@@ -28,6 +28,8 @@ Hatstand starts Claude with a separate data folder for each profile by setting `
 - **Menu-bar pets (macOS)**: one pet per client that shows working, needs input, or done, with its own sound, and a panel of that account's active sessions.
 - **Second brain (optional, per profile)**: each profile can keep its own Markdown notes vault. Claude Code logs every session there and keeps notes on clients, projects, people and tools. Off by default; see [Second brain](#second-brain).
 - **Second brain page**: every vault in one graph (each vault its own circle), a card per vault, and each vault's notes inside Hatstand, with live-preview Markdown, `[[wikilinks]]`, search, backlinks and a graph. Share a vault with other profiles that do the same work. See [Notes](#notes).
+- **Second brain backup**: pick a folder, for example one your note-taking app opens, and every vault is copied there after each Claude reply. It only adds and updates notes, never deletes.
+- **Remove Hatstand's changes** (Settings, Local data): one click turns off menu-bar pets and every second brain and removes their hooks, `CLAUDE.md` sections and notes tool from each profile. Your notes, vaults and backups are kept.
 - **Profile page**: click a profile to see its details, what its Claude Code sessions are doing right now, and its second brain.
 - **Keyboard first**: a global shortcut opens Hatstand (Ctrl+Shift+Space by default), per-profile shortcuts jump straight to a client, and Ctrl+K searches.
 - **Windows integration**: tray menu, taskbar jump list, per-client desktop shortcuts, optional start with Windows, and profiles that open at sign-in.
