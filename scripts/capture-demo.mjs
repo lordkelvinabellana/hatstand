@@ -83,7 +83,7 @@ await fs.writeFile(
       syncKey: '',
       syncEmail: '',
       confirmedVersions: claude ? [claude] : [],
-      backupFolder: path.join(root, 'Obsidian', 'Hatstand Backup'),
+      backupFolder: path.join(docs, 'Notes Backup'),
     },
     null,
     2,
