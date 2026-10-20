@@ -1,4 +1,5 @@
 import * as fs from 'node:fs/promises';
+import { writeFileAtomic } from './files.ts';
 import path from 'node:path';
 import { renameLinks } from './links.ts';
 
@@ -80,11 +81,6 @@ export async function readAll(vault: string) {
   return Promise.all(notes.map(async (p) => ({ path: p, text: await readNote(vault, p).catch(() => '') })));
 }
 
-async function atomicWrite(file: string, text: string) {
-  await fs.writeFile(`${file}.hatstand-tmp`, text);
-  await fs.rename(`${file}.hatstand-tmp`, file);
-}
-
 /**
  * Saves `text` only when the file still holds `base` (what the editor loaded). Otherwise nothing is
  * written and the disk text comes back, so a note Claude wrote meanwhile is never overwritten.
@@ -96,7 +92,7 @@ export async function saveNote(vault: string, rel: unknown, text: string, base: 
     throw error;
   });
   if (disk !== null && base !== null && disk !== base && disk !== text) return { conflict: disk };
-  if (disk !== text) await atomicWrite(file, text);
+  if (disk !== text) await writeFileAtomic(file, text);
   return { conflict: null };
 }
 
@@ -153,7 +149,7 @@ export async function relinkVault(vault: string, old: string, next: string) {
   for (const note of await readAll(vault)) {
     const text = renameLinks(note.text, old, next);
     if (text === note.text) continue;
-    await atomicWrite(await notePath(vault, note.path), text);
+    await writeFileAtomic(await notePath(vault, note.path), text);
     changed.push(note.path);
   }
   return changed;

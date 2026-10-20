@@ -29,6 +29,11 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 - **Graph view**: a Graph tab in the Notes window draws the vault's notes and `[[wikilinks]]` (sigma.js, graphology, ForceAtlas2 in a worker), coloured by folder and sized by links, with a legend, folder toggles, hide Sessions and Daily, hide orphans, faint dots for missing notes, and search highlighting. Click opens a note, hover lights up its neighbours, and it updates live. A local graph (one or two links deep) sits above the backlinks.
 - **Claude in the Notes window**: session notes open their Claude Code session in the profile's own Claude Desktop; an **Ask** panel starts a new Code session in the vault there with the question filled in; and a read-only `hatstand-notes` MCP server (search, read, links) is registered in the profile's Claude Code and Claude Desktop settings while the second brain is on. Links only ever go to that profile's own Claude.
 
+### Fixed
+
+- Windows: Hatstand could fail to save a profile's Claude Code settings when the pets and the second brain updated them at the same time, or when another program briefly had the file open. Writes to that file now take turns, and a briefly locked file is retried.
+- The running-task card layout.
+
 ### Changed
 
 - Creating or editing a profile now opens a centered popup instead of a side panel. The Create / Save button stays visible at the bottom, so there's no scrolling to finish. Escape or clicking outside closes it.
