@@ -255,7 +255,8 @@ export function ProfileEditor(props: { editing: string; onClose(): void }) {
                     Keep notes from Claude Code sessions
                     <small>
                       Logs each session and asks Claude to keep client, project, people and tool notes. Only
-                      this profile can see this vault.
+                      this profile can see this vault. Works in the Code tab only; regular chats aren’t
+                      captured.
                     </small>
                   </span>
                 </label>

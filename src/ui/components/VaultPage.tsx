@@ -86,7 +86,8 @@ export function VaultPage(props: { open: string | null }) {
           <h1>Second brain</h1>
           <p>
             Each profile’s Claude Code sessions keep notes in a vault: clients, projects, people, tools and a
-            log of every session. Vaults stay separate unless you share one.
+            log of every session. Vaults stay separate unless you share one. Only sessions in Claude’s Code
+            tab are captured, not regular chats.
           </p>
         </div>
       </div>
