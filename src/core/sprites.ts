@@ -187,6 +187,24 @@ const glyphs: Record<string, string[]> = {
   dots1: ['......', '......', 'k.k...', '......', '......'],
   dots2: ['......', '......', 'k.k.k.', '......', '......'],
 };
+// 3 x 5 digits for the number of working sessions; more than nine shows a plus.
+const digits: Record<string, string[]> = {
+  2: ['kk.', '..k', '.k.', 'k..', 'kkk'],
+  3: ['kk.', '..k', '.k.', '..k', 'kk.'],
+  4: ['k.k', 'k.k', 'kkk', '..k', '..k'],
+  5: ['kkk', 'k..', 'kk.', '..k', 'kk.'],
+  6: ['.kk', 'k..', 'kkk', 'k.k', 'kkk'],
+  7: ['kkk', '..k', '.k.', '.k.', '.k.'],
+  8: ['kkk', 'k.k', 'kkk', 'k.k', 'kkk'],
+  9: ['kkk', 'k.k', 'kkk', '..k', 'kk.'],
+  '+': ['...', '.k.', 'kkk', '.k.', '...'],
+};
+
+/** Extra detail for a working pet: sessions still working, and whether another one already finished. */
+export interface Badge {
+  working: number;
+  finished: boolean;
+}
 
 const bodies: Record<Color, string> = {
   teal: '#3fbf92',
@@ -214,7 +232,13 @@ export const fullWidth = 26;
 export const petHeight = 16;
 
 /** Draws one animation frame as a grid of RGBA pixels. */
-export function drawPet(speciesIndex: number, color: Color, mood: Mood, frame: number): RGBA[][] {
+export function drawPet(
+  speciesIndex: number,
+  color: Color,
+  mood: Mood,
+  frame: number,
+  badge: Badge = { working: 0, finished: false },
+): RGBA[][] {
   const sprite = sprites[speciesIndex % sprites.length];
   const withBubble = mood === 'ask' || mood === 'done' || mood === 'working';
   const width = withBubble ? fullWidth : petWidth;
@@ -245,7 +269,10 @@ export function drawPet(speciesIndex: number, color: Color, mood: Mood, frame: n
     // The bubble blinks while the pet is asking, so it catches the eye.
     const showGlyph = mood !== 'ask' || frame % 4 !== 3;
     stamp(grid, bubble, petWidth, 0, (ch) => palette[ch]);
-    if (showGlyph) stamp(grid, glyph, petWidth + 2, 2, (ch) => palette[ch]);
+    if (mood === 'working' && badge.working > 1)
+      stamp(grid, digits[badge.working > 9 ? '+' : badge.working], petWidth + 4, 2, (ch) => palette[ch]);
+    else if (showGlyph) stamp(grid, glyph, petWidth + 2, 2, (ch) => palette[ch]);
+    if (mood === 'working' && badge.finished) stamp(grid, ['gg', 'gg'], petWidth + 8, 0, (ch) => palette[ch]);
   }
   return grid;
 }
