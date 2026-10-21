@@ -57,13 +57,13 @@ export function panelHtml(
         ].filter(Boolean)
       : [];
     return `<details class="session" id="${id}"${open ? ' open' : ''}>
-      <summary><span class="dot ${session.state}"></span><b>${esc(clip(summary?.title || 'Claude session', 48))}</b><span class="when">${plan.length ? `${finished}/${plan.length} · ` : ''}${ago(session.at)}</span></summary>
+      <summary><span class="dot ${session.state}"></span><b>${esc(clip(summary?.title || 'Claude session', 48))}</b><span class="when">${plan.length ? `${finished}/${plan.length} · ` : ''}${ago(session.at)}</span><a class="x" href="hatstand-pet://remove/${id}" title="Remove from the list" aria-label="Remove from the list">×</a></summary>
       <div class="body"><div class="meta">${stateLabels[session.state]}${summary?.cwd ? ` · ${esc(clip(path.basename(summary.cwd), 40))}` : ''}</div>
       ${summary?.prompt ? `<div class="prompt">${esc(clip(summary.prompt, 140))}</div>` : ''}
       ${plan.length ? `<div class="progress"><span style="width:${Math.round((finished / plan.length) * 100)}%"></span></div><div class="meta">${finished} of ${plan.length} tasks done</div><ol>${steps}</ol>` : ''}
       ${summary?.background ? `<div class="meta">${summary.background} background task${summary.background > 1 ? 's' : ''} running</div>` : ''}
       ${usage.length ? `<div class="usage">${usage.map(esc).join(' · ')}</div>` : ''}
-      <a class="go" href="hatstand-pet://open/${id}">Open in Claude</a> <a class="go" href="hatstand-pet://remove/${id}">Remove</a></div>
+      <a class="go" href="hatstand-pet://open/${id}">Open in Claude</a></div>
     </details>`;
   });
   // The header counts every session, so a check on one never hides that others are still working.
@@ -75,6 +75,7 @@ export function panelHtml(
       count('done') && `${count('done')} done`,
     ]
       .filter(Boolean)
+      .map((part) => `<span class="nw">${part}</span>`)
       .join(' · ') || labels[pet.mood];
   return `<!doctype html><html><head><meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; script-src 'sha256-${reportHash}'">
@@ -86,11 +87,12 @@ body { font: 12px/1.4 -apple-system, BlinkMacSystemFont, sans-serif; color: var(
 .card { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
 header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
 header img { width: 32px; height: 32px; image-rendering: pixelated; }
-header div { display: flex; flex-direction: column; }
+header div { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.nw { white-space: nowrap; }
 header b { font-size: 13px; }
 header span { color: var(--muted); }
 a { color: inherit; text-decoration: none; }
-.open { margin-left: auto; padding: 4px 10px; border-radius: 6px; background: var(--track); font-weight: 600; }
+.open { margin-left: auto; padding: 4px 10px; border-radius: 6px; background: var(--track); font-weight: 600; white-space: nowrap; flex: none; }
 .open:hover { background: var(--line); }
 footer { border-top: 1px solid var(--line); padding: 6px 8px; text-align: right; }
 .clear { display: inline-block; padding: 3px 8px; border-radius: 6px; color: var(--muted); font-weight: 600; }
@@ -106,6 +108,8 @@ summary b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .body { padding: 0 12px 10px 26px; }
 .go { display: inline-block; margin-top: 8px; padding: 3px 9px; border-radius: 6px; background: var(--track); font-weight: 600; }
 .go:hover { background: var(--line); }
+.x { flex: none; width: 18px; height: 18px; display: grid; place-items: center; border-radius: 4px; color: var(--muted); font-size: 14px; line-height: 1; }
+.x:hover { background: var(--line); color: var(--fg); }
 .when { margin-left: auto; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 .dot.ask { background: #ff5a36; } .dot.done { background: #22b35e; } .dot.working { background: #5fa2ea; }
