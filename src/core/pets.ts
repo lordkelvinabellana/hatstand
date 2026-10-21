@@ -1,7 +1,7 @@
 import { crc32, deflateSync } from 'node:zlib';
-import { type Mood, type RGBA, speciesNames } from './sprites.ts';
+import { type Badge, type Mood, type RGBA, speciesNames } from './sprites.ts';
 
-export { drawPet, type Mood, speciesNames } from './sprites.ts';
+export { type Badge, drawPet, type Mood, speciesNames } from './sprites.ts';
 
 /**
  * Menu-bar pets: one pixel pet per profile that shows what that account's Claude Code
@@ -22,11 +22,24 @@ const minute = 60_000;
 // these ages; raise them if long tool-free thinking ever shows the pet idle too early.
 const maxAge = { working: 20 * minute, ask: 12 * 60 * minute, done: 12 * 60 * minute };
 
+const live = (sessions: SessionState[], now: number) =>
+  sessions.filter((s) => maxAge[s.state] && now - s.at < maxAge[s.state]);
+
+/** Asking beats working beats done: the check shows only once nothing is still working. */
 export function petMood(running: boolean, sessions: SessionState[], now: number): Mood {
-  const live = sessions.filter((s) => maxAge[s.state] && now - s.at < maxAge[s.state]);
-  for (const state of ['ask', 'done', 'working'] as const)
-    if (live.some((s) => s.state === state)) return state;
+  const current = live(sessions, now);
+  for (const state of ['ask', 'working', 'done'] as const)
+    if (current.some((s) => s.state === state)) return state;
   return running ? 'idle' : 'sleep';
+}
+
+/** What a working pet's bubble adds: how many sessions are working, and whether one already finished. */
+export function petBadge(sessions: SessionState[], now: number): Badge {
+  const current = live(sessions, now);
+  return {
+    working: current.filter((s) => s.state === 'working').length,
+    finished: current.some((s) => s.state === 'done'),
+  };
 }
 
 export function parseSession(text: string): SessionState | null {

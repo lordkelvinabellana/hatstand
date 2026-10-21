@@ -63,9 +63,19 @@ export function panelHtml(
       ${plan.length ? `<div class="progress"><span style="width:${Math.round((finished / plan.length) * 100)}%"></span></div><div class="meta">${finished} of ${plan.length} tasks done</div><ol>${steps}</ol>` : ''}
       ${summary?.background ? `<div class="meta">${summary.background} background task${summary.background > 1 ? 's' : ''} running</div>` : ''}
       ${usage.length ? `<div class="usage">${usage.map(esc).join(' · ')}</div>` : ''}
-      <a class="go" href="hatstand-pet://open/${id}">Open in Claude</a></div>
+      <a class="go" href="hatstand-pet://open/${id}">Open in Claude</a> <a class="go" href="hatstand-pet://remove/${id}">Remove</a></div>
     </details>`;
   });
+  // The header counts every session, so a check on one never hides that others are still working.
+  const count = (state: SessionState['state']) => sessions.filter((s) => s.session.state === state).length;
+  const status =
+    [
+      count('ask') && `${count('ask')} need${count('ask') > 1 ? '' : 's'} you`,
+      count('working') && `${count('working')} working`,
+      count('done') && `${count('done')} done`,
+    ]
+      .filter(Boolean)
+      .join(' · ') || labels[pet.mood];
   return `<!doctype html><html><head><meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; script-src 'sha256-${reportHash}'">
 <style>
@@ -82,6 +92,9 @@ header span { color: var(--muted); }
 a { color: inherit; text-decoration: none; }
 .open { margin-left: auto; padding: 4px 10px; border-radius: 6px; background: var(--track); font-weight: 600; }
 .open:hover { background: var(--line); }
+footer { border-top: 1px solid var(--line); padding: 6px 8px; text-align: right; }
+.clear { display: inline-block; padding: 3px 8px; border-radius: 6px; color: var(--muted); font-weight: 600; }
+.clear:hover { background: var(--track); color: var(--fg); }
 .session { border-bottom: 1px solid var(--line); }
 .session:last-child { border-bottom: 0; }
 summary { display: flex; align-items: center; gap: 6px; padding: 8px 12px; list-style: none; }
@@ -109,7 +122,8 @@ li.pending::before { content: "○"; color: var(--muted); }
 .usage { margin-top: 8px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .empty { padding: 12px; color: var(--muted); margin: 0; }
 </style></head><body><div class="card">
-<header><img src="data:image/png;base64,${icon}" alt=""><div><b>${esc(pet.profile.name)}</b><span>${labels[pet.mood]}</span></div><a class="open" href="hatstand-pet://open">${pet.mood === 'sleep' ? 'Launch' : 'Open'} Claude</a></header>
+<header><img src="data:image/png;base64,${icon}" alt=""><div><b>${esc(pet.profile.name)}</b><span>${status}</span></div><a class="open" href="hatstand-pet://open">${pet.mood === 'sleep' ? 'Launch' : 'Open'} Claude</a></header>
 ${cards.join('') || '<p class="empty">No active sessions.</p>'}
+${count('done') ? `<footer><a class="clear" href="hatstand-pet://clear-done">Clear ${count('done')} done</a></footer>` : ''}
 </div><script>${reportScript}</script></body></html>`;
 }

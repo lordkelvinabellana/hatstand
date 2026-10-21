@@ -10,15 +10,17 @@ import {
   hookScript,
   modelName,
   parseSession,
+  petBadge,
   petMood,
   petSound,
   settledState,
   summarizeTranscript,
   withPetHooks,
 } from '../src/core/pets.ts';
+import { panelHtml } from '../src/main/panel.ts';
 import { validateInput, validateState } from '../src/core/profiles.ts';
 
-test('pet mood: asking beats done beats working, and stale sessions age out', () => {
+test('pet mood: asking beats working beats done, and stale sessions age out', () => {
   const now = 10 * 60 * 60_000;
   assert.equal(petMood(false, [], now), 'sleep');
   assert.equal(petMood(true, [], now), 'idle');
@@ -31,7 +33,20 @@ test('pet mood: asking beats done beats working, and stale sessions age out', ()
       ],
       now,
     ),
-    'done',
+    'working',
+  );
+  assert.equal(petMood(true, [{ state: 'done', at: now }], now), 'done');
+  assert.deepEqual(
+    petBadge(
+      [
+        { state: 'working', at: now },
+        { state: 'working', at: now - 25 * 60_000 },
+        { state: 'working', at: now },
+        { state: 'done', at: now },
+      ],
+      now,
+    ),
+    { working: 2, finished: true },
   );
   assert.equal(
     petMood(
@@ -85,6 +100,15 @@ test('pets render as PNGs and sounds as WAVs', () => {
   assert.equal(grid.length, 16);
   assert.equal(grid[0].length, 26);
   assert.equal(drawPet(1, 'rose', 'idle', 0)[0].length, 16);
+  // Two sessions working draw a digit instead of the dots; one already finished adds a green corner dot.
+  const dots = drawPet(0, 'teal', 'working', 0);
+  const two = drawPet(0, 'teal', 'working', 0, { working: 2, finished: true });
+  assert.notDeepEqual(
+    two.map((row) => row.slice(16)),
+    dots.map((row) => row.slice(16)),
+  );
+  assert.deepEqual(two[0][25], [0x22, 0xb3, 0x5e, 255]);
+  assert.deepEqual(drawPet(0, 'teal', 'working', 0, { working: 1, finished: false }), dots);
   assert.equal(encodePng(grid, 2).subarray(1, 4).toString(), 'PNG');
   assert.equal(petSound('done', 2).subarray(0, 4).toString(), 'RIFF');
 });
@@ -185,4 +209,29 @@ test('profiles get a pet: saved ones in order, unknown pets are rejected', () =>
     ['cat', ''],
   );
   assert.throws(() => validateInput({ name: 'A', pet: 'dragon' }), /Invalid pet/);
+});
+
+test('pet panel counts every session and offers Remove and Clear done', () => {
+  const at = Date.now();
+  const html = panelHtml(
+    { profile: { name: 'North Studio' }, mood: 'working' },
+    { sleep: '', idle: '', working: 'Working…', ask: '', done: '' },
+    [
+      { id: 'a1', session: { state: 'working', at } },
+      { id: 'b2', session: { state: 'done', at } },
+    ],
+    '',
+  );
+  assert.match(html, /1 working · 1 done/);
+  assert.match(html, /hatstand-pet:\/\/remove\/a1/);
+  assert.match(html, /hatstand-pet:\/\/clear-done/);
+  assert.doesNotMatch(
+    panelHtml(
+      { profile: { name: 'X' }, mood: 'idle' },
+      { sleep: '', idle: 'Idle', working: '', ask: '', done: '' },
+      [],
+      '',
+    ),
+    /clear-done/,
+  );
 });

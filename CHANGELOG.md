@@ -4,6 +4,16 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## [Unreleased]
 
+### Changed
+
+- **Pets open their panel on click only.** Hovering no longer opens it: a panel that opened on hover could take a click meant for the app underneath and jump to a conversation. Click the pet again, or anywhere else, to close it.
+- **The check means everything is finished.** A pet now shows working while any session is still working, even if another one finished. Two or more working sessions show their count in the bubble, and a green corner dot says one already finished. The panel header counts sessions by state.
+- The second brain says it only captures sessions in Claude's Code tab, not regular chats (profile details, setup dialog, Second brain page).
+
+### Added
+
+- **Remove and Clear done** in a pet's panel: take one session off the list, or every finished one.
+
 ## [0.3.0] - 2026-10-20
 
 ### Added
