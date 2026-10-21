@@ -163,6 +163,16 @@ test('transcript summary replays the task list and counts each response once', (
   assert.equal(settledState(stopped, { ...summary, asking: true }), 'ask');
   assert.equal(settledState(stopped, { ...summary, plan: [] }), 'done');
   assert.equal(settledState(stopped, { ...summary, plan: [], background: 1 }), 'working');
+  // The end-of-turn wrap-up checks off whatever is left of the task list.
+  const closing = { type: 'tool_use', name: 'mcp__ccd_turn__wrap_up', input: { recap: 'Done.' } };
+  const wrapped = summarizeTranscript(
+    `${text}\n${line({ type: 'assistant', message: { id: 'w', content: [closing] } })}`,
+  );
+  assert.deepEqual(
+    wrapped.plan.map((s) => s.status),
+    ['completed', 'completed', 'completed'],
+  );
+  assert.equal(settledState(stopped, wrapped), 'done');
   const bash = line({
     type: 'assistant',
     message: {
@@ -222,7 +232,7 @@ test('pet panel counts every session and offers Remove and Clear done', () => {
     ],
     '',
   );
-  assert.match(html, /1 working · 1 done/);
+  assert.match(html.replace(/<[^>]+>/g, ''), /1 working · 1 done/);
   assert.match(html, /hatstand-pet:\/\/remove\/a1/);
   assert.match(html, /hatstand-pet:\/\/clear-done/);
   assert.doesNotMatch(

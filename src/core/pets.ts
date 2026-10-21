@@ -140,8 +140,11 @@ export function summarizeTranscript(text: string): SessionSummary {
         (block.name === 'Agent' && block.input?.run_in_background !== false)
       )
         running.add(block.id);
-      if (typeof block.name === 'string' && block.name.endsWith('wrap_up'))
+      if (typeof block.name === 'string' && block.name.endsWith('wrap_up')) {
         summary.asking = !!block.input?.ask;
+        // The wrap-up checks off whatever is left of the turn's task list, as the desktop app does.
+        for (const step of summary.plan) step.status = 'completed';
+      }
       if (block.name === 'TodoWrite' && Array.isArray(block.input?.todos))
         summary.plan = steps(block.input.todos);
       if (typeof block.name === 'string' && block.name.endsWith('update_plan'))
