@@ -12,7 +12,11 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ### Added
 
-- **Remove and Clear done** in a pet's panel: take one session off the list, or every finished one.
+- **Remove and Clear done** in a pet's panel: an × on each session takes it off the list, and Clear done removes every finished one.
+
+### Fixed
+
+- A turn's wrap-up now counts as finishing its task list, as in the desktop app, so a finished turn no longer shows 0 of N tasks or keeps its pet working.
 
 ## [0.3.0] - 2026-10-20
 

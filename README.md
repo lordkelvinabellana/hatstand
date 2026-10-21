@@ -77,8 +77,8 @@ Claude's own menu bar icon can be turned off per account in Claude's Settings â†
 
 Click a pet for a panel of that account's active sessions: title, project folder, your
 last prompt, task progress, background tasks, context and output tokens, and the model.
-Open in Claude takes you to that conversation in the right account's Claude; Remove takes a
-session off the list, and Clear done removes every finished one. Click the pet again, or
+Open in Claude takes you to that conversation in the right account's Claude; the Ã— on a
+session takes it off the list, and Clear done removes every finished one. Click the pet again, or
 anywhere else, to close the panel. Right-click for the Hatstand menu.
 
 How it works: Hatstand adds a small hook script (`HatstandData/pet-hook.sh`) to each
