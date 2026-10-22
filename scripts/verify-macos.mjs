@@ -42,6 +42,19 @@ try {
   });
   const observed = observations.find((p) => p.pid === a);
   assert.ok(observed.arguments.includes(`--user-data-dir=${first}`));
+  // Claude must be its own responsible process, or macOS checks Hatstand's privacy grants instead.
+  const responsible = path.join(root, 'responsible');
+  await fs.writeFile(
+    `${responsible}.c`,
+    '#include <stdio.h>\n#include <stdlib.h>\n#include <unistd.h>\nextern pid_t responsibility_get_pid_responsible_for_pid(pid_t);\nint main(int c, char **v) { printf("%d", responsibility_get_pid_responsible_for_pid(atoi(v[1]))); }\n',
+  );
+  await execute('xcrun', ['clang', `${responsible}.c`, '-o', responsible]);
+  for (const pid of [a, b])
+    assert.equal(
+      Number((await execute(responsible, [String(pid)])).stdout),
+      pid,
+      'Claude must be self-responsible',
+    );
   for (const [install, desktop, expected] of [
     [installation, first, { ...observed, createdAt: '0:0' }],
     [installation, first + '-lookalike', observed],

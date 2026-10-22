@@ -1,4 +1,4 @@
-import { execFile, spawn } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import * as fs from 'node:fs/promises';
 import { homedir } from 'node:os';
@@ -70,9 +70,9 @@ function helperPath() {
         'hatstand-macos',
       );
 }
-async function helper(args: string[]) {
+async function helper(args: string[], options: { cwd?: string; env?: NodeJS.ProcessEnv } = {}) {
   try {
-    return (await execute(helperPath(), args, { timeout: 10_000, maxBuffer: 4_000_000 })).stdout;
+    return (await execute(helperPath(), args, { ...options, timeout: 10_000, maxBuffer: 4_000_000 })).stdout;
   } catch (error) {
     const failure = error as Error & { stderr?: string };
     throw new Error(
@@ -93,19 +93,15 @@ export async function launchClaude(
     await helper(['focus', String(running.pid), running.createdAt, installation.executable, desktop]);
     return running.pid;
   }
-  return new Promise((resolve, reject) => {
-    const child = spawn(installation.executable, launchArguments(desktop), {
+  // The helper starts Claude as its own responsible process, so it keeps its own privacy grants.
+  const pid = Number(
+    await helper(['launch', installation.executable, ...launchArguments(desktop)], {
       cwd: path.dirname(installation.executable),
       env: launchEnvironment(process.env, desktop, code),
-      detached: true,
-      stdio: 'ignore',
-    });
-    child.once('error', reject);
-    child.once('spawn', () => {
-      child.unref();
-      resolve(child.pid!);
-    });
-  });
+    }),
+  );
+  if (!Number.isSafeInteger(pid) || pid <= 0) throw new Error('Could not start Claude.');
+  return pid;
 }
 /** Opens a Claude Code session in the profile's own running Claude. False when that Claude isn't running. */
 /** Delivers a `claude://code/…` link to the profile's own running Claude; false when it isn't running. */

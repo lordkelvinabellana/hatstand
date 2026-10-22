@@ -69,8 +69,29 @@ func fail(_ message: String) -> Never {
     FileHandle.standardError.write(Data((message + "\n").utf8))
     exit(1)
 }
+// Private libsystem call (macOS 10.14+), also used by Chromium and Claude's own disclaimer helper.
+@_silgen_name("responsibility_spawnattrs_setdisclaim")
+func responsibility_spawnattrs_setdisclaim(_ attributes: UnsafeMutablePointer<posix_spawnattr_t?>, _ disclaim: Int32) -> Int32
 let args = CommandLine.arguments
-if args.count == 2 && args[1] == "list" {
+if args.count >= 3 && args[1] == "launch" {
+    guard args[2].hasSuffix(".app/Contents/MacOS/Claude") else { fail("Invalid helper arguments.") }
+    // Disclaim responsibility so macOS privacy checks (Screen Recording, Accessibility) use
+    // Claude's own signed grants, not Hatstand's ad-hoc identity that changes on every rebuild.
+    var attributes: posix_spawnattr_t?
+    posix_spawnattr_init(&attributes)
+    posix_spawnattr_setflags(&attributes, Int16(POSIX_SPAWN_SETSID | POSIX_SPAWN_CLOEXEC_DEFAULT))
+    guard responsibility_spawnattrs_setdisclaim(&attributes, 1) == 0 else { fail("Could not start Claude.") }
+    var actions: posix_spawn_file_actions_t?
+    posix_spawn_file_actions_init(&actions)
+    for fd: Int32 in 0...2 {
+        posix_spawn_file_actions_addopen(&actions, fd, "/dev/null", fd == 0 ? O_RDONLY : O_WRONLY, 0)
+    }
+    let argv = args.dropFirst(2).map { strdup($0) } + [nil]
+    var pid: pid_t = 0
+    let status = posix_spawn(&pid, args[2], &actions, &attributes, argv, environ)
+    guard status == 0 else { fail("Could not start Claude: \(String(cString: strerror(status))).") }
+    print(pid)
+} else if args.count == 2 && args[1] == "list" {
     let count = proc_listallpids(nil, 0)
     guard count > 0 else { fail("Could not enumerate processes.") }
     var pids = [Int32](repeating: 0, count: Int(count) + 1024)
