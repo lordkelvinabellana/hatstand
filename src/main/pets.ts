@@ -6,12 +6,14 @@ import { BrowserWindow, Menu, type MenuItemConstructorOptions, nativeImage, scre
 import type { Controller } from '../core/controller.ts';
 import { withFileLock, writeFileAtomic } from '../core/files.ts';
 import {
+  type Badge,
   drawPet,
   encodePng,
   hookScript,
   type Mood,
   modelName,
   parseSession,
+  petBadge,
   petMood,
   petSound,
   settledState,
@@ -40,6 +42,7 @@ export interface Pet {
   folder: string;
   watcher?: FSWatcher;
   mood: Mood;
+  badge: Badge;
   /** Last seen `state@at` per session file, to play a sound only on a change. */
   seen: Map<string, string>;
 }
@@ -55,8 +58,6 @@ export class Pets {
   private sounds: string;
   private panel?: BrowserWindow;
   private panelFor?: Pet;
-  /** Opened by a click (stays until you click elsewhere) rather than by hovering. */
-  private pinned = false;
   private hiddenAt = 0;
   /** Which sessions are expanded in each pet's panel; unset shows the most urgent one open. */
   private expanded = new Map<string, string[]>();
@@ -107,21 +108,19 @@ export class Pets {
           tray: new Tray(nativeImage.createEmpty()),
           folder,
           mood: 'sleep',
+          badge: { working: 0, finished: false },
           seen: new Map(),
         };
         const current = pet;
+        // Only a click opens the panel: a panel that opened on hover took clicks meant for whatever was under it.
         current.tray.on('click', () => {
           // Clicking the pet blurs (and hides) its open panel first; that click should just close it.
           if (this.panelFor === current && Date.now() - this.hiddenAt < 400) return;
-          if (this.pinned && this.panelFor === current) {
+          if (this.panelFor === current && this.panel?.isVisible()) {
             this.hidePanel();
             return;
           }
-          this.pinned = true;
           void this.showPanel(current);
-        });
-        current.tray.on('mouse-enter', () => {
-          if (!this.pinned) void this.showPanel(current);
         });
         current.tray.on('right-click', () => current.tray.popUpContextMenu(this.contextMenu(current)));
         this.pets.set(profile.id, current);
@@ -196,8 +195,15 @@ export class Pets {
       pet.seen.set(id, key);
     }
     const mood = petMood(!!this.controller.owned(pet.profile.id), sessions, now);
-    if (mood !== pet.mood || quiet) {
+    const badge = petBadge(sessions, now);
+    if (
+      mood !== pet.mood ||
+      badge.working !== pet.badge.working ||
+      badge.finished !== pet.badge.finished ||
+      quiet
+    ) {
       pet.mood = mood;
+      pet.badge = badge;
       this.draw(pet);
     }
     if (this.panelFor === pet && this.panel?.isVisible()) void this.showPanel(pet);
@@ -212,7 +218,7 @@ export class Pets {
   }
 
   private draw(pet: Pet) {
-    const png = encodePng(drawPet(pet.species, pet.profile.color, pet.mood, this.frame), 2);
+    const png = encodePng(drawPet(pet.species, pet.profile.color, pet.mood, this.frame, pet.badge), 2);
     pet.tray.setImage(nativeImage.createFromBuffer(png, { scaleFactor: 2 }));
   }
 
@@ -223,13 +229,6 @@ export class Pets {
       // Idle pets only redraw to blink; stale sessions age out on the slower rescan.
       if (pet.mood !== 'sleep') this.draw(pet);
       if (this.frame % 130 === 0) void this.scan(pet);
-    }
-    // mouse-leave is unreliable on macOS trays, so the panel closes once the pointer is elsewhere.
-    if (this.panel?.isVisible() && this.panelFor && !this.pinned) {
-      const at = screen.getCursorScreenPoint();
-      const inside = (r: Electron.Rectangle) =>
-        at.x >= r.x - 2 && at.x <= r.x + r.width + 2 && at.y >= r.y - 2 && at.y <= r.y + r.height + 8;
-      if (!inside(this.panelFor.tray.getBounds()) && !inside(this.panel.getBounds())) this.hidePanel();
     }
   }
 
@@ -320,11 +319,13 @@ export class Pets {
       this.panel.setAlwaysOnTop(true, 'pop-up-menu');
       this.panel.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
       this.panel.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-      // Links in the panel are commands: hatstand-pet://open/<session> or hatstand-pet://open.
+      // Links in the panel are commands: hatstand-pet://open[/<session>], remove/<session> or clear-done.
       this.panel.webContents.on('will-navigate', (event, url) => {
         event.preventDefault();
-        const match = /^hatstand-pet:\/\/open(?:\/([A-Za-z0-9_-]+))?$/.exec(url);
-        if (match && this.panelFor) void this.openSession(this.panelFor, match[1]);
+        const match = /^hatstand-pet:\/\/(open|remove|clear-done)(?:\/([A-Za-z0-9_-]+))?$/.exec(url);
+        if (!match || !this.panelFor) return;
+        if (match[1] === 'open') void this.openSession(this.panelFor, match[2]);
+        else if (match[1] === 'clear-done' || match[2]) void this.remove(this.panelFor, match[2]);
       });
       // The panel reports its height and open sessions through its title whenever a session is toggled.
       this.panel.webContents.on('page-title-updated', (_event, title) => {
@@ -340,9 +341,7 @@ export class Pets {
             });
         } catch {}
       });
-      this.panel.on('blur', () => {
-        if (this.pinned) this.hidePanel();
-      });
+      this.panel.on('blur', () => this.hidePanel());
     }
     const panel = this.panel;
     await panel.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
@@ -355,16 +354,22 @@ export class Pets {
     const x = Math.min(Math.max(tray.x + tray.width / 2 - 170, area.x + 8), area.x + area.width - 348);
     panel.setBounds({ x: Math.round(x), y: tray.y + tray.height + 4, width: 340, height });
     if (this.panelFor !== pet) return;
-    if (this.pinned) {
-      panel.show();
-      panel.focus();
-    } else if (!panel.isVisible()) panel.showInactive();
+    panel.show();
+    panel.focus();
   }
 
   private hidePanel() {
     if (this.panel?.isVisible()) this.hiddenAt = Date.now();
-    this.pinned = false;
     this.panel?.hide();
+  }
+
+  /** Removes one session from the pet (or every finished one); a session still running comes back on its next hook event. */
+  private async remove(pet: Pet, id?: string) {
+    const ids = id
+      ? [id]
+      : (await this.read(pet, false)).filter(({ session }) => session.state === 'done').map((s) => s.id);
+    for (const name of ids) await fs.rm(path.join(pet.folder, `${name}.json`), { force: true });
+    await this.scan(pet);
   }
 
   private icon(pet: Pet) {

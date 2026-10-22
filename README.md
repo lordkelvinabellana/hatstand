@@ -65,9 +65,9 @@ it is also the client's picture in Hatstand.
 | The pet shows | When |
 |---|---|
 | Asleep, grey | That client's Claude isn't running |
-| A bubble with dots, bobbing | Claude Code is working |
+| A bubble with dots, bobbing | Claude Code is working. With two or more sessions working, the bubble shows how many; a green dot on its corner means another session has already finished |
 | A red **!**, hopping, plus a sound | It asked you something or needs a permission |
-| A green **✓**, plus a sound | The whole task is finished: every step of its task list and every background task |
+| A green **✓**, plus a sound | Nothing is still working: every session's task list and background tasks are finished |
 
 Each pet plays its jingle in its own key, so you can tell by ear which account wants you.
 Settings → Menu-bar pets turns the sounds off, or the pets themselves (the Hatstand icon comes back).
@@ -75,10 +75,11 @@ Claude's own menu bar icon can be turned off per account in Claude's Settings �
 
 <img src="docs/images/panel.png" width="340" alt="A pet's panel listing three sessions: one asking a question with its task list and token usage, one working, one done">
 
-Hover a pet for a panel of that account's active sessions: title, project folder, your
+Click a pet for a panel of that account's active sessions: title, project folder, your
 last prompt, task progress, background tasks, context and output tokens, and the model.
-Click the pet to keep the panel open, and click a session to open that conversation in
-the right account's Claude. Right-click for the Hatstand menu.
+Open in Claude takes you to that conversation in the right account's Claude; the × on a
+session takes it off the list, and Clear done removes every finished one. Click the pet again, or
+anywhere else, to close the panel. Right-click for the Hatstand menu.
 
 How it works: Hatstand adds a small hook script (`HatstandData/pet-hook.sh`) to each
 profile's Claude Code `settings.json`. The hook writes one tiny file per session
