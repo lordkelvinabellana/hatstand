@@ -39,7 +39,11 @@ Claude. Separate profiles are not a filesystem or security sandbox.
   bundle identifier. Manual selection accepts a Claude `.app` or its executable;
   the bundle identifier, executable name, executable access and version are checked.
 - Claude launches directly, with sanitized environment variables and distinct
-  Desktop/Code folders. Existing profiles receive a PID-addressed reopen event
+  Desktop/Code folders. `hatstand-macos launch` spawns it with responsibility
+  disclaimed, so macOS privacy checks (Screen Recording, Accessibility for
+  computer use) use Claude's own Anthropic-signed grants. Without this, Hatstand
+  is Claude's responsible process, and an unsigned rebuild of Hatstand no longer
+  matches its stored grants even while System Settings still shows them on. Existing profiles receive a PID-addressed reopen event
   and are activated instead of spawned again.
 - `native/macos.swift` is a small helper, compiled by Xcode Command Line Tools.
   It reads exact argv boundaries using `KERN_PROCARGS2` and process identities

@@ -17,6 +17,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 ### Fixed
 
 - A turn's wrap-up now counts as finishing its task list, as in the desktop app, so a finished turn no longer shows 0 of N tasks or keeps its pet working.
+- On macOS, Claude now starts as its own app for privacy checks, so computer use keeps Claude's own Screen Recording and Accessibility permissions instead of asking for Hatstand's, which macOS forgot after every rebuild.
 
 ## [0.3.0] - 2026-10-20
 
