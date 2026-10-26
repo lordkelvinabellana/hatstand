@@ -1,7 +1,7 @@
 import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
-import type { ProfileView } from '../../shared.ts';
+import type { NotesPreview, ProfileView } from '../../shared.ts';
 import { useApp } from '../api.ts';
 import { PetAvatar } from './PetAvatar.tsx';
 
@@ -232,6 +232,108 @@ export function ShareVault(props: { vault: VaultEntry; onClose(): void }) {
         </div>
       ) : (
         <p>Every other profile already uses this vault.</p>
+      )}
+    </Modal>
+  );
+}
+
+const actionText: Record<string, string> = {
+  add: 'New',
+  update: 'Updated',
+  merge: 'Updated (section rebuilt from your sessions)',
+  conflict: 'Changed on both: yours stays, theirs is saved next to it',
+  keep: 'Yours is newer: kept',
+  deleted: 'You deleted it: stays deleted',
+};
+
+/** Shows what importing a notes file would do, and writes it only when asked. Nothing is ever deleted. */
+export function ImportNotes(props: { vault: VaultEntry; preview: NotesPreview; onClose(): void }) {
+  const { run } = useApp();
+  const { preview } = props;
+  const [anyway, setAnyway] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const counts = preview.counts;
+  const changes = (counts.add ?? 0) + (counts.update ?? 0) + (counts.merge ?? 0) + (counts.conflict ?? 0);
+  const summary = [
+    [counts.add, 'new'],
+    [(counts.update ?? 0) + (counts.merge ?? 0), 'updated'],
+    [counts.conflict, 'changed on both'],
+    [counts.same, 'already the same'],
+  ]
+    .filter(([n]) => n)
+    .map(([n, label]) => `${n} ${label}`)
+    .join(' · ');
+
+  async function submit() {
+    setBusy(true);
+    try {
+      await run(
+        'applyNotesImport',
+        { token: preview.token, anyway },
+        'Notes imported. Nothing was deleted or overwritten.',
+      );
+      props.onClose();
+    } catch {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal
+      title={`Import notes into ${props.vault.name}`}
+      onClose={props.onClose}
+      footer={
+        <>
+          <button type="button" className="secondary" onClick={props.onClose}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="primary"
+            disabled={busy || !changes || (preview.differentVault && !anyway)}
+            onClick={() => void submit()}
+          >
+            Import
+          </button>
+        </>
+      }
+    >
+      <p className="vault-lead">
+        From {preview.device}
+        {preview.exportedAt && `, exported ${new Date(preview.exportedAt).toLocaleString()}`}.{' '}
+        {summary || 'Nothing to import.'}
+      </p>
+      {preview.differentVault && (
+        <label className="choice chosen">
+          <input type="checkbox" checked={anyway} onChange={(e) => setAnyway(e.target.checked)} />
+          <span>
+            <strong>This file comes from a different vault.</strong>
+            <small>Importing it mixes that vault’s notes into this one. Import anyway.</small>
+          </span>
+        </label>
+      )}
+      {preview.items.length > 0 && (
+        <ul className="import-list">
+          {preview.items.map((item) => (
+            <li key={item.path}>
+              <span className="path-text">{item.path}</span>
+              <small>{actionText[item.action] ?? item.action}</small>
+            </li>
+          ))}
+        </ul>
+      )}
+      {preview.rejected.length > 0 && (
+        <>
+          <p className="vault-lead">Skipped, not imported:</p>
+          <ul className="import-list">
+            {preview.rejected.map((item) => (
+              <li key={item.path}>
+                <span className="path-text">{item.path}</span>
+                <small>{item.reason}</small>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
     </Modal>
   );

@@ -37,6 +37,18 @@ export interface Snapshot {
   dataFolder: string;
   sync: SyncStatus;
 }
+/** What importing a notes file would do, before anything is written. */
+export interface NotesPreview {
+  token: string;
+  vaultName: string;
+  device: string;
+  exportedAt: string;
+  /** The file comes from a different vault than this one. */
+  differentVault: boolean;
+  counts: Record<string, number>;
+  items: { path: string; action: string }[];
+  rejected: { path: string; reason: string }[];
+}
 export interface UpdateCheck {
   current: string;
   latest: ReleaseInfo | null;

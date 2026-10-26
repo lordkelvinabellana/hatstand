@@ -73,6 +73,7 @@ exist and parse), run as `ELECTRON_RUN_AS_NODE=1 <Hatstand> recall.cjs --vault <
   second-brain.json      optional second brain: which profiles have it on, and custom vault folders (never synced)
   second-brain\capture.cjs  the capture script the second-brain hooks run (copied out of the app at start)
   profiles\<uuid>\vault    optional second brain: that profile's notes (default location)
+  vault-exchange\       optional notes export/import: which vault id each folder has, and what the other computer is known to have (never synced, never in the vault)
   sync-session.bin       optional profile sync: Supabase sign-in, encrypted with safeStorage
   sync-deleted.json      optional profile sync: removed profiles not yet deleted remotely
 ```

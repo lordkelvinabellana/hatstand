@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Brain, Plus, Share2 } from 'lucide-react';
+import { ArrowLeft, Brain, Download, Plus, Share2, Upload } from 'lucide-react';
 import type { Color } from '../../core/profiles.ts';
 import {
   buildGraph,
@@ -14,10 +14,10 @@ import { parseInferred } from '../../core/inferred.ts';
 import { buildIndex, type NoteText } from '../../core/links.ts';
 import { GraphView, type Positions } from '../../notes/GraphView.tsx';
 import { NotesApp } from '../../notes/NotesApp.tsx';
-import type { ProfileView } from '../../shared.ts';
+import type { NotesPreview, ProfileView } from '../../shared.ts';
 import { api, useApp } from '../api.ts';
 import { PetAvatar } from './PetAvatar.tsx';
-import { SetupVault, ShareVault, type VaultEntry, vaultEntries } from './VaultDialogs.tsx';
+import { ImportNotes, SetupVault, ShareVault, type VaultEntry, vaultEntries } from './VaultDialogs.tsx';
 
 /** Graph colours per profile colour: readable on both themes. */
 export const tints: Record<Color, string> = {
@@ -35,11 +35,20 @@ const quiet = new Set<Group>(['Sessions', 'Daily']);
  * vault open in the notes view. Profiles without a vault get a setup card at the top, not at the bottom.
  */
 export function VaultPage(props: { open: string | null }) {
-  const { data, openVault, openProfile, theme } = useApp();
+  const { data, openVault, openProfile, theme, run } = useApp();
   const vaults = vaultEntries(data.profiles);
   const without = data.profiles.filter((p) => !p.archived && !p.brain.enabled && !p.brain.external);
   const [setup, setSetup] = useState<ProfileView | null>(null);
   const [share, setShare] = useState<VaultEntry | null>(null);
+  const [importing, setImporting] = useState<{ vault: VaultEntry; preview: NotesPreview } | null>(null);
+  async function importNotes(vault: VaultEntry) {
+    try {
+      const preview = (await run('previewNotesImport', { id: vault.profiles[0].id })) as NotesPreview | null;
+      if (preview) setImporting({ vault, preview });
+    } catch {
+      // run() already showed the error.
+    }
+  }
   const opened = props.open ? data.profiles.find((p) => p.id === props.open) : undefined;
   const current = opened ? vaults.find((v) => v.profiles.some((p) => p.id === opened.id)) : undefined;
 
@@ -47,6 +56,7 @@ export function VaultPage(props: { open: string | null }) {
     <>
       {setup && <SetupVault profile={setup} onClose={() => setSetup(null)} />}
       {share && <ShareVault vault={share} onClose={() => setShare(null)} />}
+      {importing && <ImportNotes {...importing} onClose={() => setImporting(null)} />}
     </>
   );
 
@@ -119,7 +129,12 @@ export function VaultPage(props: { open: string | null }) {
           <Overview vaults={vaults} />
           <div className="vault-cards">
             {vaults.map((v) => (
-              <VaultCard key={v.folder} vault={v} onShare={() => setShare(v)} />
+              <VaultCard
+                key={v.folder}
+                vault={v}
+                onShare={() => setShare(v)}
+                onImport={() => void importNotes(v)}
+              />
             ))}
           </div>
         </>
@@ -233,7 +248,7 @@ function Overview(props: { vaults: VaultEntry[] }) {
   );
 }
 
-function VaultCard(props: { vault: VaultEntry; onShare(): void }) {
+function VaultCard(props: { vault: VaultEntry; onShare(): void; onImport(): void }) {
   const { openVault, openProfile, fire } = useApp();
   const { vault } = props;
   return (
@@ -259,6 +274,24 @@ function VaultCard(props: { vault: VaultEntry; onShare(): void }) {
         <button type="button" className="secondary" onClick={props.onShare}>
           <Share2 size={14} />
           Share…
+        </button>
+        <button
+          type="button"
+          className="secondary"
+          title="Save this vault’s notes as a file to open on another computer"
+          onClick={() => fire('exportNotes', { id: vault.profiles[0].id })}
+        >
+          <Upload size={14} />
+          Export notes…
+        </button>
+        <button
+          type="button"
+          className="secondary"
+          title="Add notes from a file exported on another computer"
+          onClick={props.onImport}
+        >
+          <Download size={14} />
+          Import notes…
         </button>
         {vault.profiles.length > 1 &&
           vault.profiles.map((p) => (

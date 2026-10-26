@@ -24,8 +24,8 @@ export function withFileLock<T>(file: string, task: () => Promise<T>): Promise<T
 // target open. Those clear within moments, so the rename is retried before giving up.
 const BUSY = new Set(['EPERM', 'EACCES', 'EBUSY']);
 
-/** Replaces `file` with `text` via a uniquely named temporary file, so a reader never sees half a file. */
-export async function writeFileAtomic(file: string, text: string, attempts = 8) {
+/** Replaces `file` with `text` (or raw bytes) via a uniquely named temporary file, so a reader never sees half a file. */
+export async function writeFileAtomic(file: string, text: string | Uint8Array, attempts = 8) {
   const temporary = `${file}.${randomUUID()}.hatstand-tmp`;
   try {
     await fs.writeFile(temporary, text);

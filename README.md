@@ -178,6 +178,14 @@ vault's notes inside Hatstand. **Share…** lets other profiles write to the sam
 that do the same work); each can leave again, and nothing is moved or deleted. Which vault a request
 reaches is decided in Hatstand's main process, never by the page.
 
+**Export notes… / Import notes…** (on a vault's card) move a vault's notes to Hatstand on another computer
+without any network use: export saves one `.hatstandnotes` file, you upload it to Google Drive (or copy it
+any way you like), and **Import notes…** on the other computer opens it. Import shows what it would do
+first (new, updated, changed on both) and writes nothing until you confirm. It never deletes a note, and
+when a note changed on both computers yours stays and theirs is saved beside it as `Name (imported from …)`.
+Deletions and renames don't travel, and the file holds your notes as plain text, so keep it as private as
+the notes. Hatstand warns if a file comes from a different vault.
+
 **Deep graph** (on a vault's Graph tab) asks that profile's Claude to find connections your notes
 don't link yet. It writes them to `.hatstand/inferred-links.json` in the vault without touching any note,
 and Hatstand draws them in orange, with Claude's reason beside each note under **AI-suggested links**.
