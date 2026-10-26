@@ -69,7 +69,7 @@
     "minisearch": "^7.2.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "sigma": "^3.0.3"
+    "sigma": "^4.0.3"
   },
   "overrides": {
     "tar": "^7.5.22",
