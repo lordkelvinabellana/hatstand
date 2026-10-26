@@ -3,6 +3,7 @@ import { app, dialog, nativeTheme, net, shell } from 'electron';
 import type { BrowserWindow } from 'electron';
 import * as fs from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { acceleratorKey } from '../core/accelerator.ts';
@@ -26,13 +27,22 @@ import { platformFor } from '../core/platform.ts';
 const { detectInstallation } = platformFor(process.platform);
 const mac = process.platform === 'darwin';
 const trash = mac ? 'Trash' : 'Recycle Bin';
-import type { Snapshot, UpdateCheck } from '../shared.ts';
+import type { NotesPreview, Snapshot, UpdateCheck } from '../shared.ts';
 import { applyLoginItem, createDesktopShortcut } from './integration.ts';
 import type { ProfileSync } from './sync.ts';
 import { readAll, readInferred } from '../core/notes.ts';
 import type { SessionView } from '../shared.ts';
 import { brainStatus, checkVault, readBrains, saveBrain, sharersOf, vaultLabel } from './brain.ts';
 import { withoutPetHooks } from '../core/pets.ts';
+import {
+  applyPlan,
+  type Bundle,
+  BUNDLE_EXTENSION,
+  exportVault,
+  finishImport,
+  type PlanItem,
+  previewImport,
+} from '../core/transfer.ts';
 import {
   assertTemplateName,
   copyVault,
@@ -87,6 +97,13 @@ function buildCommit() {
 export function createHandlers(context: HandlerContext): Record<string, Handler> {
   const { root, store, controller } = context;
   let pendingImport: ReturnType<typeof parseImport> | null = null;
+  let pendingNotes: {
+    token: string;
+    vault: string;
+    bundle: Bundle;
+    items: PlanItem[];
+    different: boolean;
+  } | null = null;
 
   async function vaultOf(payload: unknown) {
     const id = readId(payload);
@@ -513,6 +530,88 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
       if (answer.response !== 1) return false;
       await saveTemplate(vault, name, null);
       return true;
+    },
+    /** Saves a vault's notes as one file to carry to another computer. */
+    async exportNotes(payload) {
+      const vault = await vaultOf(payload);
+      const name = await vaultLabel(root, controller, (await store.load()).profiles, vault);
+      const day = new Date().toLocaleDateString('en-CA');
+      const picked = await dialog.showSaveDialog(context.window(), {
+        title: 'Export notes',
+        defaultPath: path.join(
+          app.getPath('documents'),
+          `Hatstand notes - ${name.replace(/[\\/:*?"<>|]/g, '-')} - ${day}.${BUNDLE_EXTENSION}`,
+        ),
+        filters: [{ name: 'Hatstand notes', extensions: [BUNDLE_EXTENSION] }],
+      });
+      if (picked.canceled || !picked.filePath) return null;
+      const file = picked.filePath;
+      const built = await exportVault(
+        root,
+        vault,
+        { vaultName: name, device: os.hostname(), hatstand: app.getVersion() },
+        (buffer) => writeFileAtomic(file, buffer),
+      );
+      const answer = await dialog.showMessageBox(context.window(), {
+        type: 'info',
+        buttons: ['OK', mac ? 'Show in Finder' : 'Show in folder'],
+        defaultId: 0,
+        message: `Exported ${built.count} files.`,
+        detail:
+          'Upload this file to Google Drive, or copy it to your other computer, then choose Import notes there. ' +
+          'It holds your notes as plain text, so keep it as private as the notes.' +
+          (built.skipped.length ? ` ${built.skipped.length} file(s) over 20 MB were left out.` : ''),
+      });
+      if (answer.response === 1) shell.showItemInFolder(file);
+      return built.count;
+    },
+    /** Reads a notes file and says what importing it would do. Writes nothing. */
+    async previewNotesImport(payload) {
+      const vault = await vaultOf(payload);
+      pendingNotes = null;
+      const result = await dialog.showOpenDialog(context.window(), {
+        title: 'Import notes',
+        properties: ['openFile'],
+        filters: [{ name: 'Hatstand notes', extensions: [BUNDLE_EXTENSION] }],
+      });
+      if (result.canceled) return null;
+      if ((await fs.stat(result.filePaths[0])).size > 600_000_000) throw new Error('That file is too large.');
+      const { bundle, items, differentVault } = await previewImport(
+        root,
+        vault,
+        await fs.readFile(result.filePaths[0]),
+        new Date().toLocaleDateString('en-CA'),
+      );
+      const token = randomUUID();
+      pendingNotes = { token, vault, bundle, items, different: differentVault };
+      const counts: Record<string, number> = {};
+      for (const item of items) counts[item.action] = (counts[item.action] ?? 0) + 1;
+      return {
+        token,
+        vaultName: bundle.vaultName,
+        device: bundle.device,
+        exportedAt: bundle.exportedAt,
+        differentVault,
+        counts,
+        items: items
+          .filter((item) => item.action !== 'same')
+          .slice(0, 300)
+          .map((item) => ({ path: item.path, action: item.action })),
+        rejected: bundle.rejected.slice(0, 50),
+      } satisfies NotesPreview;
+    },
+    /** Writes what the preview showed. Never deletes; a changed local file is left alone. */
+    async applyNotesImport(payload) {
+      const { token, anyway } = (isRecord(payload) ? payload : {}) as { token?: unknown; anyway?: unknown };
+      const pending = pendingNotes;
+      if (!pending || typeof token !== 'string' || pending.token !== token)
+        throw new Error('Choose the notes file again.');
+      if (pending.different && anyway !== true)
+        throw new Error('This file comes from a different vault. Tick “Import anyway” to continue.');
+      pendingNotes = null;
+      const result = await applyPlan(pending.vault, pending.bundle.files, pending.items);
+      await finishImport(root, pending.vault, pending.bundle, result);
+      return result;
     },
     async openVault(payload) {
       const id = readId(payload);

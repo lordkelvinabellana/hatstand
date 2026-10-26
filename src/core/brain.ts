@@ -151,7 +151,8 @@ const quoted = (value: string) => JSON.stringify(value);
 
 function write(file: string, text: string) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  const temporary = `${file}.tmp`;
+  // Unique per call: two hooks writing the same note at once must not share one temporary file.
+  const temporary = `${file}.${process.pid}.${Date.now()}.hatstand-tmp`;
   fs.writeFileSync(temporary, text, 'utf8');
   fs.renameSync(temporary, file);
 }
@@ -278,7 +279,7 @@ export function setAutoBlock(file: string, block: string, fallbackHeader = '') {
   write(file, text);
 }
 
-function updateDaily(vault: string, day: string) {
+export function updateDaily(vault: string, day: string) {
   const folder = path.join(vault, 'Sessions', day.slice(0, 7));
   const byProfile = new Map<string, [Record<string, string>, string][]>();
   for (const name of markdownIn(folder).filter((n) => n.startsWith(`${day} `))) {

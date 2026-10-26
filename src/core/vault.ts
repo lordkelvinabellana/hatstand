@@ -115,7 +115,7 @@ Each task is one line:
 `,
 };
 
-const todo = (today: string) => `---
+export const todo = (today: string) => `---
 type: todo
 updated: ${today}
 ---

@@ -191,6 +191,9 @@ async function checkNotes(vault) {
   // All vaults: one graph, a card per vault, and the way back into the profile's editor.
   await notes.getByRole('button', { name: 'All vaults' }).click();
   await notes.locator('.vault-card').first().waitFor();
+  // Moving notes to another computer is one button each way.
+  await notes.getByRole('button', { name: 'Export notes…' }).first().waitFor();
+  await notes.getByRole('button', { name: 'Import notes…' }).first().waitFor();
   // Without WebGL (some CI runners) the overview shows its fallback note instead of a canvas.
   await notes.locator('.vault-overview canvas, .vault-overview .n-graph-off').first().waitFor();
   await notes.screenshot({ path: path.join(screenshotFolder, 'vaults.png') });

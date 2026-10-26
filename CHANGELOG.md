@@ -8,10 +8,12 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 - **Pets open their panel on click only.** Hovering no longer opens it: a panel that opened on hover could take a click meant for the app underneath and jump to a conversation. Click the pet again, or anywhere else, to close it.
 - **The check means everything is finished.** A pet now shows working while any session is still working, even if another one finished. Two or more working sessions show their count in the bubble, and a green corner dot says one already finished. The panel header counts sessions by state.
+- The second brain's capture script now writes through a uniquely named temporary file, so two hooks finishing together no longer collide.
 - The second brain says it only captures sessions in Claude's Code tab, not regular chats (profile details, setup dialog, Second brain page).
 
 ### Added
 
+- **Export and import notes.** Each vault card on the Second brain page has **Export notes…** (saves the vault as one `.hatstandnotes` file) and **Import notes…** (shows what would change, then adds it). Upload the file to Google Drive, or copy it, to bring your notes to Hatstand on another computer. Nothing is sent anywhere, nothing is deleted, and a note changed on both computers keeps your version and saves theirs next to it.
 - **Remove and Clear done** in a pet's panel: an × on each session takes it off the list, and Clear done removes every finished one.
 
 ### Fixed

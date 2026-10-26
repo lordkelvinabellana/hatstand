@@ -22,7 +22,7 @@ Done: capture, per-profile vaults, hook and CLAUDE.md wiring, opt-in toggle, vau
 
 1. Inline answers in the Ask box, once a profile's Claude Code can be signed in without risking the wrong account.
 2. Editor extras if wanted: images and attachments, tables, split panes, links by path updated when a folder moves.
-3. Maybe later: one-way linking between vaults on one machine, and end-to-end-encrypted hosted sync.
+3. Maybe later: one-way linking between vaults on one machine, and end-to-end-encrypted hosted sync. Moving notes between computers is done by hand with Export notes… / Import notes… until then.
 
 ## Exploring
 
