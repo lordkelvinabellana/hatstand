@@ -69,6 +69,7 @@
     "minisearch": "^7.2.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "sherpa-onnx-node": "^1.13.8",
     "sigma": "^3.0.3"
   },
   "overrides": {
