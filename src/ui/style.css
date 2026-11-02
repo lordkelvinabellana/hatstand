@@ -2061,3 +2061,101 @@ small {
 .voice-hint {
   color: var(--muted, #6b746f);
 }
+
+/* A session opened inside the Needs you column. */
+.session-panel {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.session-panel h2 {
+  margin: 0;
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+.session-meta {
+  margin: 0;
+  font-size: 12px;
+}
+.session-summary {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f1f5f2;
+  font-size: 13px;
+}
+.session-summary p {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}
+.session-messages {
+  display: grid;
+  gap: 6px;
+  max-height: 34vh;
+  overflow-y: auto;
+}
+.bubble {
+  margin: 0;
+  padding: 6px 9px;
+  border-radius: 9px;
+  background: #f4f4f1;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.bubble.user {
+  background: #e7eef8;
+}
+.session-reply {
+  display: grid;
+  gap: 6px;
+}
+.session-reply textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+}
+.session-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.session-actions .danger {
+  color: #b3392b;
+}
+
+/* Settings groups. */
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 0 18px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  width: fit-content;
+  max-width: 100%;
+}
+.tab {
+  padding: 7px 14px;
+  border-radius: 9px;
+  background: none;
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 13px;
+}
+.tab.on {
+  background: #2f5d4c;
+  color: #fff;
+}
+[hidden] {
+  display: none !important;
+}

@@ -5,12 +5,22 @@ import type { Color } from '../../core/profiles.ts';
 import { drawPet, type Mood, speciesNames } from '../../core/sprites.ts';
 import { api, useApp } from '../api.ts';
 import { hasWebGL, OfficeWorld, type WorldZone } from './OfficeWorld.tsx';
+import { SessionPanel } from './SessionPanel.tsx';
 import { VoiceBar } from './VoiceBar.tsx';
 
 const stateLabels: Record<SessionView['state'], string> = {
   working: 'Working…',
   ask: 'Needs your input',
   done: 'Done, output ready',
+};
+
+const dismissedKey = 'hatstand.dismissedSessions';
+const readDismissed = (): Record<string, number> => {
+  try {
+    return JSON.parse(localStorage.getItem(dismissedKey) ?? '{}');
+  } catch {
+    return {};
+  }
 };
 
 /** Every active profile's live sessions, refreshed every few seconds while the page is open. */
@@ -119,6 +129,17 @@ export function OfficePage() {
   const [frame, setFrame] = useState(0);
   // What Codex last said, shown in a bubble over its desk in the HQ.
   const [say, setSay] = useState('');
+  // Cleared items stay hidden until the session does something new (its timestamp changes).
+  const [dismissed, setDismissed] = useState(readDismissed);
+  const [selected, setSelected] = useState<{ profile: string; session: string } | undefined>();
+  const clear = (profile: string, session: SessionView) => {
+    const next = { ...dismissed, [`${profile}/${session.id}`]: session.at };
+    setDismissed(next);
+    setSelected(undefined);
+    try {
+      localStorage.setItem(dismissedKey, JSON.stringify(next));
+    } catch {}
+  };
   // When each character last changed spots, so it shows its walking bob until it arrives.
   const moved = useRef(new Map<string, { at: string; since: number }>());
   // The flat fallback animates by redrawing; the 3D world runs its own loop.
@@ -146,8 +167,12 @@ export function OfficePage() {
   const inbox = profiles
     .flatMap((profile) => (sessions[profile.id] ?? []).map((session) => ({ profile, session })))
     .filter(({ session }) => session.state !== 'working')
+    .filter(({ profile, session }) => dismissed[`${profile.id}/${session.id}`] !== session.at)
     .sort((a, b) => rank[a.session.state] - rank[b.session.state] || b.session.at - a.session.at);
   const now = Date.now();
+  const found = selected && profiles.find((p) => p.id === selected.profile);
+  const foundSession = found && (sessions[found.id] ?? []).find((x) => x.id === selected?.session);
+  const open = found && foundSession ? { profile: found, session: foundSession } : undefined;
 
   return (
     <section className={world ? 'office office-full' : 'office'}>
@@ -156,7 +181,9 @@ export function OfficePage() {
           zones={zones}
           theme={theme}
           say={say}
-          onOpen={(id, session) => fire('openSession', { id, session })}
+          onOpen={(id, session) =>
+            session ? setSelected({ profile: id, session }) : fire('openSession', { id })
+          }
           onLaunch={(id) => fire('launch', { id })}
         />
       ) : (
@@ -239,26 +266,40 @@ export function OfficePage() {
         </div>
       )}
       <aside className="office-inbox" aria-label="Needs you">
-        <h2>Needs you</h2>
-        {inbox.length ? (
-          <ul>
-            {inbox.map(({ profile, session }) => (
-              <li key={`${profile.id}/${session.id}`}>
-                <button
-                  type="button"
-                  className="task"
-                  onClick={() => fire('openSession', { id: profile.id, session: session.host })}
-                >
-                  <span className={`task-state ${session.state}`}>{stateLabels[session.state]}</span>
-                  <strong>{session.summary?.title || 'Claude Code session'}</strong>
-                  <small>{profile.name}</small>
-                  {session.summary?.prompt && <span className="task-prompt">{session.summary.prompt}</span>}
-                </button>
-              </li>
-            ))}
-          </ul>
+        {open ? (
+          <SessionPanel
+            profile={open.profile}
+            session={open.session}
+            onBack={() => setSelected(undefined)}
+            onClear={() => clear(open.profile.id, open.session)}
+            onOpenInClaude={() => fire('openSession', { id: open.profile.id, session: open.session.host })}
+          />
         ) : (
-          <p className="n-hint">Nothing waiting on you.</p>
+          <>
+            <h2>Needs you</h2>
+            {inbox.length ? (
+              <ul>
+                {inbox.map(({ profile, session }) => (
+                  <li key={`${profile.id}/${session.id}`}>
+                    <button
+                      type="button"
+                      className="task"
+                      onClick={() => setSelected({ profile: profile.id, session: session.id })}
+                    >
+                      <span className={`task-state ${session.state}`}>{stateLabels[session.state]}</span>
+                      <strong>{session.summary?.title || 'Claude Code session'}</strong>
+                      <small>{profile.name}</small>
+                      {session.summary?.prompt && (
+                        <span className="task-prompt">{session.summary.prompt}</span>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="n-hint">Nothing waiting on you.</p>
+            )}
+          </>
         )}
         <VoiceBar onSay={setSay} />
       </aside>

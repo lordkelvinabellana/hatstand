@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { acceleratorKey } from '../core/accelerator.ts';
+import { runClaude } from '../core/claude-run.ts';
 import { runCodex } from '../core/codex-run.ts';
 import { speak, transcribe, voiceReady } from '../core/voice.ts';
 import { checksFor, isTestedVersion } from '../core/compat.ts';
@@ -68,6 +69,12 @@ export interface HandlerContext {
   sessions(id: string): Promise<SessionView[]>;
   /** Brings up the profile's Claude at a desktop session (local_…), or just the app. */
   openSession(id: string, session?: string): void;
+  /** A session's latest messages and folder, and a way to stop tracking it. */
+  sessionDetail(
+    id: string,
+    session: string,
+  ): Promise<{ messages: { role: string; text: string }[]; cwd: string } | undefined>;
+  removeSession(id: string, session: string): Promise<void>;
 }
 type Handler = (payload: unknown) => Promise<unknown>;
 
@@ -97,9 +104,17 @@ function buildCommit() {
 }
 
 const codexPreamble =
-  "You are Codex, the operator of Hatstand, which runs one Claude account per client. Use the hatstand tools to list profiles, see each profile's live sessions, and start a new session in the right profile when asked. Answer in one to three short plain spoken sentences: no markdown, no lists, no file paths. Say what you did or what you need.";
+  "You are Codex, the operator of Hatstand, which runs one Claude account per client. Use the hatstand tools to list profiles, see each profile's live sessions, and start a new session in the right profile when asked. Answer in one to three short plain spoken sentences: no markdown, no lists, no file paths. Each profile has its own notes vault for its client: search_notes and read_note read one profile at a time, so never mix one client's notes into another's work. Before answering about a client, project or person, search that profile's vault. Your own memory is profile \"codex\": use save_note for handoffs and decisions. Say what you did or what you need.";
 /** Codex's session id, so the next utterance continues the same conversation. */
 let codexSession: string | undefined;
+/** Codex's summaries of sessions, so reopening one doesn't ask again. */
+const summaries = new Map<string, string>();
+function sessionRef(payload: unknown) {
+  const { id, session } = (payload ?? {}) as { id?: unknown; session?: unknown };
+  if (typeof id !== 'string' || typeof session !== 'string' || !/^[A-Za-z0-9_-]{1,100}$/.test(session))
+    throw new Error('Invalid request.');
+  return { id, session };
+}
 
 export function createHandlers(context: HandlerContext): Record<string, Handler> {
   const { root, store, controller } = context;
@@ -709,6 +724,51 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
       const id = readId(payload);
       await controller.getProfile(id);
       return context.sessions(id);
+    },
+    async sessionDetail(payload) {
+      const { id, session } = sessionRef(payload);
+      await controller.getProfile(id);
+      return context.sessionDetail(id, session);
+    },
+    async sessionSummary(payload) {
+      const { id, session } = sessionRef(payload);
+      await controller.getProfile(id);
+      const detail = await context.sessionDetail(id, session);
+      if (!detail?.messages.length) return '';
+      const key = `${id}/${session}/${detail.messages.map((m) => m.text.length).join(',')}`;
+      const cached = summaries.get(key);
+      if (cached) return cached;
+      const talk = detail.messages
+        .map((m) => `${m.role === 'user' ? 'User' : 'Claude'}: ${m.text}`)
+        .join('\n\n');
+      const { text } = await runCodex({
+        prompt: `Below is the end of a Claude Code session. In two short plain sentences, say what it did or is asking, and what the user needs to decide or do next. No markdown.\n\n${talk}`,
+      });
+      summaries.set(key, text.trim());
+      return text.trim();
+    },
+    async sessionReply(payload) {
+      const { id, session } = sessionRef(payload);
+      const text = (payload as { text?: unknown }).text;
+      if (typeof text !== 'string' || !text.trim() || text.length > 8000) throw new Error('Invalid request.');
+      await controller.getProfile(id);
+      const detail = await context.sessionDetail(id, session);
+      const cwd = detail?.cwd && path.isAbsolute(detail.cwd) ? detail.cwd : os.homedir();
+      if (!(await fs.stat(cwd).catch(() => undefined))?.isDirectory())
+        throw new Error('The session’s folder is gone.');
+      const reply = await runClaude({
+        prompt: text.trim(),
+        resume: session,
+        cwd,
+        configDir: controller.directories(id).code,
+      });
+      context.notify();
+      return reply.text;
+    },
+    async sessionRemove(payload) {
+      const { id, session } = sessionRef(payload);
+      await controller.getProfile(id);
+      await context.removeSession(id, session);
     },
     voiceStatus: voiceReady,
     async voiceTranscribe(payload) {

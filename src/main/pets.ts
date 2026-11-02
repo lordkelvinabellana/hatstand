@@ -4,6 +4,7 @@ import * as fs from 'node:fs/promises';
 import path from 'node:path';
 import { BrowserWindow, Menu, type MenuItemConstructorOptions, nativeImage, screen, Tray } from 'electron';
 import type { Controller } from '../core/controller.ts';
+import { lastMessages } from '../core/transcript.ts';
 import { withFileLock, writeFileAtomic } from '../core/files.ts';
 import {
   type Badge,
@@ -230,6 +231,35 @@ export class Pets {
       if (pet.mood !== 'sleep') this.draw(pet);
       if (this.frame % 130 === 0) void this.scan(pet);
     }
+  }
+
+  /** The transcript of one of this profile's sessions; the pet file is not trusted to point outside the profile. */
+  private async transcriptOf(pet: Pet, id: string) {
+    if (!/^[A-Za-z0-9_-]{1,100}$/.test(id)) throw new Error('Invalid request.');
+    const session = parseSession(
+      await fs.readFile(path.join(pet.folder, `${id}.json`), 'utf8').catch(() => ''),
+    );
+    const code = path.resolve(this.controller.directories(pet.profile.id).code);
+    const transcript = session?.transcript ? path.resolve(session.transcript) : '';
+    return transcript.startsWith(code + path.sep) && transcript.endsWith('.jsonl') ? transcript : '';
+  }
+
+  /** What the Needs you panel shows for a session: its latest messages and where it runs. */
+  async detail(profile: string, id: string) {
+    const pet = this.pets.get(profile);
+    if (!pet) return undefined;
+    const transcript = await this.transcriptOf(pet, id);
+    const text = transcript ? await fs.readFile(transcript, 'utf8').catch(() => '') : '';
+    return { messages: lastMessages(text, 6), cwd: summarizeTranscript(text).cwd };
+  }
+
+  /** Stops Hatstand tracking a session (its transcript stays). */
+  async forget(profile: string, id: string) {
+    const pet = this.pets.get(profile);
+    if (!pet || !/^[A-Za-z0-9_-]{1,100}$/.test(id)) throw new Error('Invalid request.');
+    await fs.rm(path.join(pet.folder, `${id}.json`), { force: true });
+    pet.seen.delete(id);
+    void this.scan(pet);
   }
 
   /** The profile's live sessions for its page in Hatstand; empty when it has no pet. */

@@ -45,7 +45,7 @@ export interface WorldZone {
   sessions: SessionView[];
 }
 interface Handlers {
-  open(profile: string, host?: string): void;
+  open(profile: string, session?: string): void;
   launch(profile: string): void;
 }
 
@@ -131,7 +131,7 @@ interface Agent {
   mood: Mood;
   label: string;
   profile: string;
-  host?: string;
+  sessionId?: string;
   clickable: boolean;
   /** Target in world space; idle agents pick their own from `wander`. */
   target: Vector3;
@@ -223,7 +223,7 @@ class World {
       // A drag that ends over a person is a pan, not a click.
       if (Math.hypot(event.clientX - this.downAt.x, event.clientY - this.downAt.y) > 5) return;
       const agent = this.hovered;
-      if (agent?.clickable) this.handlers.open(agent.profile, agent.host);
+      if (agent?.clickable) this.handlers.open(agent.profile, agent.sessionId);
     });
     canvas.addEventListener('dblclick', (event) => {
       this.move(event);
@@ -631,7 +631,7 @@ class World {
         agent.shirt = shirt;
         agent.mood = entry.mood;
         agent.label = entry.label;
-        agent.host = entry.s?.host;
+        agent.sessionId = entry.s?.id;
         agent.clickable = !!entry.s;
         agent.wanders = !entry.s && room.running && entry.mood === 'idle';
         agent.target.set(
@@ -761,7 +761,7 @@ class World {
           card.type = 'button';
           card.className = 'office-popup';
           card.append(document.createElement('strong'), document.createElement('span'));
-          card.addEventListener('click', () => this.handlers.open(agent.profile, agent.host));
+          card.addEventListener('click', () => this.handlers.open(agent.profile, agent.sessionId));
           this.overlay.append(card);
           agent.popup = card;
         }
@@ -835,7 +835,7 @@ export function OfficeWorld(props: {
   zones: WorldZone[];
   theme: string;
   say?: string;
-  onOpen(profile: string, host?: string): void;
+  onOpen(profile: string, session?: string): void;
   onLaunch(profile: string): void;
 }) {
   const host = useRef<HTMLDivElement>(null);

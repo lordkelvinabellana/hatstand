@@ -238,6 +238,16 @@ async function checkNotes(vault) {
     assert.equal(await notes.locator('.office-popup').count(), 2);
     await new Promise((resolve) => setTimeout(resolve, 6000)); // let them walk to their places
     await notes.screenshot({ path: path.join(screenshotFolder, 'office-busy.png') });
+    // A Needs you item opens inside Hatstand (summary, reply box), not in Claude, and can be cleared.
+    await notes.locator('.office-inbox .task').first().waitFor();
+    const before = await notes.locator('.office-inbox .task').count();
+    await notes.locator('.office-inbox .task').first().click();
+    await notes.locator('.session-panel').waitFor();
+    await notes.getByPlaceholder('Reply to this session…').waitFor();
+    await notes.screenshot({ path: path.join(screenshotFolder, 'office-session.png') });
+    await notes.getByRole('button', { name: 'Clear from list' }).click();
+    await notes.locator('.office-inbox .task').first().waitFor();
+    assert.equal(await notes.locator('.office-inbox .task').count(), before - 1);
   }
   // A long session prompt must be cut off inside its card, never widen the page.
   await notes.evaluate(() => {
@@ -723,6 +733,7 @@ try {
   await page.getByRole('button', { name: 'Save preferences', exact: true }).click();
   await page.getByText('Settings saved.', { exact: true }).waitFor();
   // Sync refuses a secret key before anything is sent, and stays off by default.
+  await page.getByRole('tab', { name: 'Sync & backup' }).click();
   await page.getByLabel('Supabase project URL').fill('https://example.supabase.co');
   await page.getByLabel('Publishable key').fill('sb_secret_not_allowed');
   await page.getByLabel('Email', { exact: true }).fill('test@example.com');
@@ -733,6 +744,7 @@ try {
     .waitFor();
   await page.getByRole('heading', { name: 'Sync profiles' }).scrollIntoViewIfNeeded();
   await page.screenshot({ path: path.join(screenshotFolder, 'sync.png') });
+  await page.getByRole('tab', { name: 'Agents & voice' }).click();
   if (mac) {
     // Pets switch off (the Hatstand icon returns) and back on without a restart.
     for (const checked of [false, true]) {
@@ -741,6 +753,7 @@ try {
       await page.getByText('Settings saved.', { exact: true }).last().waitFor();
     }
   }
+  await page.getByRole('tab', { name: 'Sync & backup' }).click();
   await page.evaluate(() => window.scrollTo(0, 0));
   await scrubPaths(page);
   await instance.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1120, 780));
@@ -786,6 +799,7 @@ try {
     },
     imported.slice(3).map((p) => p.id),
   );
+  await page.getByRole('tab', { name: 'Updates & data' }).click();
   await page.getByRole('button', { name: 'Find leftover data', exact: true }).click();
   await page.getByText('1 belongs to removed profiles').waitFor();
   await page.getByRole('button', { name: mac ? 'Move to Trash…' : 'Move to Recycle Bin…' }).waitFor();

@@ -18,6 +18,8 @@ export interface Settings {
   petSounds: boolean;
   /** macOS: lets an outside agent (Codex) list profiles and sessions and start sessions, over a private socket. */
   operator: boolean;
+  /** Sessions idle for an hour are saved to their profile's vault (the vault skill), once. */
+  vaultIdle: boolean;
   /** Optional profile sync through the user's own Supabase project (metadata only). */
   syncEnabled: boolean;
   /** The Supabase project URL, e.g. https://abc.supabase.co. */
@@ -40,6 +42,7 @@ export const defaults: Settings = {
   pets: true,
   petSounds: true,
   operator: false,
+  vaultIdle: false,
   syncEnabled: false,
   syncUrl: '',
   syncKey: '',
@@ -79,6 +82,7 @@ export function validateSettings(input: unknown): Settings {
     typeof value.pets !== 'boolean' ||
     typeof value.petSounds !== 'boolean' ||
     typeof value.operator !== 'boolean' ||
+    typeof value.vaultIdle !== 'boolean' ||
     typeof value.syncEnabled !== 'boolean' ||
     typeof value.syncUrl !== 'string' ||
     !validSyncUrl(value.syncUrl) ||
@@ -110,6 +114,7 @@ export function validateSettings(input: unknown): Settings {
     pets: value.pets,
     petSounds: value.petSounds,
     operator: value.operator,
+    vaultIdle: value.vaultIdle,
     syncEnabled: value.syncEnabled,
     syncUrl: value.syncUrl.trim(),
     syncKey: value.syncKey,

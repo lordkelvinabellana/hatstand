@@ -1,11 +1,14 @@
 import { app, BrowserWindow, dialog, globalShortcut, ipcMain, Menu, nativeTheme } from 'electron';
 import type { Tray } from 'electron';
 import * as fs from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Controller } from '../core/controller.ts';
 import { ensurePlainDirectory } from '../core/launch.ts';
 import { dataRoot, legacyDataRoot, migrateLegacyData } from '../core/paths.ts';
+import { runClaude } from '../core/claude-run.ts';
+import { idleSessions } from '../core/idle.ts';
 import { findProfileByArgument, isRecord } from '../core/profiles.ts';
 import { readBindings, readSettings } from '../core/settings.ts';
 import { ProfileStore } from '../core/store.ts';
@@ -262,9 +265,56 @@ const handlers = createHandlers({
   sync,
   sessions: async (id) => (await pets?.liveSessions(id)) ?? [],
   openSession: (id, session) => void openSession(id, session),
+  sessionDetail: async (id, session) => pets?.detail(id, session),
+  removeSession: async (id, session) => {
+    await pets?.forget(id, session);
+  },
 });
 
 // Poll often while the manager is visible; rarely while it only lives in the tray.
+/**
+ * With the setting on, a session idle for an hour is asked once to run the vault skill, so its context is saved
+ * before the user picks it back up. `vaulted.json` remembers the activity time each one was saved at.
+ */
+let vaulting = false;
+async function vaultIdle() {
+  if (vaulting || !controller.settings.vaultIdle || !pets) return;
+  vaulting = true;
+  const file = path.join(root, 'vaulted.json');
+  try {
+    const vaulted: Record<string, number> = await fs
+      .readFile(file, 'utf8')
+      .then((text) => JSON.parse(text))
+      .catch(() => ({}));
+    for (const profile of (await store.load()).profiles.filter((p) => !p.archived)) {
+      const live = await pets.liveSessions(profile.id);
+      const idle = idleSessions(
+        live.map((x) => ({ key: `${profile.id}/${x.id}`, state: x.state, at: x.at })),
+        Date.now(),
+        vaulted,
+      );
+      for (const key of idle) {
+        const id = key.slice(profile.id.length + 1);
+        const cwd = (await pets.detail(profile.id, id))?.cwd || os.homedir();
+        // Saved once per stretch of activity: whatever happens, don't ask again for this timestamp.
+        vaulted[key] = live.find((x) => x.id === id)?.at ?? Date.now();
+        await runClaude({
+          prompt:
+            'This session has been idle for an hour. Run the vault skill now so what this session did and decided is saved to the second brain. Reply with one line saying what you saved.',
+          resume: id,
+          cwd,
+          configDir: controller.directories(profile.id).code,
+        }).catch(reportError);
+        // The run itself updates the session, so remember its new activity time too.
+        vaulted[key] = (await pets.liveSessions(profile.id)).find((x) => x.id === id)?.at ?? vaulted[key];
+        await fs.writeFile(file, JSON.stringify(vaulted), 'utf8');
+      }
+    }
+  } finally {
+    vaulting = false;
+  }
+}
+
 function schedulePolling() {
   const delay = window?.isVisible() ? 8000 : 30_000;
   const timer = setTimeout(() => {
@@ -370,6 +420,7 @@ async function start() {
     void launchStartupGroup().catch(reportError);
   void launchArgument(process.argv);
   schedulePolling();
+  setInterval(() => void vaultIdle().catch(reportError), 5 * 60_000);
 }
 
 if (!handleSquirrelEvent()) {
