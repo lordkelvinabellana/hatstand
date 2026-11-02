@@ -35,6 +35,8 @@ const titles: Record<Page, string> = {
   about: 'Compatibility',
 };
 
+const officeEnabled = false;
+
 export function App() {
   const [data, setData] = useState<Snapshot | null>(null);
   const [page, setPage] = useState<Page>('profiles');
@@ -227,7 +229,8 @@ export function App() {
           <nav className="nav-group" aria-label="Workspace">
             <p className="nav-caption">Workspace</p>
             {navItem('profiles', <LayoutList size={18} />, active.length)}
-            {navItem('office', <PawPrint size={18} />)}
+            {/* Switched off for now; flip to bring the Office back. */}
+            {officeEnabled && navItem('office', <PawPrint size={18} />)}
             {navItem(
               'vault',
               <Brain size={18} />,

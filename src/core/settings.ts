@@ -43,7 +43,7 @@ export const defaults: Settings = {
   setupComplete: false,
   pets: true,
   petSounds: true,
-  petSpeech: true,
+  petSpeech: false,
   operator: false,
   vaultIdle: false,
   syncEnabled: false,
