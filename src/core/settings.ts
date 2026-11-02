@@ -16,6 +16,8 @@ export interface Settings {
   pets: boolean;
   /** macOS: pets play a sound when an account needs you or finishes. */
   petSounds: boolean;
+  /** macOS: lets an outside agent (Codex) list profiles and sessions and start sessions, over a private socket. */
+  operator: boolean;
   /** Optional profile sync through the user's own Supabase project (metadata only). */
   syncEnabled: boolean;
   /** The Supabase project URL, e.g. https://abc.supabase.co. */
@@ -37,6 +39,7 @@ export const defaults: Settings = {
   setupComplete: false,
   pets: true,
   petSounds: true,
+  operator: false,
   syncEnabled: false,
   syncUrl: '',
   syncKey: '',
@@ -75,6 +78,7 @@ export function validateSettings(input: unknown): Settings {
     typeof value.setupComplete !== 'boolean' ||
     typeof value.pets !== 'boolean' ||
     typeof value.petSounds !== 'boolean' ||
+    typeof value.operator !== 'boolean' ||
     typeof value.syncEnabled !== 'boolean' ||
     typeof value.syncUrl !== 'string' ||
     !validSyncUrl(value.syncUrl) ||
@@ -105,6 +109,7 @@ export function validateSettings(input: unknown): Settings {
     setupComplete: value.setupComplete,
     pets: value.pets,
     petSounds: value.petSounds,
+    operator: value.operator,
     syncEnabled: value.syncEnabled,
     syncUrl: value.syncUrl.trim(),
     syncKey: value.syncKey,

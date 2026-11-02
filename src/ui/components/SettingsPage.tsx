@@ -96,6 +96,20 @@ export function SettingsPage() {
                 onChange={(e) => setSettings({ ...settings, petSounds: e.target.checked })}
               />
             </label>
+            <label className="setting-row">
+              <span>
+                Let an outside agent start sessions
+                <small>
+                  Lets Codex (or any program you run) list your profiles and sessions and open a new Claude
+                  Code session in a profile. Off by default. Uses a private socket only you can reach.
+                </small>
+              </span>
+              <input
+                type="checkbox"
+                checked={settings.operator}
+                onChange={(e) => setSettings({ ...settings, operator: e.target.checked })}
+              />
+            </label>
           </section>
         )}
         <section className="setting-section">
