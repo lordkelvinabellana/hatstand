@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Play } from 'lucide-react';
 import type { SessionView } from '../../shared.ts';
 import type { Color } from '../../core/profiles.ts';
 import { drawPet, type Mood, speciesNames } from '../../core/sprites.ts';
 import { api, useApp } from '../api.ts';
+import { hasWebGL, OfficeWorld, type WorldZone } from './OfficeWorld.tsx';
 
 const stateLabels: Record<SessionView['state'], string> = {
   working: 'Working…',
@@ -111,16 +112,33 @@ function layout(live: SessionView[], running: boolean, frame: number, seed: numb
 
 /** The agent view: a pixel office with a room per profile, and what needs you on the right. */
 export function OfficePage() {
-  const { data, fire } = useApp();
+  const { data, fire, theme } = useApp();
   const profiles = data.profiles.filter((p) => !p.archived);
   const sessions = useAllSessions(profiles.map((p) => p.id));
   const [frame, setFrame] = useState(0);
   // When each character last changed spots, so it shows its walking bob until it arrives.
   const moved = useRef(new Map<string, { at: string; since: number }>());
+  // The flat fallback animates by redrawing; the 3D world runs its own loop.
+  const world = useMemo(hasWebGL, []);
   useEffect(() => {
+    if (world) return;
     const timer = setInterval(() => setFrame((n) => n + 1), 450);
     return () => clearInterval(timer);
-  }, []);
+  }, [world]);
+  const zones = useMemo<WorldZone[]>(
+    () =>
+      data.profiles
+        .filter((p) => !p.archived)
+        .map((profile, index) => ({
+          id: profile.id,
+          name: profile.name,
+          color: profile.color,
+          species: profile.pet ? speciesNames.indexOf(profile.pet) : index % speciesNames.length,
+          running: profile.status === 'running' || profile.status === 'starting',
+          sessions: sessions[profile.id] ?? [],
+        })),
+    [data.profiles, sessions],
+  );
 
   const rank = { ask: 0, done: 1, working: 2 };
   const inbox = profiles
@@ -131,83 +149,92 @@ export function OfficePage() {
 
   return (
     <section className="office">
-      <div className="office-rooms">
-        {profiles.map((profile, index) => {
-          const species = profile.pet ? speciesNames.indexOf(profile.pet) : index % speciesNames.length;
-          const live = sessions[profile.id] ?? [];
-          const running = profile.status === 'running' || profile.status === 'starting';
-          const { desks, spots } = layout(live, running, frame, index);
-          const knocking = live.some((s) => s.state === 'ask');
-          return (
-            <article key={profile.id} className={`office-room ${profile.color}`}>
-              <header>
-                <h2>{profile.name}</h2>
-                <button
-                  type="button"
-                  className="text-button"
-                  onClick={() => fire('launch', { id: profile.id })}
-                >
-                  <Play size={14} />
-                  {running ? 'Bring to front' : 'Launch'}
-                </button>
-              </header>
-              <div className="office-scene" style={{ height: roomHeight }}>
-                <div className="office-wall" />
-                {Array.from({ length: desks }, (_, i) => (
-                  <div
-                    key={i}
-                    className={`office-deskpiece ${live[i]?.state === 'working' ? 'on' : ''}`}
-                    style={{ left: `${deskX(i, desks) - 29 / desks - 1}%`, width: `${58 / desks - 2}%` }}
-                  />
-                ))}
-                <div className={`office-door ${knocking ? 'knock' : ''}`} />
-                <div className="office-couch" />
-                <div className="office-plant" />
-                {spots.map((spot) => {
-                  const at = `${spot.x},${spot.y}`;
-                  const prev = moved.current.get(`${profile.id}/${spot.key}`);
-                  if (prev?.at !== at) moved.current.set(`${profile.id}/${spot.key}`, { at, since: now });
-                  const walking =
-                    prev !== undefined && prev.at !== at ? true : now - (prev?.since ?? 0) < 1500;
-                  const style = { left: `${spot.x}%`, top: spot.y, zIndex: Math.round(spot.y) };
-                  const body = (
-                    <>
-                      <PixelPet
-                        species={species}
-                        color={profile.color}
-                        mood={spot.mood}
-                        frame={walking && spot.mood === 'idle' ? frame + 1 : frame}
-                      />
-                      {spot.label && <span className="office-label">{spot.label}</span>}
-                    </>
-                  );
-                  return spot.session ? (
-                    <button
-                      type="button"
-                      key={spot.key}
-                      className={`office-agent ${walking ? 'walking' : ''}`}
-                      style={style}
-                      title={`${spot.label} · ${stateLabels[spot.session.state]}`}
-                      onClick={() => fire('openSession', { id: profile.id, session: spot.session?.host })}
-                    >
-                      {body}
-                    </button>
-                  ) : (
+      {world ? (
+        <OfficeWorld
+          zones={zones}
+          theme={theme}
+          onOpen={(id, session) => fire('openSession', { id, session })}
+          onLaunch={(id) => fire('launch', { id })}
+        />
+      ) : (
+        <div className="office-rooms">
+          {profiles.map((profile, index) => {
+            const species = profile.pet ? speciesNames.indexOf(profile.pet) : index % speciesNames.length;
+            const live = sessions[profile.id] ?? [];
+            const running = profile.status === 'running' || profile.status === 'starting';
+            const { desks, spots } = layout(live, running, frame, index);
+            const knocking = live.some((s) => s.state === 'ask');
+            return (
+              <article key={profile.id} className={`office-room ${profile.color}`}>
+                <header>
+                  <h2>{profile.name}</h2>
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() => fire('launch', { id: profile.id })}
+                  >
+                    <Play size={14} />
+                    {running ? 'Bring to front' : 'Launch'}
+                  </button>
+                </header>
+                <div className="office-scene" style={{ height: roomHeight }}>
+                  <div className="office-wall" />
+                  {[...Array(desks).keys()].map((i) => (
                     <div
-                      key={spot.key}
-                      className={`office-agent idle ${walking ? 'walking' : ''}`}
-                      style={style}
-                      title={running ? 'Idle' : 'Not running'}
-                    >
-                      {body}
-                    </div>
-                  );
-                })}
-              </div>
-            </article>
-          );
-        })}
-      </div>
+                      key={i}
+                      className={`office-deskpiece ${live[i]?.state === 'working' ? 'on' : ''}`}
+                      style={{ left: `${deskX(i, desks) - 29 / desks - 1}%`, width: `${58 / desks - 2}%` }}
+                    />
+                  ))}
+                  <div className={`office-door ${knocking ? 'knock' : ''}`} />
+                  <div className="office-couch" />
+                  <div className="office-plant" />
+                  {spots.map((spot) => {
+                    const at = `${spot.x},${spot.y}`;
+                    const prev = moved.current.get(`${profile.id}/${spot.key}`);
+                    if (prev?.at !== at) moved.current.set(`${profile.id}/${spot.key}`, { at, since: now });
+                    const walking =
+                      prev !== undefined && prev.at !== at ? true : now - (prev?.since ?? 0) < 1500;
+                    const style = { left: `${spot.x}%`, top: spot.y, zIndex: Math.round(spot.y) };
+                    const body = (
+                      <>
+                        <PixelPet
+                          species={species}
+                          color={profile.color}
+                          mood={spot.mood}
+                          frame={walking && spot.mood === 'idle' ? frame + 1 : frame}
+                        />
+                        {spot.label && <span className="office-label">{spot.label}</span>}
+                      </>
+                    );
+                    return spot.session ? (
+                      <button
+                        type="button"
+                        key={spot.key}
+                        className={`office-agent ${walking ? 'walking' : ''}`}
+                        style={style}
+                        title={`${spot.label} · ${stateLabels[spot.session.state]}`}
+                        onClick={() => fire('openSession', { id: profile.id, session: spot.session?.host })}
+                      >
+                        {body}
+                      </button>
+                    ) : (
+                      <div
+                        key={spot.key}
+                        className={`office-agent idle ${walking ? 'walking' : ''}`}
+                        style={style}
+                        title={running ? 'Idle' : 'Not running'}
+                      >
+                        {body}
+                      </div>
+                    );
+                  })}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
       <aside className="office-inbox" aria-label="Needs you">
         <h2>Needs you</h2>
         {inbox.length ? (

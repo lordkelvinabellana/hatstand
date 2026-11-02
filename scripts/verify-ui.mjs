@@ -204,11 +204,15 @@ async function checkNotes(vault) {
   // Office: a room per active profile and the "Needs you" column.
   await notes.getByRole('button', { name: 'Office', exact: true }).click();
   await notes.getByRole('complementary', { name: 'Needs you' }).waitFor();
-  assert.equal(await notes.locator('.office-agent').count(), await notes.locator('.office-room').count()); // one idle pet per room
-  assert.equal(
-    await notes.locator('.office-room').count(),
-    (await readProfiles()).filter((p) => !p.archived).length,
-  );
+  // The lit 3D set where WebGL works (one zone label per active profile), the flat rooms where it doesn't.
+  const active = (await readProfiles()).filter((p) => !p.archived).length;
+  await notes.locator('.office-world canvas, .office-room').first().waitFor();
+  if (await notes.locator('.office-world canvas').count())
+    assert.equal(await notes.locator('.office-zone').count(), active);
+  else {
+    assert.equal(await notes.locator('.office-room').count(), active);
+    assert.equal(await notes.locator('.office-agent').count(), active); // one idle pet per room
+  }
   // A long session prompt must be cut off inside its card, never widen the page.
   await notes.evaluate(() => {
     const item = document.createElement('li');
