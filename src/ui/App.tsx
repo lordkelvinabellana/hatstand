@@ -7,6 +7,7 @@ import {
   ChevronRight,
   CircleHelp,
   LayoutList,
+  PawPrint,
   RefreshCw,
   Settings2,
   X,
@@ -15,6 +16,7 @@ import type { Snapshot } from '../shared.ts';
 import { api, AppContext } from './api.ts';
 import type { AppContextValue, Page } from './api.ts';
 import { CompatibilityPage } from './components/CompatibilityPage.tsx';
+import { OfficePage } from './components/OfficePage.tsx';
 import { ProfilesPage } from './components/ProfilesPage.tsx';
 import { SettingsPage } from './components/SettingsPage.tsx';
 import { HatMark } from './components/HatMark.tsx';
@@ -25,6 +27,7 @@ import { ProfileEditor } from './components/ProfileEditor.tsx';
 
 const titles: Record<Page, string> = {
   profiles: 'Client profiles',
+  office: 'Office',
   archive: 'Archived',
   vault: 'Second brain',
   profile: 'Profile',
@@ -224,6 +227,7 @@ export function App() {
           <nav className="nav-group" aria-label="Workspace">
             <p className="nav-caption">Workspace</p>
             {navItem('profiles', <LayoutList size={18} />, active.length)}
+            {navItem('office', <PawPrint size={18} />)}
             {navItem(
               'vault',
               <Brain size={18} />,
@@ -271,6 +275,7 @@ export function App() {
                 onEdit={setEditing}
               />
             )}
+            {page === 'office' && <OfficePage />}
             {page === 'vault' && <VaultPage open={vaultOf} />}
             {page === 'profile' && profileId && <ProfilePage id={profileId} />}
             {page !== 'profiles' && page !== 'archive' && editing && (

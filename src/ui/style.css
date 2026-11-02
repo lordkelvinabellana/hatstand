@@ -1575,3 +1575,106 @@ small {
     grid-row: auto;
   }
 }
+
+/* Office: a room per profile, a pixel character per live session, what needs you on the right. */
+.office {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 16px;
+  align-items: start;
+}
+.office-rooms {
+  display: grid;
+  gap: 14px;
+}
+.office-room,
+.office-inbox {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  padding: 16px;
+}
+.office-room header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.office-room h2,
+.office-inbox h2 {
+  margin: 0;
+  font-size: 15px;
+}
+.office-inbox h2 {
+  margin-bottom: 12px;
+}
+.office-inbox ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.office-floor {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-height: 96px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--hover);
+}
+.office-desk {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  width: 112px;
+  padding: 8px 6px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.office-desk:hover:not(.idle) {
+  background: var(--surface);
+}
+.office-desk.idle {
+  cursor: default;
+}
+.office-desk span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.office-pet {
+  width: 64px;
+  height: auto;
+  image-rendering: pixelated;
+}
+.office-pet.working {
+  animation: office-type 0.9s steps(2) infinite;
+}
+.office-pet.ask {
+  animation: office-hop 0.7s ease-in-out infinite;
+}
+@keyframes office-type {
+  50% {
+    transform: translateY(2px);
+  }
+}
+@keyframes office-hop {
+  50% {
+    transform: translateY(-6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .office-pet {
+    animation: none !important;
+  }
+}
+@media (max-width: 900px) {
+  .office {
+    grid-template-columns: 1fr;
+  }
+}

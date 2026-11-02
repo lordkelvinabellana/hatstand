@@ -201,6 +201,15 @@ async function checkNotes(vault) {
   await notes.locator('.profile-hero').waitFor();
   await notes.getByRole('heading', { name: 'Running tasks' }).waitFor();
   await notes.screenshot({ path: path.join(screenshotFolder, 'profile-page.png') });
+  // Office: a room per active profile and the "Needs you" column.
+  await notes.getByRole('button', { name: 'Office', exact: true }).click();
+  await notes.getByRole('complementary', { name: 'Needs you' }).waitFor();
+  assert.equal(
+    await notes.locator('.office-room').count(),
+    (await readProfiles()).filter((p) => !p.archived).length,
+  );
+  await notes.screenshot({ path: path.join(screenshotFolder, 'office.png') });
+  await notes.getByRole('button', { name: 'Second brain', exact: true }).click();
   await editProfile(notes, 0);
   await instance.evaluate(({ dialog }) => {
     dialog.showMessageBox = globalThis.realMessageBox;
