@@ -5,6 +5,8 @@ export interface OperatorActions {
   profiles(): Promise<string>;
   sessions(profile: string): Promise<string>;
   start(profile: string, prompt: string, folder?: string): Promise<string>;
+  /** search_notes, read_note and save_note: the vault tools. */
+  notes(tool: string, args: Record<string, unknown>): Promise<string>;
 }
 
 // shortcut: Unix sockets only; Windows is not a target for operator tools.
@@ -58,6 +60,11 @@ export async function serveOperator(
                   args.prompt as string,
                   args.folder as string | undefined,
                 );
+                break;
+              case 'search_notes':
+              case 'read_note':
+              case 'save_note':
+                text = await actions.notes(request.tool, args);
                 break;
               default:
                 throw new Error(`Unknown tool “${request.tool}”.`);

@@ -2,6 +2,8 @@ import * as fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import type { SessionView } from '../shared.ts';
+import { notePath } from '../core/operator.ts';
+import { callTool as readVault } from '../core/recall.ts';
 import { newSessionLink } from '../core/ask.ts';
 import { type OperatorActions, serveOperator } from '../core/operator-server.ts';
 import type { Profile } from '../core/profiles.ts';
@@ -21,6 +23,10 @@ export interface OperatorHost {
   /** Delivers a claude:// link to the profile's own Claude, launching it first when needed. */
   open(id: string, url: string): Promise<boolean>;
   log(action: string, id: string): Promise<void>;
+  /** The folder of a profile's vault. */
+  vault(id: string): Promise<string>;
+  /** Codex's own memory folder, kept apart from every client vault. */
+  codexVault: string;
 }
 
 /**
@@ -35,6 +41,7 @@ export function startOperator(socketPath: string, host: OperatorHost) {
       name,
     );
   const actions: OperatorActions = {
+    notes: async () => '',
     async profiles() {
       const lines = (await host.profiles())
         .filter((p) => !p.archived)
@@ -71,6 +78,20 @@ export function startOperator(socketPath: string, host: OperatorHost) {
         ? `Started a new session in ${profile.name}'s Claude (folder ${where}).`
         : `Launched ${profile.name}'s Claude, but the session may not have started; check its pet.`;
     },
+  };
+  actions.notes = async (tool, args) => {
+    if (tool === 'save_note') {
+      const file = notePath(host.codexVault, String(args.note));
+      await fs.mkdir(host.codexVault, { recursive: true });
+      await fs.writeFile(file, String(args.text), 'utf8');
+      return `Saved “${args.note}” to your own memory.`;
+    }
+    const folder =
+      String(args.profile).toLowerCase() === 'codex'
+        ? host.codexVault
+        : await host.vault((await find(String(args.profile))).id);
+    if (!(await fs.stat(folder).catch(() => undefined))?.isDirectory()) return 'That vault has no notes yet.';
+    return readVault(folder, tool, args);
   };
   return serveOperator(socketPath, actions);
 }

@@ -36,7 +36,7 @@ test('operator server: initialize, list tools, ping and notifications', async ()
   };
   assert.deepEqual(
     list.result.tools.map((t) => t.name),
-    ['list_profiles', 'list_sessions', 'start_session'],
+    ['list_profiles', 'list_sessions', 'start_session', 'search_notes', 'read_note', 'save_note'],
   );
   const unknown = (await handleOperator(bridge, { id: 2, method: 'resources/list' })) as {
     error: { code: number };
@@ -97,6 +97,7 @@ test('operator socket round trip and action errors', async () => {
   try {
     await fs.writeFile(socket, 'stale');
     const server = await serveOperator(socket, {
+      notes: async () => '',
       profiles: async () => 'Work',
       sessions: async (profile) => `${profile}: live`,
       start: async (profile, prompt, folder) => `${profile}: ${prompt} in ${folder}`,
@@ -114,6 +115,7 @@ test('operator socket round trip and action errors', async () => {
       await server.close();
     }
     const failing = await serveOperator(socket, {
+      notes: async () => '',
       profiles: async () => {
         throw new Error('Action failed');
       },
@@ -139,4 +141,11 @@ test("missing operator socket rejects with Hatstand isn't running", async () => 
   } finally {
     await fs.rm(root, { recursive: true, force: true });
   }
+});
+
+test('notePath keeps Codex notes inside its vault folder', async () => {
+  const { notePath } = await import('../src/core/operator.ts');
+  assert.equal(notePath('/v', 'Handoff 1'), '/v/Handoff 1.md');
+  assert.throws(() => notePath('/v', '../escape'));
+  assert.throws(() => notePath('/v', '.hidden'));
 });

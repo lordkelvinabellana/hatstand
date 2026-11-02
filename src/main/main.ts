@@ -160,6 +160,8 @@ async function syncOperator() {
       sessions: async (id) => (await pets?.liveSessions(id)) ?? [],
       open: openInClaude,
       log,
+      vault: async (id) => (await brainStatus(root, controller, id)).folder,
+      codexVault: path.join(root, 'codex-vault'),
     });
   } else if (!controller.settings.operator && operator) {
     await operator.close();
