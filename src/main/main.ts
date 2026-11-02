@@ -23,6 +23,7 @@ import { brainStatus, vaultFolders, vaultLabel, wireBrains } from './brain.ts';
 import { NotesService } from './notes.ts';
 import { deepGraphLink } from '../core/inferred.ts';
 import { Pets } from './pets.ts';
+import { startOperator } from './operator.ts';
 import { ProfileSync } from './sync.ts';
 import { createTray, type TrayActions, trayMenu, updateTray } from './tray.ts';
 
@@ -146,8 +147,29 @@ const trayActions: TrayActions = {
   },
 };
 
+let operator: Awaited<ReturnType<typeof startOperator>> | undefined;
+/** Starts or stops the operator socket to match the setting (macOS). */
+async function syncOperator() {
+  if (process.platform !== 'darwin') return;
+  if (controller.settings.operator && !operator) {
+    const script = path.join(root, 'operator.cjs');
+    await fs.copyFile(path.join(__dirname, 'operator.cjs'), script);
+    operator = await startOperator(path.join(root, 'operator.sock'), {
+      profiles: async () => (await store.load()).profiles,
+      running: (id) => !!controller.owned(id),
+      sessions: async (id) => (await pets?.liveSessions(id)) ?? [],
+      open: openInClaude,
+      log,
+    });
+  } else if (!controller.settings.operator && operator) {
+    await operator.close();
+    operator = undefined;
+  }
+}
+
 async function syncShell() {
   const profiles = (await store.load()).profiles;
+  await syncOperator().catch(reportError);
   // Pets can be switched on and off in Settings; the hook files they read stay in place.
   if (process.platform === 'darwin' && controller.settings.pets && !pets) {
     pets = new Pets(root, controller, (id, session) => void openSession(id, session));
@@ -359,6 +381,7 @@ if (!handleSquirrelEvent()) {
     app.on('will-quit', () => globalShortcut.unregisterAll());
     app.on('before-quit', () => {
       quitting = true;
+      void operator?.close();
     });
     app.whenReady().then(async () => {
       try {
