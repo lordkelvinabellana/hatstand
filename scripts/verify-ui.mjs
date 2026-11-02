@@ -204,6 +204,7 @@ async function checkNotes(vault) {
   // Office: a room per active profile and the "Needs you" column.
   await notes.getByRole('button', { name: 'Office', exact: true }).click();
   await notes.getByRole('complementary', { name: 'Needs you' }).waitFor();
+  assert.equal(await notes.locator('.office-agent').count(), await notes.locator('.office-room').count()); // one idle pet per room
   assert.equal(
     await notes.locator('.office-room').count(),
     (await readProfiles()).filter((p) => !p.archived).length,

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Play } from 'lucide-react';
 import type { SessionView } from '../../shared.ts';
 import type { Color } from '../../core/profiles.ts';
@@ -61,12 +61,62 @@ function PixelPet(props: { species: number; color: Color; mood: Mood; frame: num
   );
 }
 
-/** The agent view: a room per profile with a character per live session, and what needs you on the right. */
+/** Where a character stands: x in % of the room's width, y in px from its top (the label's bottom edge). */
+interface Spot {
+  key: string;
+  x: number;
+  y: number;
+  mood: Mood;
+  label: string;
+  session?: SessionView;
+}
+const roomHeight = 208;
+// shortcut: the desk row holds about eight desks at normal width; past that characters overlap, add a second row then.
+const deskX = (index: number, desks: number) => 6 + ((index + 0.5) * 58) / desks;
+const wander = [
+  [34, 170],
+  [52, 198],
+  [68, 150],
+  [22, 140],
+];
+
+/**
+ * Working sessions sit at a desk, ones that need you wait at the door, finished ones rest on the couch,
+ * and a profile with nothing running wanders (or sleeps on the couch when its Claude is closed).
+ */
+function layout(live: SessionView[], running: boolean, frame: number, seed: number) {
+  const desks = Math.max(live.length, 3);
+  if (!live.length) {
+    const [x, y] = running ? wander[(Math.floor(frame / 11) + seed) % wander.length] : [12, 198];
+    return { desks, spots: [{ key: 'idle', x, y, mood: running ? 'idle' : 'sleep', label: '' } as Spot] };
+  }
+  let asking = 0;
+  let resting = 0;
+  const spots = live.map((session, index): Spot => {
+    const base = {
+      key: session.id,
+      mood: session.state,
+      label: session.summary?.title || 'Claude Code session',
+      session,
+    };
+    if (session.state === 'working') return { ...base, x: deskX(index, desks), y: 128 };
+    if (session.state === 'ask') {
+      const n = asking++;
+      return { ...base, x: 84 - Math.floor(n / 2) * 10, y: 164 + (n % 2) * 16 };
+    }
+    return { ...base, x: 10 + resting++ * 9, y: 200 };
+  });
+  return { desks, spots };
+}
+
+/** The agent view: a pixel office with a room per profile, and what needs you on the right. */
 export function OfficePage() {
   const { data, fire } = useApp();
   const profiles = data.profiles.filter((p) => !p.archived);
   const sessions = useAllSessions(profiles.map((p) => p.id));
   const [frame, setFrame] = useState(0);
+  // When each character last changed spots, so it shows its walking bob until it arrives.
+  const moved = useRef(new Map<string, { at: string; since: number }>());
   useEffect(() => {
     const timer = setInterval(() => setFrame((n) => n + 1), 450);
     return () => clearInterval(timer);
@@ -77,6 +127,7 @@ export function OfficePage() {
     .flatMap((profile) => (sessions[profile.id] ?? []).map((session) => ({ profile, session })))
     .filter(({ session }) => session.state !== 'working')
     .sort((a, b) => rank[a.session.state] - rank[b.session.state] || b.session.at - a.session.at);
+  const now = Date.now();
 
   return (
     <section className="office">
@@ -85,6 +136,8 @@ export function OfficePage() {
           const species = profile.pet ? speciesNames.indexOf(profile.pet) : index % speciesNames.length;
           const live = sessions[profile.id] ?? [];
           const running = profile.status === 'running' || profile.status === 'starting';
+          const { desks, spots } = layout(live, running, frame, index);
+          const knocking = live.some((s) => s.state === 'ask');
           return (
             <article key={profile.id} className={`office-room ${profile.color}`}>
               <header>
@@ -98,31 +151,58 @@ export function OfficePage() {
                   {running ? 'Bring to front' : 'Launch'}
                 </button>
               </header>
-              <div className="office-floor">
-                {live.length ? (
-                  live.map((s) => (
+              <div className="office-scene" style={{ height: roomHeight }}>
+                <div className="office-wall" />
+                {Array.from({ length: desks }, (_, i) => (
+                  <div
+                    key={i}
+                    className={`office-deskpiece ${live[i]?.state === 'working' ? 'on' : ''}`}
+                    style={{ left: `${deskX(i, desks) - 29 / desks - 1}%`, width: `${58 / desks - 2}%` }}
+                  />
+                ))}
+                <div className={`office-door ${knocking ? 'knock' : ''}`} />
+                <div className="office-couch" />
+                <div className="office-plant" />
+                {spots.map((spot) => {
+                  const at = `${spot.x},${spot.y}`;
+                  const prev = moved.current.get(`${profile.id}/${spot.key}`);
+                  if (prev?.at !== at) moved.current.set(`${profile.id}/${spot.key}`, { at, since: now });
+                  const walking =
+                    prev !== undefined && prev.at !== at ? true : now - (prev?.since ?? 0) < 1500;
+                  const style = { left: `${spot.x}%`, top: spot.y, zIndex: Math.round(spot.y) };
+                  const body = (
+                    <>
+                      <PixelPet
+                        species={species}
+                        color={profile.color}
+                        mood={spot.mood}
+                        frame={walking && spot.mood === 'idle' ? frame + 1 : frame}
+                      />
+                      {spot.label && <span className="office-label">{spot.label}</span>}
+                    </>
+                  );
+                  return spot.session ? (
                     <button
                       type="button"
-                      key={s.id}
-                      className="office-desk"
-                      title={s.summary?.title || 'Claude Code session'}
-                      onClick={() => fire('openSession', { id: profile.id, session: s.host })}
+                      key={spot.key}
+                      className={`office-agent ${walking ? 'walking' : ''}`}
+                      style={style}
+                      title={`${spot.label} · ${stateLabels[spot.session.state]}`}
+                      onClick={() => fire('openSession', { id: profile.id, session: spot.session?.host })}
                     >
-                      <PixelPet species={species} color={profile.color} mood={s.state} frame={frame} />
-                      <span>{s.summary?.title || 'Claude Code session'}</span>
+                      {body}
                     </button>
-                  ))
-                ) : (
-                  <div className="office-desk idle">
-                    <PixelPet
-                      species={species}
-                      color={profile.color}
-                      mood={running ? 'idle' : 'sleep'}
-                      frame={frame}
-                    />
-                    <span>{running ? 'Idle' : 'Not running'}</span>
-                  </div>
-                )}
+                  ) : (
+                    <div
+                      key={spot.key}
+                      className={`office-agent idle ${walking ? 'walking' : ''}`}
+                      style={style}
+                      title={running ? 'Idle' : 'Not running'}
+                    >
+                      {body}
+                    </div>
+                  );
+                })}
               </div>
             </article>
           );

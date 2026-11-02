@@ -13,7 +13,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ### Added
 
-- **Office page.** A room per profile with a pixel character per live Claude Code session (typing while it works, hopping when it needs you), and a "Needs you" column listing every session that asked or finished. Click one to open it in that profile's Claude. macOS only for now, like the pets.
+- **Office page.** A pixel office with a room per profile: sessions that are working sit at a desk and type, ones that need you walk to the door and hop, finished ones rest on the couch, and an idle profile wanders (or sleeps when its Claude is closed). A "Needs you" column lists every session that asked or finished; click a character or a card to open it in that profile's Claude. macOS only for now, like the pets.
 - **Export and import notes.** Each vault card on the Second brain page has **Export notes…** (saves the vault as one `.hatstandnotes` file) and **Import notes…** (shows what would change, then adds it). Upload the file to Google Drive, or copy it, to bring your notes to Hatstand on another computer. Nothing is sent anywhere, nothing is deleted, and a note changed on both computers keeps your version and saves theirs next to it.
 - **Remove and Clear done** in a pet's panel: an × on each session takes it off the list, and Clear done removes every finished one.
 
