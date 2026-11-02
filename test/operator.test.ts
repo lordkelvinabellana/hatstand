@@ -91,7 +91,9 @@ test('operator tools validate and trim arguments before calling the bridge', asy
   assert.equal(failed.content[0].text, 'Unavailable');
 });
 
-test('operator socket round trip and action errors', async () => {
+test('operator socket round trip and action errors', {
+  skip: process.platform === 'win32' && 'Unix sockets only',
+}, async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'hatstand-op-'));
   const socket = path.join(root, 'operator.sock');
   try {
@@ -145,7 +147,7 @@ test("missing operator socket rejects with Hatstand isn't running", async () => 
 
 test('notePath keeps Codex notes inside its vault folder', async () => {
   const { notePath } = await import('../src/core/operator.ts');
-  assert.equal(notePath('/v', 'Handoff 1'), '/v/Handoff 1.md');
+  assert.equal(notePath('/v', 'Handoff 1'), path.join('/v', 'Handoff 1.md'));
   assert.throws(() => notePath('/v', '../escape'));
   assert.throws(() => notePath('/v', '.hidden'));
 });

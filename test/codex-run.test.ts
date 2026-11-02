@@ -70,7 +70,7 @@ for (const code of [0, 1]) {
     process.env.PATH = bin;
     let output = '';
     const spawner = ((command: string, args: string[], options: { cwd: string }) => {
-      assert.match(command, /\/codex$/);
+      assert.match(command, /[\\/]codex$/);
       assert.equal(options.cwd, os.homedir());
       output = args[args.indexOf('-o') + 1];
       const child = Object.assign(new EventEmitter(), {

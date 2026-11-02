@@ -19,6 +19,7 @@ import {
   PCFSoftShadowMap,
   Plane,
   PlaneGeometry,
+  RepeatWrapping,
   Raycaster,
   Scene,
   SRGBColorSpace,
@@ -119,6 +120,23 @@ function textureFor(seed: string, shirt: string, mood: Mood, step: number, walki
   return texture;
 }
 
+/** A faint 1-unit tile grid for room floors, so the floor reads as a floor and zooming in has something to look at. */
+function tileTexture(dark: boolean, across: number, down: number) {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 64;
+  const context = canvas.getContext('2d')!;
+  context.fillStyle = dark ? '#38433e' : '#ece8da';
+  context.fillRect(0, 0, 64, 64);
+  context.strokeStyle = dark ? '#424e48' : '#e0dbc9';
+  context.lineWidth = 2;
+  context.strokeRect(0, 0, 64, 64);
+  const texture = new CanvasTexture(canvas);
+  texture.wrapS = texture.wrapT = RepeatWrapping;
+  texture.repeat.set(across, down);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+
 /** An upright cut-out: a vertical plane, unlit, turned to face the lens around the vertical axis only. */
 type Cutout = Mesh<PlaneGeometry, MeshBasicMaterial>;
 interface Agent {
@@ -132,6 +150,8 @@ interface Agent {
   label: string;
   profile: string;
   sessionId?: string;
+  /** The session's context size, e.g. “84k tokens”, for its caption. */
+  context?: string;
   clickable: boolean;
   /** Target in world space; idle agents pick their own from `wander`. */
   target: Vector3;
@@ -154,6 +174,7 @@ class World {
   private agents = new Map<string, Agent>();
   private rooms: Room[] = [];
   private labels = new Map<string, HTMLElement>();
+  private stats = new Map<string, HTMLElement>();
   private tip = document.createElement('div');
   private overlay = document.createElement('div');
   private raycaster = new Raycaster();
@@ -273,6 +294,7 @@ class World {
     if (this.rooms.length > 1 && this.pickCols(this.rooms.length - 1) !== this.cols) {
       this.build(this.zones, this.dark);
       this.assign(this.zones);
+      this.tally(this.zones);
     } else this.refit(this.atFit);
   }
   private zones: WorldZone[] = [];
@@ -368,6 +390,32 @@ class World {
       this.signature = signature;
     }
     this.assign(zones);
+    this.tally(zones);
+  }
+
+  /** The counts beside each room's name: what is working, what needs you, what is done. */
+  private tally(zones: WorldZone[]) {
+    const line = (sessions: SessionView[]) => {
+      const count = (state: string) => sessions.filter((x) => x.state === state).length;
+      const text = (
+        [
+          [count('working'), 'working'],
+          [count('ask'), 'need you'],
+          [count('done'), 'done'],
+        ] as const
+      )
+        .filter(([n]) => n)
+        .map(([n, word]) => `${n} ${word}`)
+        .join(' · ');
+      return text || 'quiet';
+    };
+    for (const zone of zones) {
+      const stats = this.stats.get(zone.id);
+      if (stats) stats.textContent = zone.running || zone.sessions.length ? line(zone.sessions) : 'closed';
+    }
+    const all = zones.flatMap((z) => z.sessions);
+    const hq = this.stats.get('hq');
+    if (hq) hq.textContent = all.length ? `${all.length} sessions · ${line(all)}` : 'all quiet';
   }
 
   private build(zones: WorldZone[], dark: boolean) {
@@ -383,6 +431,7 @@ class World {
     this.props = [];
     for (const label of this.labels.values()) label.remove();
     this.labels.clear();
+    this.stats.clear();
     for (const agent of this.agents.values()) {
       this.scene.remove(agent.sprite, agent.shadow);
       agent.sprite.material.dispose();
@@ -460,7 +509,11 @@ class World {
       edge.receiveShadow = true;
       const inner = new Mesh(
         new PlaneGeometry(room.width - 0.5, room.depth - 0.5),
-        matte(dark ? '#38433e' : '#ece8da'),
+        new MeshStandardMaterial({
+          map: tileTexture(dark, room.width - 0.5, room.depth - 0.5),
+          roughness: 1,
+          metalness: 0,
+        }),
       );
       inner.rotation.x = -Math.PI / 2;
       inner.position.y = 0.02;
@@ -519,6 +572,10 @@ class World {
         open.addEventListener('click', () => this.handlers.launch(room.id));
         label.append(open);
       }
+      const stats = document.createElement('span');
+      stats.className = 'office-stats';
+      label.append(stats);
+      this.stats.set(room.id, stats);
       this.overlay.append(label);
       this.labels.set(room.id, label);
     }
@@ -632,6 +689,8 @@ class World {
         agent.mood = entry.mood;
         agent.label = entry.label;
         agent.sessionId = entry.s?.id;
+        const used = entry.s?.summary?.context ?? 0;
+        agent.context = used ? `${Math.round(used / 1000)}k tokens` : undefined;
         agent.clickable = !!entry.s;
         agent.wanders = !entry.s && room.running && entry.mood === 'idle';
         agent.target.set(
@@ -780,7 +839,7 @@ class World {
           agent.caption.className = 'office-caption';
           this.overlay.append(agent.caption);
         }
-        agent.caption.textContent = agent.label;
+        agent.caption.textContent = agent.context ? `${agent.label} · ${agent.context}` : agent.label;
         const screen = agent.sprite.position.clone().project(this.camera);
         agent.caption.style.transform = `translate(${((screen.x + 1) / 2) * w}px, ${((1 - screen.y) / 2) * h + 4}px) translateX(-50%)`;
       } else {

@@ -10,8 +10,13 @@ const resources =
 if (process.platform === 'darwin') await fs.access(path.join(resources, 'hatstand-macos'), fs.constants.X_OK);
 const entries = listPackage(path.join(resources, 'app.asar')).map((name) => name.replaceAll('\\', '/'));
 const allowed = ['/dist', '/resources', '/package.json', '/LICENSE'];
+// The voice library is the one native module shipped as files (everything else is bundled into /dist).
 for (const entry of entries)
-  if (!allowed.some((prefix) => entry === prefix || entry.startsWith(prefix + '/')))
+  if (
+    entry !== '/node_modules' &&
+    !entry.startsWith('/node_modules/sherpa-onnx') &&
+    !allowed.some((prefix) => entry === prefix || entry.startsWith(prefix + '/'))
+  )
     throw new Error(`Unexpected packaged entry: ${entry}`);
 if (
   !entries.includes('/dist/main.cjs') ||

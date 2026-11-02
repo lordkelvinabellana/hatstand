@@ -1,16 +1,17 @@
 import assert from 'node:assert/strict';
 import type { spawn } from 'node:child_process';
 import { EventEmitter } from 'node:events';
+import path from 'node:path';
 import { PassThrough } from 'node:stream';
 import { test } from 'node:test';
 import { findNode, speak } from '../src/core/voice.ts';
 
 test('findNode searches PATH before extra directories and handles missing binaries', () => {
   assert.equal(
-    findNode({ PATH: '/first:/second' }, ['/extra'], (file) =>
-      ['/second/node', '/extra/node'].includes(file),
+    findNode({ PATH: ['/first', '/second'].join(path.delimiter) }, ['/extra'], (file) =>
+      [path.join('/second', 'node'), path.join('/extra', 'node')].includes(file),
     ),
-    '/second/node',
+    path.join('/second', 'node'),
   );
   assert.equal(
     findNode({ PATH: '' }, [], () => false),
@@ -37,7 +38,7 @@ test('speak passes model, output and capped text as arguments to plain Node', as
   assert.equal(calls[0].args[0], '-e');
   assert.match(calls[0].args[1], /new sherpa.OfflineTts/);
   assert.match(calls[0].args[2], /sherpa-onnx-node/);
-  assert.match(calls[0].args[3], /voice-models\/kokoro-int8-en-v0_19$/);
+  assert.match(calls[0].args[3], /voice-models[\\/]kokoro-int8-en-v0_19$/);
   assert.deepEqual(calls[0].args.slice(4), ['/tmp/voice.wav', 'x'.repeat(600)]);
 });
 
