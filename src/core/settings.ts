@@ -18,6 +18,8 @@ export interface Settings {
   petSounds: boolean;
   /** macOS: pets read a short summary aloud instead of the jingle. */
   petSpeech: boolean;
+  /** macOS: a global shortcut records speech and types it where the cursor is. */
+  dictation: boolean;
   /** macOS: lets an outside agent (Codex) list profiles and sessions and start sessions, over a private socket. */
   operator: boolean;
   /** Sessions idle for an hour are saved to their profile's vault (the vault skill), once. */
@@ -43,7 +45,8 @@ export const defaults: Settings = {
   setupComplete: false,
   pets: true,
   petSounds: true,
-  petSpeech: false,
+  petSpeech: true,
+  dictation: true,
   operator: false,
   vaultIdle: false,
   syncEnabled: false,
@@ -85,6 +88,7 @@ export function validateSettings(input: unknown): Settings {
     typeof value.pets !== 'boolean' ||
     typeof value.petSounds !== 'boolean' ||
     typeof value.petSpeech !== 'boolean' ||
+    typeof value.dictation !== 'boolean' ||
     typeof value.operator !== 'boolean' ||
     typeof value.vaultIdle !== 'boolean' ||
     typeof value.syncEnabled !== 'boolean' ||
@@ -118,6 +122,7 @@ export function validateSettings(input: unknown): Settings {
     pets: value.pets,
     petSounds: value.petSounds,
     petSpeech: value.petSpeech,
+    dictation: value.dictation,
     operator: value.operator,
     vaultIdle: value.vaultIdle,
     syncEnabled: value.syncEnabled,

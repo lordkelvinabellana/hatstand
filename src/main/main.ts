@@ -16,6 +16,7 @@ import { platformFor } from '../core/platform.ts';
 const { closeOwnedProcess, detectInstallation, launchClaude, listClaudeProcesses } = platformFor(
   process.platform,
 );
+import { Dictation } from './dictate.ts';
 import { createHandlers } from './handlers.ts';
 import { applyLoginItem, registerHotkeys, updateJumpList, updateDockMenu } from './integration.ts';
 import type { HotkeyResult } from './integration.ts';
@@ -45,6 +46,8 @@ let window: BrowserWindow | undefined;
 let tray: Tray | undefined;
 let pets: Pets | undefined;
 let quitting = false;
+const dictation = new Dictation(root);
+const dictate = process.platform === 'darwin' ? () => void dictation.toggle() : undefined;
 let hotkeys: HotkeyResult = { managerError: '', profileErrors: new Map() };
 
 async function log(action: string, id?: string) {
@@ -201,7 +204,7 @@ async function syncShell() {
 }
 async function profilesChanged() {
   const profiles = (await store.load()).profiles;
-  hotkeys = registerHotkeys(controller.settings, profiles, show, launchFromShell);
+  hotkeys = registerHotkeys(controller.settings, profiles, show, launchFromShell, dictate);
   updateJumpList(profiles);
   await syncShell();
   sync.scheduleSoon();
@@ -407,7 +410,7 @@ async function start() {
   ipcMain.handle('notes:request', (event, request: unknown) => notes.handle(event, request));
   if (process.platform !== 'darwin' || !controller.settings.pets) tray = createTray(show);
   await window.loadFile(html);
-  hotkeys = registerHotkeys(controller.settings, profiles, show, launchFromShell);
+  hotkeys = registerHotkeys(controller.settings, profiles, show, launchFromShell, dictate);
   updateJumpList(profiles);
   await controller.refresh();
   await syncShell();
