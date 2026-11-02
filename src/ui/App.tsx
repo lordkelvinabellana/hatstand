@@ -262,7 +262,9 @@ export function App() {
               <RefreshCw size={17} className={pending === 'refresh' ? 'spin' : ''} />
             </button>
           </header>
-          <div className={`page ${page === 'vault' && vaultOf ? 'page-full' : ''}`}>
+          <div
+            className={`page ${(page === 'vault' && vaultOf) || page === 'office' ? 'page-full' : ''} ${page === 'office' ? 'page-office' : ''}`}
+          >
             {banners}
             {(page === 'profiles' || page === 'archive') && (
               <ProfilesPage

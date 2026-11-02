@@ -1579,9 +1579,24 @@ small {
 /* Office: a room per profile, a pixel character per live session, what needs you on the right. */
 .office {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 14px;
   align-items: start;
+  padding: 16px;
+}
+/* With the 3D world the Office fills the whole page and only the Needs you column scrolls. */
+.office-full {
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
+}
+.page.page-office {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 62px);
+}
+.office-full .office-inbox {
+  overflow-y: auto;
 }
 .office-rooms {
   display: grid;
@@ -1823,7 +1838,8 @@ small {
 /* Office 3D world: one lit set on a card; the zone names and the hover tip float over the canvas. */
 .office-world {
   position: relative;
-  height: clamp(380px, 62vh, 680px);
+  height: 100%;
+  min-height: 360px;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 14px;
@@ -1841,19 +1857,69 @@ small {
   left: 0;
 }
 .office-overlay {
+  inset: 0;
+  overflow: hidden;
   pointer-events: none;
 }
 .office-zone {
   position: absolute;
   top: 0;
   left: 0;
-  padding: 2px 9px;
+  display: flex;
+  overflow: hidden;
   border-radius: 7px;
-  background: rgb(255 255 255 / 0.82);
+  background: rgb(255 255 255 / 0.9);
   font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
   pointer-events: auto;
+}
+.office-zone button {
+  padding: 2px 9px;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+.office-zone button + button {
+  border-left: 1px solid rgb(0 0 0 / 0.12);
+}
+.office-zone button:hover {
+  background: rgb(0 0 0 / 0.08);
+}
+.office-zone.slate.hq {
+  background: #3b4650;
+  color: #fff;
+}
+.office-tools {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  pointer-events: auto;
+}
+.office-tools button {
+  padding: 4px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+}
+.office-caption {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-width: 160px;
+  padding: 1px 7px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: rgb(255 255 255 / 0.88);
+  color: #1d2420;
+  font-size: 11px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
 }
 .office-zone.teal {
   color: #2f8f74;
@@ -1873,8 +1939,8 @@ small {
 .office-zone.slate {
   color: #4a565e;
 }
-:root[data-theme="dark"] .office-zone {
-  background: rgb(0 0 0 / 0.55);
+:root[data-theme="dark"] .office-zone:not(.hq) {
+  background: rgb(0 0 0 / 0.65);
 }
 .office-tip {
   max-width: 260px;
@@ -1888,4 +1954,45 @@ small {
   text-overflow: ellipsis;
   white-space: nowrap;
   pointer-events: none;
+}
+
+/* A card over a person who needs you: their session's title, click to open it. */
+.office-popup {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  gap: 1px;
+  max-width: 220px;
+  padding: 6px 10px;
+  border: 2px solid #e5a23a;
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  text-align: left;
+  font-size: 12px;
+  pointer-events: auto;
+}
+.office-popup strong,
+.office-popup span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.office-popup span {
+  color: #b5651d;
+  font-weight: 600;
+}
+.office-popup::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  margin-top: -5px;
+  border-right: 2px solid #e5a23a;
+  border-bottom: 2px solid #e5a23a;
+  background: var(--surface);
+  transform: translateX(-50%) rotate(45deg);
 }

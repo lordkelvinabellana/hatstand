@@ -129,11 +129,10 @@ export function OfficePage() {
     () =>
       data.profiles
         .filter((p) => !p.archived)
-        .map((profile, index) => ({
+        .map((profile) => ({
           id: profile.id,
           name: profile.name,
           color: profile.color,
-          species: profile.pet ? speciesNames.indexOf(profile.pet) : index % speciesNames.length,
           running: profile.status === 'running' || profile.status === 'starting',
           sessions: sessions[profile.id] ?? [],
         })),
@@ -148,7 +147,7 @@ export function OfficePage() {
   const now = Date.now();
 
   return (
-    <section className="office">
+    <section className={world ? 'office office-full' : 'office'}>
       {world ? (
         <OfficeWorld
           zones={zones}
