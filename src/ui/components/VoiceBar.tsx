@@ -55,6 +55,8 @@ export function VoiceBar(props: { onSay(text: string): void }) {
   );
   const audio = useRef<HTMLAudioElement | undefined>(undefined);
   const busy = useRef(false);
+  /** Cuts Codex off mid-sentence; set only while it is speaking. */
+  const stopSpeaking = useRef<(() => void) | undefined>(undefined);
   const armedUntil = useRef(0);
   /** Words heard after “Hey Codex” that are still waiting for the pause to end. */
   const pending = useRef({ text: '', timer: 0 });
@@ -89,8 +91,17 @@ export function VoiceBar(props: { onSay(text: string): void }) {
     const player = new Audio(URL.createObjectURL(new Blob([new Uint8Array(wav)], { type: 'audio/wav' })));
     audio.current = player;
     await new Promise<void>((resolve) => {
-      player.onended = player.onerror = () => resolve();
-      player.play().catch(() => resolve());
+      const done = () => {
+        window.clearTimeout(limit);
+        stopSpeaking.current = undefined;
+        player.pause();
+        resolve();
+      };
+      // Never wait forever on audio that fails to end.
+      const limit = window.setTimeout(done, 90_000);
+      stopSpeaking.current = done;
+      player.onended = player.onerror = done;
+      player.play().catch(done);
     });
   }
 
@@ -172,7 +183,15 @@ export function VoiceBar(props: { onSay(text: string): void }) {
         const source = context.createMediaStreamSource(stream);
         const node = context.createScriptProcessor(2048, 1, 1);
         const segmenter = new Segmenter();
+        let loudRun = 0;
         node.onaudioprocess = (event) => {
+          const chunk = new Float32Array(event.inputBuffer.getChannelData(0));
+          // Talking over Codex cuts it off (a loud, sustained voice, well above its own echo).
+          if (stopSpeaking.current) {
+            const level = Math.sqrt(chunk.reduce((n, x) => n + x * x, 0) / chunk.length);
+            loudRun = level > 0.06 ? loudRun + 1 : 0;
+            if (loudRun >= 4) stopSpeaking.current();
+          } else loudRun = 0;
           // Not while Codex is thinking or speaking, so it never hears itself.
           if (busy.current || recording.current) return segmenter.reset();
           const phrase = segmenter.push(
