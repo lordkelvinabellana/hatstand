@@ -7,6 +7,7 @@ export interface OperatorActions {
   start(profile: string, prompt: string, folder?: string): Promise<string>;
   /** search_notes, read_note and save_note: the vault tools. */
   notes(tool: string, args: Record<string, unknown>): Promise<string>;
+  reply(profile: string, session: string, text: string): Promise<string>;
 }
 
 // shortcut: Unix sockets only; Windows is not a target for operator tools.
@@ -59,6 +60,13 @@ export async function serveOperator(
                   args.profile as string,
                   args.prompt as string,
                   args.folder as string | undefined,
+                );
+                break;
+              case 'reply_session':
+                text = await actions.reply(
+                  args.profile as string,
+                  args.session as string,
+                  args.text as string,
                 );
                 break;
               case 'search_notes':

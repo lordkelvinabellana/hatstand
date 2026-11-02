@@ -36,7 +36,15 @@ test('operator server: initialize, list tools, ping and notifications', async ()
   };
   assert.deepEqual(
     list.result.tools.map((t) => t.name),
-    ['list_profiles', 'list_sessions', 'start_session', 'search_notes', 'read_note', 'save_note'],
+    [
+      'list_profiles',
+      'list_sessions',
+      'start_session',
+      'reply_session',
+      'search_notes',
+      'read_note',
+      'save_note',
+    ],
   );
   const unknown = (await handleOperator(bridge, { id: 2, method: 'resources/list' })) as {
     error: { code: number };
@@ -100,6 +108,7 @@ test('operator socket round trip and action errors', {
     await fs.writeFile(socket, 'stale');
     const server = await serveOperator(socket, {
       notes: async () => '',
+      reply: async () => '',
       profiles: async () => 'Work',
       sessions: async (profile) => `${profile}: live`,
       start: async (profile, prompt, folder) => `${profile}: ${prompt} in ${folder}`,
@@ -118,6 +127,7 @@ test('operator socket round trip and action errors', {
     }
     const failing = await serveOperator(socket, {
       notes: async () => '',
+      reply: async () => '',
       profiles: async () => {
         throw new Error('Action failed');
       },

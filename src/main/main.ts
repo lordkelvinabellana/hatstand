@@ -165,6 +165,7 @@ async function syncOperator() {
       log,
       vault: async (id) => (await brainStatus(root, controller, id)).folder,
       codexVault: path.join(root, 'codex-vault'),
+      reply: async (id, session, text) => (await handlers.sessionReply({ id, session, text })) as string,
     });
   } else if (!controller.settings.operator && operator) {
     await operator.close();

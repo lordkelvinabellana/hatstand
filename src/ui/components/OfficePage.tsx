@@ -6,7 +6,7 @@ import { drawPet, type Mood, speciesNames } from '../../core/sprites.ts';
 import { api, useApp } from '../api.ts';
 import { hasWebGL, OfficeWorld, type WorldZone } from './OfficeWorld.tsx';
 import { SessionPanel } from './SessionPanel.tsx';
-import { VoiceBar } from './VoiceBar.tsx';
+import { type Alert, VoiceBar } from './VoiceBar.tsx';
 
 const stateLabels: Record<SessionView['state'], string> = {
   working: 'Working…',
@@ -169,6 +169,27 @@ export function OfficePage() {
     .filter(({ session }) => session.state !== 'working')
     .filter(({ profile, session }) => dismissed[`${profile.id}/${session.id}`] !== session.at)
     .sort((a, b) => rank[a.session.state] - rank[b.session.state] || b.session.at - a.session.at);
+  // What newly needs the user since the page opened; Codex reads these out. The first load only sets the baseline.
+  const alerts = useRef<Alert[]>([]);
+  const primed = useRef(false);
+  const loaded = profiles.length > 0 && profiles.every((p) => sessions[p.id]);
+  if (loaded) {
+    for (const { profile, session } of inbox) {
+      const key = `${profile.id}/${session.id}@${session.at}`;
+      if (primed.current && !alerts.current.some((a) => a.key === key))
+        alerts.current = [
+          ...alerts.current,
+          {
+            key,
+            profile: profile.id,
+            profileName: profile.name,
+            session: session.id,
+            title: session.summary?.title ?? '',
+          },
+        ];
+    }
+    primed.current = true;
+  }
   const now = Date.now();
   const found = selected && profiles.find((p) => p.id === selected.profile);
   const foundSession = found && (sessions[found.id] ?? []).find((x) => x.id === selected?.session);
@@ -301,7 +322,7 @@ export function OfficePage() {
             )}
           </>
         )}
-        <VoiceBar onSay={setSay} />
+        <VoiceBar onSay={setSay} alerts={alerts.current} />
       </aside>
     </section>
   );

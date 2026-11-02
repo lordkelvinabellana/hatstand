@@ -4,6 +4,8 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## [Unreleased]
 
+- Office: when a session needs you or finishes, Codex reads a short summary aloud (with Always listening on) and sends your spoken answer into that session.
+
 ### Changed
 
 - **Pets open their panel on click only.** Hovering no longer opens it: a panel that opened on hover could take a click meant for the app underneath and jump to a conversation. Click the pet again, or anywhere else, to close it.

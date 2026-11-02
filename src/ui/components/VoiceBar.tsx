@@ -41,7 +41,16 @@ const join = (chunks: Float32Array[]) => {
  * Talk to Codex: hold the button, or turn on Always listening and say “Hey Codex …”. The mic goes to local
  * speech-to-text, the words to Codex, and its answer is read back aloud.
  */
-export function VoiceBar(props: { onSay(text: string): void }) {
+export interface Alert {
+  /** Unique per profile, session and state change, so each one is read out once. */
+  key: string;
+  profile: string;
+  profileName: string;
+  session: string;
+  title: string;
+}
+
+export function VoiceBar(props: { onSay(text: string): void; alerts: Alert[] }) {
   const [ready, setReady] = useState<boolean | undefined>();
   const [phase, setPhase] = useState<Phase>('idle');
   const [heard, setHeard] = useState('');
@@ -64,6 +73,15 @@ export function VoiceBar(props: { onSay(text: string): void }) {
   mutedRef.current = muted;
   const onSay = useRef(props.onSay);
   onSay.current = props.onSay;
+  /** Sessions Codex has not yet spoken about, and the one it last asked the user about. */
+  const queue = useRef<Alert[]>([]);
+  const told = useRef(new Set<string>());
+  const about = useRef<{ text: string; until: number } | undefined>(undefined);
+  for (const alert of props.alerts)
+    if (!told.current.has(alert.key)) {
+      told.current.add(alert.key);
+      queue.current.push(alert);
+    }
   useEffect(() => {
     api
       .request('voiceStatus')
@@ -82,7 +100,16 @@ export function VoiceBar(props: { onSay(text: string): void }) {
     setHeard(text);
     setPhase('thinking');
     onSay.current('…');
-    const answer = (await api.request('voiceAsk', { text })) as string;
+    // Just after Codex reads out a session, the user's words are the answer to it.
+    const context = about.current && Date.now() < about.current.until ? about.current.text : '';
+    const answer = (await api.request('voiceAsk', {
+      text: context ? `${context}\n${text}` : text,
+    })) as string;
+    await say(answer);
+  }
+
+  /** Shows Codex's words and reads them aloud (unless muted); resolves when it has finished. */
+  async function say(answer: string) {
     setReply(answer);
     onSay.current(answer);
     if (mutedRef.current || !answer) return;
@@ -163,6 +190,40 @@ export function VoiceBar(props: { onSay(text: string): void }) {
       busy.current = false;
     }
   }
+
+  // When a session needs the user, Codex summarises it aloud and listens for the answer (needs Always listening).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `say` and `arm` only touch refs and setters.
+  useEffect(() => {
+    if (!always || !ready) return;
+    const timer = setInterval(async () => {
+      const alert = queue.current[0];
+      if (!alert || busy.current || recording.current || mutedRef.current) return;
+      queue.current.shift();
+      busy.current = true;
+      try {
+        setError('');
+        setPhase('thinking');
+        const summary = (await api.request('sessionSummary', {
+          id: alert.profile,
+          session: alert.session,
+        })) as string;
+        const line = `In ${alert.profileName}, ${alert.title || 'a session'}. ${summary || 'It needs you.'}`;
+        about.current = {
+          text: `[Context: you just told the user about the session "${alert.title}" (id ${alert.session}) in profile ${alert.profileName}. If they are answering it, send their words with reply_session; otherwise treat it as a normal request.]`,
+          until: Date.now() + 120_000,
+        };
+        setHeard('');
+        await say(line);
+        arm(true);
+      } catch (failure) {
+        setError(failure instanceof Error ? failure.message : 'Something went wrong.');
+      } finally {
+        setPhase('idle');
+        busy.current = false;
+      }
+    }, 2000);
+    return () => clearInterval(timer);
+  }, [always, ready]);
 
   // Always listening: cut the mic into phrases and hand each to `turn`, which only acts on “Hey Codex …”.
   // biome-ignore lint/correctness/useExhaustiveDependencies: `turn` and `arm` only touch refs and setters.
