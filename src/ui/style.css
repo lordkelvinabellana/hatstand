@@ -1608,12 +1608,25 @@ small {
 .office-inbox h2 {
   margin-bottom: 12px;
 }
+.office-inbox {
+  min-width: 0;
+}
 .office-inbox ul {
+  grid-template-columns: minmax(0, 1fr);
   display: grid;
   gap: 8px;
   margin: 0;
   padding: 0;
   list-style: none;
+}
+.office-inbox li,
+.office-inbox .task,
+.office-inbox .task > * {
+  min-width: 0;
+  max-width: 100%;
+}
+.office-inbox .task strong {
+  overflow-wrap: anywhere;
 }
 .office-floor {
   display: flex;

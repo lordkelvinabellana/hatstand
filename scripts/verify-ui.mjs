@@ -208,6 +208,18 @@ async function checkNotes(vault) {
     await notes.locator('.office-room').count(),
     (await readProfiles()).filter((p) => !p.archived).length,
   );
+  // A long session prompt must be cut off inside its card, never widen the page.
+  await notes.evaluate(() => {
+    const item = document.createElement('li');
+    item.innerHTML = `<button class="task"><strong>${'t'.repeat(300)}</strong><span class="task-prompt">${'word '.repeat(120)}</span></button>`;
+    const list = document.createElement('ul');
+    list.append(item);
+    document.querySelector('.office-inbox h2').after(list);
+  });
+  assert.ok(
+    await notes.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    'Office overflows',
+  );
   await notes.screenshot({ path: path.join(screenshotFolder, 'office.png') });
   await notes.getByRole('button', { name: 'Second brain', exact: true }).click();
   await editProfile(notes, 0);
