@@ -10,6 +10,11 @@ contextBridge.exposeInMainWorld('hatstand', {
     ipcRenderer.on('hatstand:changed', listener);
     return () => ipcRenderer.removeListener('hatstand:changed', listener);
   },
+  onReply: (callback: (target: { profile: string; session: string }) => void) => {
+    const listener = (_event: unknown, target: { profile: string; session: string }) => callback(target);
+    ipcRenderer.on('hatstand:reply', listener);
+    return () => ipcRenderer.removeListener('hatstand:reply', listener);
+  },
 });
 contextBridge.exposeInMainWorld('notes', {
   request: async (profile: string, action: string, payload?: unknown) => {

@@ -46,6 +46,7 @@ export function App() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [pending, setPending] = useState<string | null>(null);
+  const [replyTo, setReplyTo] = useState<{ profile: string; session: string } | undefined>();
   const searchRef = useRef<HTMLInputElement>(null);
   const focusSearch = useRef(false);
 
@@ -105,6 +106,14 @@ export function App() {
     void refresh();
     return api.onChange(() => void refresh());
   }, [refresh]);
+  useEffect(
+    () =>
+      api.onReply((target) => {
+        setReplyTo(target);
+        setPage('office');
+      }),
+    [],
+  );
   useEffect(() => {
     if (!data) return;
     const media = matchMedia('(prefers-color-scheme: dark)');
@@ -142,9 +151,22 @@ export function App() {
   const context = useMemo<AppContextValue | null>(
     () =>
       data
-        ? { data, pending, run, fire, navigate, refresh, openProfile, openVault, edit: setEditing, theme }
+        ? {
+            data,
+            pending,
+            run,
+            fire,
+            navigate,
+            refresh,
+            openProfile,
+            openVault,
+            edit: setEditing,
+            theme,
+            replyTo,
+            clearReply: () => setReplyTo(undefined),
+          }
         : null,
-    [data, pending, run, fire, navigate, refresh, openProfile, openVault, theme],
+    [data, pending, run, fire, navigate, refresh, openProfile, openVault, theme, replyTo],
   );
 
   if (!data || !context)

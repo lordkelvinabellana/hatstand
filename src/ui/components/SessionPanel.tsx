@@ -1,7 +1,8 @@
-import { ArrowLeft, ExternalLink, Send, Trash2, X } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Mic, Send, Square, Trash2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { SessionView } from '../../shared.ts';
 import { api } from '../api.ts';
+import { useDictation } from '../dictate.ts';
 
 interface Detail {
   messages: { role: 'user' | 'assistant'; text: string }[];
@@ -13,13 +14,15 @@ const stateLabels: Record<SessionView['state'], string> = {
   done: 'Done, output ready',
 };
 
-/** One session inside Hatstand: Codex's summary, the last messages, a reply box, and clear/remove. */
+/** One session inside Hatstand: its latest words, the last messages, a reply box, and clear/remove. */
 export function SessionPanel(props: {
   profile: { id: string; name: string };
   session: SessionView;
   onBack(): void;
   onClear(): void;
   onOpenInClaude(): void;
+  /** Start the mic straight away (from the menu-bar pet's Reply link). */
+  listen?: boolean;
 }) {
   const { profile, session } = props;
   const ref = { id: profile.id, session: session.id };
@@ -31,6 +34,11 @@ export function SessionPanel(props: {
   const [error, setError] = useState('');
   const [confirmRemove, setConfirmRemove] = useState(false);
   const stamp = session.at;
+  const dictation = useDictation((text) => setReply((current) => `${current} ${text}`.trim()), setError);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only the first render asks for the mic.
+  useEffect(() => {
+    if (props.listen) void dictation.start();
+  }, []);
 
   // Reload when the session moves on (its state file changes), e.g. after a reply.
   // biome-ignore lint/correctness/useExhaustiveDependencies: `ref` is rebuilt from these two ids.
@@ -86,7 +94,7 @@ export function SessionPanel(props: {
         <span className={`task-state ${session.state}`}>{stateLabels[session.state]}</span> · {profile.name}
       </p>
       <div className="session-summary">
-        <b>Codex says</b>
+        <b>Latest</b>
         <p>{summary === undefined ? 'Reading the session…' : summary || 'Nothing to summarise yet.'}</p>
       </div>
       <div className="session-messages">
@@ -119,6 +127,19 @@ export function SessionPanel(props: {
             if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) void send();
           }}
         />
+        <button
+          type="button"
+          className={`text-button ${dictation.state}`}
+          disabled={dictation.state === 'transcribing'}
+          onClick={() => void dictation.toggle()}
+        >
+          {dictation.state === 'listening' ? <Square size={14} /> : <Mic size={14} />}{' '}
+          {dictation.state === 'listening'
+            ? 'Stop'
+            : dictation.state === 'transcribing'
+              ? 'Transcribing…'
+              : 'Speak your reply'}
+        </button>
         <button
           type="button"
           className="voice-talk"

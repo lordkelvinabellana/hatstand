@@ -6,7 +6,6 @@ import { drawPet, type Mood, speciesNames } from '../../core/sprites.ts';
 import { api, useApp } from '../api.ts';
 import { hasWebGL, OfficeWorld, type WorldZone } from './OfficeWorld.tsx';
 import { SessionPanel } from './SessionPanel.tsx';
-import { type Alert, VoiceBar } from './VoiceBar.tsx';
 
 const stateLabels: Record<SessionView['state'], string> = {
   working: 'Working…',
@@ -123,15 +122,22 @@ function layout(live: SessionView[], running: boolean, frame: number, seed: numb
 
 /** The agent view: a pixel office with a room per profile, and what needs you on the right. */
 export function OfficePage() {
-  const { data, fire, theme } = useApp();
+  const { data, fire, theme, replyTo, clearReply } = useApp();
   const profiles = data.profiles.filter((p) => !p.archived);
   const sessions = useAllSessions(profiles.map((p) => p.id));
   const [frame, setFrame] = useState(0);
-  // What Codex last said, shown in a bubble over its desk in the HQ.
-  const [say, setSay] = useState('');
   // Cleared items stay hidden until the session does something new (its timestamp changes).
   const [dismissed, setDismissed] = useState(readDismissed);
   const [selected, setSelected] = useState<{ profile: string; session: string } | undefined>();
+  // The menu-bar pet's Reply link opens that session here with the mic on.
+  const [listening, setListening] = useState('');
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs once per link; `clearReply` is stable.
+  useEffect(() => {
+    if (!replyTo) return;
+    setSelected(replyTo);
+    setListening(replyTo.session);
+    clearReply();
+  }, [replyTo]);
   const clear = (profile: string, session: SessionView) => {
     const next = { ...dismissed, [`${profile}/${session.id}`]: session.at };
     setDismissed(next);
@@ -169,27 +175,6 @@ export function OfficePage() {
     .filter(({ session }) => session.state !== 'working')
     .filter(({ profile, session }) => dismissed[`${profile.id}/${session.id}`] !== session.at)
     .sort((a, b) => rank[a.session.state] - rank[b.session.state] || b.session.at - a.session.at);
-  // What newly needs the user since the page opened; Codex reads these out. The first load only sets the baseline.
-  const alerts = useRef<Alert[]>([]);
-  const primed = useRef(false);
-  const loaded = profiles.length > 0 && profiles.every((p) => sessions[p.id]);
-  if (loaded) {
-    for (const { profile, session } of inbox) {
-      const key = `${profile.id}/${session.id}@${session.at}`;
-      if (primed.current && !alerts.current.some((a) => a.key === key))
-        alerts.current = [
-          ...alerts.current,
-          {
-            key,
-            profile: profile.id,
-            profileName: profile.name,
-            session: session.id,
-            title: session.summary?.title ?? '',
-          },
-        ];
-    }
-    primed.current = true;
-  }
   const now = Date.now();
   const found = selected && profiles.find((p) => p.id === selected.profile);
   const foundSession = found && (sessions[found.id] ?? []).find((x) => x.id === selected?.session);
@@ -201,7 +186,6 @@ export function OfficePage() {
         <OfficeWorld
           zones={zones}
           theme={theme}
-          say={say}
           onOpen={(id, session) =>
             session ? setSelected({ profile: id, session }) : fire('openSession', { id })
           }
@@ -291,6 +275,7 @@ export function OfficePage() {
           <SessionPanel
             profile={open.profile}
             session={open.session}
+            listen={listening === open.session.id}
             onBack={() => setSelected(undefined)}
             onClear={() => clear(open.profile.id, open.session)}
             onOpenInClaude={() => fire('openSession', { id: open.profile.id, session: open.session.host })}
@@ -322,7 +307,6 @@ export function OfficePage() {
             )}
           </>
         )}
-        <VoiceBar onSay={setSay} alerts={alerts.current} />
       </aside>
     </section>
   );

@@ -58,6 +58,7 @@ export type { ReleaseInfo, StorageFolder };
 export interface Api {
   request(action: string, payload?: unknown): Promise<unknown>;
   onChange(callback: () => void): () => void;
+  onReply(callback: (target: { profile: string; session: string }) => void): () => void;
 }
 /** A running Claude Code session, as the profile's menu-bar pet shows it. */
 export interface SessionView {

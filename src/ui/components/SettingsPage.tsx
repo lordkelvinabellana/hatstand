@@ -139,6 +139,21 @@ export function SettingsPage() {
             </label>
             <label className="setting-row">
               <span>
+                Pets speak
+                <small>
+                  Instead of the jingle, a pet reads a short summary aloud when an account needs you or
+                  finishes, one at a time.
+                </small>
+              </span>
+              <input
+                type="checkbox"
+                checked={settings.petSpeech}
+                disabled={!settings.pets}
+                onChange={(e) => setSettings({ ...settings, petSpeech: e.target.checked })}
+              />
+            </label>
+            <label className="setting-row">
+              <span>
                 Pet sounds
                 <small>A short jingle in each pet’s own key when an account needs you or finishes.</small>
               </span>

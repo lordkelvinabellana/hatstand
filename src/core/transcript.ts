@@ -29,3 +29,22 @@ export function lastMessages(transcript: string, count: number): Message[] {
   }
   return messages.slice(-count).map((message) => ({ ...message, text: message.text.slice(-2000) }));
 }
+
+/** A spoken one-liner for what the session last said: the end of its final message (where it asks), markdown stripped. */
+export function brief(messages: Message[], max = 220): string {
+  const last = [...messages].reverse().find((m) => m.role === 'assistant')?.text ?? '';
+  const plain = last
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/[`*_#>|]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const picked: string[] = [];
+  let length = 0;
+  for (const sentence of (plain.match(/\S.*?(?:[.!?](?=\s|$)|$)/g) ?? []).reverse()) {
+    if (picked.length && length + sentence.length > max) break;
+    picked.unshift(sentence.trim());
+    length += sentence.length;
+  }
+  return picked.join(' ').slice(-max);
+}

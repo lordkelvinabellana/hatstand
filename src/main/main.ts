@@ -165,7 +165,6 @@ async function syncOperator() {
       log,
       vault: async (id) => (await brainStatus(root, controller, id)).folder,
       codexVault: path.join(root, 'codex-vault'),
-      reply: async (id, session, text) => (await handlers.sessionReply({ id, session, text })) as string,
     });
   } else if (!controller.settings.operator && operator) {
     await operator.close();
@@ -178,7 +177,15 @@ async function syncShell() {
   await syncOperator().catch(reportError);
   // Pets can be switched on and off in Settings; the hook files they read stay in place.
   if (process.platform === 'darwin' && controller.settings.pets && !pets) {
-    pets = new Pets(root, controller, (id, session) => void openSession(id, session));
+    pets = new Pets(
+      root,
+      controller,
+      (id, session) => void openSession(id, session),
+      (profile, session) => {
+        show();
+        window?.webContents.send('hatstand:reply', { profile, session });
+      },
+    );
     await pets.start().catch(() => {});
   } else if (pets && !controller.settings.pets) {
     pets.dispose();

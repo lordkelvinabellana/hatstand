@@ -35,3 +35,13 @@ test('lastMessages filters transcript entries, merges assistant text, and keeps 
   assert.deepEqual(lastMessages(transcript, 0), []);
   assert.deepEqual(lastMessages('', 3), []);
 });
+
+test('brief keeps the end of the last assistant message, without markdown', async () => {
+  const { brief } = await import('../src/core/transcript.ts');
+  const text = brief([
+    { role: 'user', text: 'go' },
+    { role: 'assistant', text: 'I **fixed** the bug. See `a.ts`. Tests pass. Should I push it?' },
+  ]);
+  assert.equal(text, 'I fixed the bug. See a.ts. Tests pass. Should I push it?');
+  assert.equal(brief([{ role: 'assistant', text: 'One. Two. Three.' }], 8), 'Three.');
+});

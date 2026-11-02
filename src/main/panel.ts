@@ -63,7 +63,7 @@ export function panelHtml(
       ${plan.length ? `<div class="progress"><span style="width:${Math.round((finished / plan.length) * 100)}%"></span></div><div class="meta">${finished} of ${plan.length} tasks done</div><ol>${steps}</ol>` : ''}
       ${summary?.background ? `<div class="meta">${summary.background} background task${summary.background > 1 ? 's' : ''} running</div>` : ''}
       ${usage.length ? `<div class="usage">${usage.map(esc).join(' · ')}</div>` : ''}
-      <a class="go" href="hatstand-pet://open/${id}">Open in Claude</a></div>
+      <a class="go" href="hatstand-pet://open/${id}">Open in Claude</a> <a class="go" href="hatstand-pet://reply/${id}">Reply by voice</a></div>
     </details>`;
   });
   // The header counts every session, so a check on one never hides that others are still working.

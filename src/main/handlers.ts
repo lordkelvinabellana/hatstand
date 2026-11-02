@@ -8,8 +8,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { acceleratorKey } from '../core/accelerator.ts';
 import { runClaude } from '../core/claude-run.ts';
-import { runCodex } from '../core/codex-run.ts';
-import { speak, transcribe, voiceReady } from '../core/voice.ts';
+import { brief } from '../core/transcript.ts';
+import { transcribe, voiceReady } from '../core/voice.ts';
 import { checksFor, isTestedVersion } from '../core/compat.ts';
 import type { Controller } from '../core/controller.ts';
 import { withFileLock, writeFileAtomic } from '../core/files.ts';
@@ -73,7 +73,7 @@ export interface HandlerContext {
   sessionDetail(
     id: string,
     session: string,
-  ): Promise<{ messages: { role: string; text: string }[]; cwd: string } | undefined>;
+  ): Promise<{ messages: { role: 'user' | 'assistant'; text: string }[]; cwd: string } | undefined>;
   removeSession(id: string, session: string): Promise<void>;
 }
 type Handler = (payload: unknown) => Promise<unknown>;
@@ -103,12 +103,6 @@ function buildCommit() {
   return commit;
 }
 
-const codexPreamble =
-  "You are Codex, the operator of Hatstand, which runs one Claude account per client. Use the hatstand tools to list profiles, see each profile's live sessions, and start a new session in the right profile when asked. Answer in one to three short plain spoken sentences: no markdown, no lists, no file paths. Each profile has its own notes vault for its client: search_notes and read_note read one profile at a time, so never mix one client's notes into another's work. Before answering about a client, project or person, search that profile's vault. Your own memory is profile \"codex\": use save_note for handoffs and decisions. When the user answers a session that needs them, call reply_session with their exact words and the session id from list_sessions, then say in one sentence what the session answered. Never invent an answer for them. Say what you did or what you need.";
-/** Codex's session id, so the next utterance continues the same conversation. */
-let codexSession: string | undefined;
-/** Codex's summaries of sessions, so reopening one doesn't ask again. */
-const summaries = new Map<string, string>();
 function sessionRef(payload: unknown) {
   const { id, session } = (payload ?? {}) as { id?: unknown; session?: unknown };
   if (typeof id !== 'string' || typeof session !== 'string' || !/^[A-Za-z0-9_-]{1,100}$/.test(session))
@@ -733,19 +727,7 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
     async sessionSummary(payload) {
       const { id, session } = sessionRef(payload);
       await controller.getProfile(id);
-      const detail = await context.sessionDetail(id, session);
-      if (!detail?.messages.length) return '';
-      const key = `${id}/${session}/${detail.messages.map((m) => m.text.length).join(',')}`;
-      const cached = summaries.get(key);
-      if (cached) return cached;
-      const talk = detail.messages
-        .map((m) => `${m.role === 'user' ? 'User' : 'Claude'}: ${m.text}`)
-        .join('\n\n');
-      const { text } = await runCodex({
-        prompt: `Below is the end of a Claude Code session. In two short plain sentences, say what it did or is asking, and what the user needs to decide or do next. No markdown.\n\n${talk}`,
-      });
-      summaries.set(key, text.trim());
-      return text.trim();
+      return brief((await context.sessionDetail(id, session))?.messages ?? []);
     },
     async sessionReply(payload) {
       const { id, session } = sessionRef(payload);
@@ -776,43 +758,6 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
       if (!(samples instanceof Float32Array) || typeof rate !== 'number' || rate < 8000 || rate > 96000)
         throw new Error('Invalid request.');
       return transcribe(samples, rate);
-    },
-    async voiceAsk(payload) {
-      const text = (payload as { text?: unknown }).text;
-      if (typeof text !== 'string' || !text.trim() || text.length > 2000) throw new Error('Invalid request.');
-      if (!controller.settings.operator)
-        throw new Error('Turn on “Let an outside agent start sessions” in Settings first.');
-      const result = await runCodex({
-        prompt: `${codexPreamble}\n\nThe user said: ${text.trim()}`,
-        resume: codexSession,
-        mcp: {
-          command: process.execPath,
-          args: [path.join(root, 'operator.cjs'), '--socket', path.join(root, 'operator.sock')],
-          env: { ELECTRON_RUN_AS_NODE: '1' },
-          approve: [
-            'list_profiles',
-            'list_sessions',
-            'start_session',
-            'reply_session',
-            'search_notes',
-            'read_note',
-            'save_note',
-          ],
-        },
-      });
-      codexSession = result.sessionId ?? codexSession;
-      return result.text.trim();
-    },
-    async voiceSpeak(payload) {
-      const text = (payload as { text?: unknown }).text;
-      if (typeof text !== 'string' || !text.trim()) throw new Error('Invalid request.');
-      const file = path.join(os.tmpdir(), `hatstand-speech-${randomUUID()}.wav`);
-      try {
-        await speak(text.trim(), file);
-        return new Uint8Array(await fs.readFile(file));
-      } finally {
-        await fs.rm(file, { force: true });
-      }
     },
     async openSession(payload) {
       const id = readId(payload);

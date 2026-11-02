@@ -1,10 +1,13 @@
 import { execFile } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
+import os from 'node:os';
 import { type FSWatcher, watch } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import path from 'node:path';
 import { BrowserWindow, Menu, type MenuItemConstructorOptions, nativeImage, screen, Tray } from 'electron';
 import type { Controller } from '../core/controller.ts';
-import { lastMessages } from '../core/transcript.ts';
+import { brief, lastMessages } from '../core/transcript.ts';
+import { speak } from '../core/voice.ts';
 import { withFileLock, writeFileAtomic } from '../core/files.ts';
 import {
   type Badge,
@@ -53,6 +56,9 @@ export class Pets {
   private pets = new Map<string, Pet>();
   private frame = 0;
   private lastSound = 0;
+  /** Sessions waiting to be read aloud, one at a time. */
+  private spoken: { pet: Pet; id: string; state: 'ask' | 'done' }[] = [];
+  private speaking = false;
   private menu: MenuItemConstructorOptions[] = [];
   private timer: NodeJS.Timeout;
   private script: string;
@@ -69,6 +75,8 @@ export class Pets {
     private controller: Controller,
     /** Brings up the profile's Claude, at the given desktop session (local_…) when there is one. */
     private open: (id: string, session?: string) => void,
+    /** Opens Hatstand on that session with the mic on. */
+    private reply: (id: string, session: string) => void = () => {},
   ) {
     this.script = path.join(root, 'pet-hook.sh');
     this.sounds = path.join(root, 'pet-sounds');
@@ -187,12 +195,15 @@ export class Pets {
   private async scan(pet: Pet, quiet = false) {
     const sessions = [];
     let chime: 'ask' | 'done' | undefined;
+    const fresh: { id: string; state: 'ask' | 'done' }[] = [];
     const now = Date.now();
     for (const { id, session } of await this.read(pet, false)) {
       sessions.push(session);
       const key = `${session.state}@${session.at}`;
-      if (pet.seen.get(id) !== key && session.state !== 'working' && now - session.at < 60_000)
+      if (pet.seen.get(id) !== key && session.state !== 'working' && now - session.at < 60_000) {
         chime = chime === 'ask' ? 'ask' : session.state;
+        fresh.push({ id, state: session.state });
+      }
       pet.seen.set(id, key);
     }
     const mood = petMood(!!this.controller.owned(pet.profile.id), sessions, now);
@@ -208,7 +219,36 @@ export class Pets {
       this.draw(pet);
     }
     if (this.panelFor === pet && this.panel?.isVisible()) void this.showPanel(pet);
-    if (chime && !quiet) this.play(chime, pet.species);
+    if (chime && !quiet) {
+      if (this.controller.settings.petSpeech && this.controller.settings.petSounds) {
+        for (const item of fresh) this.spoken.push({ pet, ...item });
+        void this.drain();
+      } else this.play(chime, pet.species);
+    }
+  }
+
+  /** Reads the queue out one by one, so two sessions finishing together never talk over each other. */
+  private async drain() {
+    if (this.speaking) return;
+    this.speaking = true;
+    try {
+      for (let item = this.spoken.shift(); item; item = this.spoken.shift()) {
+        const { pet, id, state } = item;
+        const file = path.join(os.tmpdir(), `hatstand-pet-${randomUUID()}.wav`);
+        try {
+          const title = (await this.read(pet, true)).find((s) => s.id === id)?.summary?.title;
+          const text = `${pet.profile.name}: ${title || 'a session'} ${state === 'ask' ? 'needs you' : 'is done'}. ${brief((await this.detail(pet.profile.id, id))?.messages ?? [])}`;
+          await speak(text, file);
+          await new Promise<void>((resolve) => execFile('/usr/bin/afplay', [file], () => resolve()));
+        } catch {
+          this.play(state, pet.species);
+        } finally {
+          await fs.rm(file, { force: true });
+        }
+      }
+    } finally {
+      this.speaking = false;
+    }
   }
 
   private play(kind: 'ask' | 'done', species: number) {
@@ -349,12 +389,13 @@ export class Pets {
       this.panel.setAlwaysOnTop(true, 'pop-up-menu');
       this.panel.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
       this.panel.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-      // Links in the panel are commands: hatstand-pet://open[/<session>], remove/<session> or clear-done.
+      // Links in the panel are commands: hatstand-pet://open[/<session>], reply/<session>, remove/<session> or clear-done.
       this.panel.webContents.on('will-navigate', (event, url) => {
         event.preventDefault();
-        const match = /^hatstand-pet:\/\/(open|remove|clear-done)(?:\/([A-Za-z0-9_-]+))?$/.exec(url);
+        const match = /^hatstand-pet:\/\/(open|reply|remove|clear-done)(?:\/([A-Za-z0-9_-]+))?$/.exec(url);
         if (!match || !this.panelFor) return;
-        if (match[1] === 'open') void this.openSession(this.panelFor, match[2]);
+        if (match[1] === 'reply' && match[2]) this.reply(this.panelFor.profile.id, match[2]);
+        else if (match[1] === 'open') void this.openSession(this.panelFor, match[2]);
         else if (match[1] === 'clear-done' || match[2]) void this.remove(this.panelFor, match[2]);
       });
       // The panel reports its height and open sessions through its title whenever a session is toggled.

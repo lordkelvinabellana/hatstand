@@ -27,8 +27,6 @@ export interface OperatorHost {
   vault(id: string): Promise<string>;
   /** Codex's own memory folder, kept apart from every client vault. */
   codexVault: string;
-  /** Sends a reply into a live session of the profile and returns what it answered. */
-  reply(id: string, session: string, text: string): Promise<string>;
 }
 
 /**
@@ -44,11 +42,6 @@ export function startOperator(socketPath: string, host: OperatorHost) {
     );
   const actions: OperatorActions = {
     notes: async () => '',
-    reply: async (name, session, text) => {
-      const profile = await find(name);
-      await host.log('operator-reply', profile.id).catch(() => {});
-      return host.reply(profile.id, session, text);
-    },
     async profiles() {
       const lines = (await host.profiles())
         .filter((p) => !p.archived)
@@ -66,7 +59,7 @@ export function startOperator(socketPath: string, host: OperatorHost) {
             .map((s) => {
               const plan = s.summary?.plan ?? [];
               const done = plan.filter((step) => step.status === 'completed').length;
-              return `- ${s.summary?.title || 'Claude Code session'} · id ${s.id} · ${labels[s.state]}${plan.length ? ` · ${done}/${plan.length} steps` : ''}${s.summary?.prompt ? ` · last prompt: ${s.summary.prompt.slice(0, 160)}` : ''}`;
+              return `- ${s.summary?.title || 'Claude Code session'} · ${labels[s.state]}${plan.length ? ` · ${done}/${plan.length} steps` : ''}${s.summary?.prompt ? ` · last prompt: ${s.summary.prompt.slice(0, 160)}` : ''}`;
             })
             .join('\n')
         : `${profile.name} has no live sessions.`;

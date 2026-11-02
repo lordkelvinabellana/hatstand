@@ -31,20 +31,6 @@ const tools = [
     },
   },
   {
-    name: 'reply_session',
-    description:
-      "Sends the user's answer to one live Claude Code session (use the id from list_sessions) and returns what that session replied. Only send what the user actually told you to; never invent an answer.",
-    inputSchema: {
-      type: 'object',
-      properties: {
-        profile: { type: 'string' },
-        session: { type: 'string' },
-        text: { type: 'string', maxLength: 8000 },
-      },
-      required: ['profile', 'session', 'text'],
-    },
-  },
-  {
     name: 'search_notes',
     description:
       'Full-text search of ONE profile\'s notes vault (its second brain). Each profile keeps its own vault, so only search the profile the question is about. Use profile "codex" for your own memory notes.',
@@ -107,14 +93,6 @@ async function callTool(bridge: OperatorBridge, tool: string, args: Record<strin
         clean.folder = folder;
       }
       return bridge(tool, clean);
-    }
-    case 'reply_session': {
-      const session = text('session');
-      if (!/^[A-Za-z0-9_-]{1,100}$/.test(session))
-        throw new Error('That is not a session id from list_sessions.');
-      const body = text('text');
-      if (body.length > 8000) throw new Error('Keep the reply under 8000 characters.');
-      return bridge(tool, { profile: text('profile'), session, text: body });
     }
     case 'search_notes':
       return bridge(tool, {
