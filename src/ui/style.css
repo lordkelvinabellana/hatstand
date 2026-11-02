@@ -2052,3 +2052,12 @@ small {
   font-size: 12px;
   pointer-events: none;
 }
+
+.icon-button.on {
+  border-color: #3f8f5b;
+  background: #e3f1e8;
+  color: #1f6b3d;
+}
+.voice-hint {
+  color: var(--muted, #6b746f);
+}

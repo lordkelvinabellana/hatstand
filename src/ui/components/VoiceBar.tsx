@@ -1,5 +1,6 @@
-import { Mic, Volume2, VolumeX } from 'lucide-react';
+import { Ear, Mic, Volume2, VolumeX } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { parseWake, Segmenter } from '../../core/listen.ts';
 import { api } from '../api.ts';
 
 type Phase = 'idle' | 'listening' | 'transcribing' | 'thinking' | 'speaking';
@@ -10,8 +11,34 @@ const labels: Record<Phase, string> = {
   thinking: 'Codex is working…',
   speaking: 'Speaking…',
 };
+/** After Codex answers (or hears its name alone) the next phrase needs no “Hey Codex”. */
+const followUpMs = 10_000;
+const stored = (key: string) => {
+  try {
+    return localStorage.getItem(key) === '1';
+  } catch {
+    return false;
+  }
+};
+const store = (key: string, on: boolean) => {
+  try {
+    localStorage.setItem(key, on ? '1' : '0');
+  } catch {}
+};
+const join = (chunks: Float32Array[]) => {
+  const samples = new Float32Array(chunks.reduce((n, c) => n + c.length, 0));
+  let at = 0;
+  for (const chunk of chunks) {
+    samples.set(chunk, at);
+    at += chunk.length;
+  }
+  return samples;
+};
 
-/** Push-to-talk: the mic goes to local speech-to-text, the words to Codex, and its answer is read back aloud. */
+/**
+ * Talk to Codex: hold the button, or turn on Always listening and say “Hey Codex …”. The mic goes to local
+ * speech-to-text, the words to Codex, and its answer is read back aloud.
+ */
 export function VoiceBar(props: { onSay(text: string): void }) {
   const [ready, setReady] = useState<boolean | undefined>();
   const [phase, setPhase] = useState<Phase>('idle');
@@ -19,10 +46,18 @@ export function VoiceBar(props: { onSay(text: string): void }) {
   const [reply, setReply] = useState('');
   const [error, setError] = useState('');
   const [muted, setMuted] = useState(false);
+  const [always, setAlways] = useState(() => stored('hatstand.alwaysListen'));
+  const [armed, setArmed] = useState(false);
   const recording = useRef<{ stop(): Promise<{ samples: Float32Array; rate: number }> } | undefined>(
     undefined,
   );
   const audio = useRef<HTMLAudioElement | undefined>(undefined);
+  const busy = useRef(false);
+  const armedUntil = useRef(0);
+  const mutedRef = useRef(muted);
+  mutedRef.current = muted;
+  const onSay = useRef(props.onSay);
+  onSay.current = props.onSay;
   useEffect(() => {
     api
       .request('voiceStatus')
@@ -31,8 +66,108 @@ export function VoiceBar(props: { onSay(text: string): void }) {
     return () => audio.current?.pause();
   }, []);
 
+  const arm = (on: boolean) => {
+    armedUntil.current = on ? Date.now() + followUpMs : 0;
+    setArmed(on);
+  };
+
+  /** Sends words to Codex and reads the answer aloud; resolves when it has finished speaking. */
+  async function respond(text: string) {
+    setHeard(text);
+    setPhase('thinking');
+    onSay.current('…');
+    const answer = (await api.request('voiceAsk', { text })) as string;
+    setReply(answer);
+    onSay.current(answer);
+    if (mutedRef.current || !answer) return;
+    setPhase('speaking');
+    const wav = (await api.request('voiceSpeak', { text: answer })) as Uint8Array;
+    const player = new Audio(URL.createObjectURL(new Blob([new Uint8Array(wav)], { type: 'audio/wav' })));
+    audio.current = player;
+    await new Promise<void>((resolve) => {
+      player.onended = player.onerror = () => resolve();
+      player.play().catch(() => resolve());
+    });
+  }
+
+  /** Runs one turn end to end, keeping the mic closed to the always-listening loop meanwhile. */
+  async function turn(samples: Float32Array, rate: number, needWake: boolean) {
+    if (busy.current) return;
+    busy.current = true;
+    try {
+      setError('');
+      setPhase('transcribing');
+      const text = ((await api.request('voiceTranscribe', { samples, rate })) as string).trim();
+      let command = text;
+      if (needWake) {
+        const wake = parseWake(text);
+        if (wake.woke) command = wake.command;
+        else if (Date.now() > armedUntil.current) return; // not meant for Codex: ignore silently
+        if (wake.woke && !command) return arm(true);
+      }
+      if (!command) return;
+      await respond(command);
+      if (needWake) arm(true);
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : 'Something went wrong.');
+      onSay.current('');
+    } finally {
+      setPhase('idle');
+      busy.current = false;
+    }
+  }
+
+  // Always listening: cut the mic into phrases and hand each to `turn`, which only acts on “Hey Codex …”.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `turn` and `arm` only touch refs and setters.
+  useEffect(() => {
+    if (!always || !ready) return;
+    let stopped = false;
+    let cleanup = () => {};
+    (async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
+        });
+        if (stopped) {
+          for (const track of stream.getTracks()) track.stop();
+          return;
+        }
+        const context = new AudioContext();
+        const source = context.createMediaStreamSource(stream);
+        const node = context.createScriptProcessor(2048, 1, 1);
+        const segmenter = new Segmenter();
+        node.onaudioprocess = (event) => {
+          // Not while Codex is thinking or speaking, so it never hears itself.
+          if (busy.current || recording.current) return segmenter.reset();
+          const phrase = segmenter.push(
+            new Float32Array(event.inputBuffer.getChannelData(0)),
+            context.sampleRate,
+          );
+          if (phrase) void turn(phrase, context.sampleRate, true);
+        };
+        source.connect(node);
+        node.connect(context.destination);
+        cleanup = () => {
+          node.disconnect();
+          source.disconnect();
+          for (const track of stream.getTracks()) track.stop();
+          void context.close();
+        };
+      } catch (failure) {
+        setError(failure instanceof Error ? failure.message : 'The microphone is not available.');
+        setAlways(false);
+        store('hatstand.alwaysListen', false);
+      }
+    })();
+    return () => {
+      stopped = true;
+      cleanup();
+      arm(false);
+    };
+  }, [always, ready]);
+
   async function start() {
-    if (phase !== 'idle' || !ready) return;
+    if (busy.current || phase !== 'idle' || !ready) return;
     setError('');
     audio.current?.pause();
     try {
@@ -52,13 +187,7 @@ export function VoiceBar(props: { onSay(text: string): void }) {
           for (const track of stream.getTracks()) track.stop();
           const rate = context.sampleRate;
           await context.close();
-          const samples = new Float32Array(chunks.reduce((n, c) => n + c.length, 0));
-          let at = 0;
-          for (const chunk of chunks) {
-            samples.set(chunk, at);
-            at += chunk.length;
-          }
-          return { samples, rate };
+          return { samples: join(chunks), rate };
         },
       };
     } catch (failure) {
@@ -70,30 +199,9 @@ export function VoiceBar(props: { onSay(text: string): void }) {
     const current = recording.current;
     recording.current = undefined;
     if (!current) return;
-    try {
-      const { samples, rate } = await current.stop();
-      if (samples.length < rate * 0.4) return setPhase('idle');
-      setPhase('transcribing');
-      const text = ((await api.request('voiceTranscribe', { samples, rate })) as string).trim();
-      setHeard(text);
-      if (!text) return setPhase('idle');
-      setPhase('thinking');
-      props.onSay('…');
-      const answer = (await api.request('voiceAsk', { text })) as string;
-      setReply(answer);
-      props.onSay(answer);
-      if (muted || !answer) return setPhase('idle');
-      setPhase('speaking');
-      const wav = (await api.request('voiceSpeak', { text: answer })) as Uint8Array;
-      const player = new Audio(URL.createObjectURL(new Blob([new Uint8Array(wav)], { type: 'audio/wav' })));
-      audio.current = player;
-      player.onended = player.onerror = () => setPhase('idle');
-      await player.play();
-    } catch (failure) {
-      setError(failure instanceof Error ? failure.message : 'Something went wrong.');
-      props.onSay('');
-      setPhase('idle');
-    }
+    const { samples, rate } = await current.stop();
+    if (samples.length < rate * 0.4) return setPhase('idle');
+    await turn(samples, rate, false);
   }
 
   if (ready === false)
@@ -120,6 +228,19 @@ export function VoiceBar(props: { onSay(text: string): void }) {
         </button>
         <button
           type="button"
+          className={`icon-button ${always ? 'on' : ''}`}
+          aria-pressed={always}
+          aria-label="Always listening"
+          title={always ? 'Always listening: say “Hey Codex …”' : 'Turn on always listening'}
+          onClick={() => {
+            store('hatstand.alwaysListen', !always);
+            setAlways(!always);
+          }}
+        >
+          <Ear size={16} />
+        </button>
+        <button
+          type="button"
           className="icon-button"
           aria-label={muted ? 'Unmute Codex' : 'Mute Codex'}
           title={muted ? 'Unmute Codex' : 'Mute Codex'}
@@ -128,6 +249,11 @@ export function VoiceBar(props: { onSay(text: string): void }) {
           {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
         </button>
       </div>
+      {always && (
+        <p className="voice-line voice-hint">
+          {armed ? 'Go ahead, I’m listening…' : 'Say “Hey Codex …”. Works while this page is open.'}
+        </p>
+      )}
       {heard && (
         <p className="voice-line">
           <b>You</b> {heard}
