@@ -177,15 +177,7 @@ async function syncShell() {
   await syncOperator().catch(reportError);
   // Pets can be switched on and off in Settings; the hook files they read stay in place.
   if (process.platform === 'darwin' && controller.settings.pets && !pets) {
-    pets = new Pets(
-      root,
-      controller,
-      (id, session) => void openSession(id, session),
-      (profile, session) => {
-        show();
-        window?.webContents.send('hatstand:reply', { profile, session });
-      },
-    );
+    pets = new Pets(root, controller, (id, session) => void openSession(id, session));
     await pets.start().catch(() => {});
   } else if (pets && !controller.settings.pets) {
     pets.dispose();

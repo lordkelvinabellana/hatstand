@@ -122,22 +122,13 @@ function layout(live: SessionView[], running: boolean, frame: number, seed: numb
 
 /** The agent view: a pixel office with a room per profile, and what needs you on the right. */
 export function OfficePage() {
-  const { data, fire, theme, replyTo, clearReply } = useApp();
+  const { data, fire, theme } = useApp();
   const profiles = data.profiles.filter((p) => !p.archived);
   const sessions = useAllSessions(profiles.map((p) => p.id));
   const [frame, setFrame] = useState(0);
   // Cleared items stay hidden until the session does something new (its timestamp changes).
   const [dismissed, setDismissed] = useState(readDismissed);
   const [selected, setSelected] = useState<{ profile: string; session: string } | undefined>();
-  // The menu-bar pet's Reply link opens that session here with the mic on.
-  const [listening, setListening] = useState('');
-  // biome-ignore lint/correctness/useExhaustiveDependencies: runs once per link; `clearReply` is stable.
-  useEffect(() => {
-    if (!replyTo) return;
-    setSelected(replyTo);
-    setListening(replyTo.session);
-    clearReply();
-  }, [replyTo]);
   const clear = (profile: string, session: SessionView) => {
     const next = { ...dismissed, [`${profile}/${session.id}`]: session.at };
     setDismissed(next);
@@ -275,7 +266,6 @@ export function OfficePage() {
           <SessionPanel
             profile={open.profile}
             session={open.session}
-            listen={listening === open.session.id}
             onBack={() => setSelected(undefined)}
             onClear={() => clear(open.profile.id, open.session)}
             onOpenInClaude={() => fire('openSession', { id: open.profile.id, session: open.session.host })}

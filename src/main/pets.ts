@@ -75,8 +75,6 @@ export class Pets {
     private controller: Controller,
     /** Brings up the profile's Claude, at the given desktop session (local_…) when there is one. */
     private open: (id: string, session?: string) => void,
-    /** Opens Hatstand on that session with the mic on. */
-    private reply: (id: string, session: string) => void = () => {},
   ) {
     this.script = path.join(root, 'pet-hook.sh');
     this.sounds = path.join(root, 'pet-sounds');
@@ -389,13 +387,12 @@ export class Pets {
       this.panel.setAlwaysOnTop(true, 'pop-up-menu');
       this.panel.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
       this.panel.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-      // Links in the panel are commands: hatstand-pet://open[/<session>], reply/<session>, remove/<session> or clear-done.
+      // Links in the panel are commands: hatstand-pet://open[/<session>], remove/<session> or clear-done.
       this.panel.webContents.on('will-navigate', (event, url) => {
         event.preventDefault();
-        const match = /^hatstand-pet:\/\/(open|reply|remove|clear-done)(?:\/([A-Za-z0-9_-]+))?$/.exec(url);
+        const match = /^hatstand-pet:\/\/(open|remove|clear-done)(?:\/([A-Za-z0-9_-]+))?$/.exec(url);
         if (!match || !this.panelFor) return;
-        if (match[1] === 'reply' && match[2]) this.reply(this.panelFor.profile.id, match[2]);
-        else if (match[1] === 'open') void this.openSession(this.panelFor, match[2]);
+        if (match[1] === 'open') void this.openSession(this.panelFor, match[2]);
         else if (match[1] === 'clear-done' || match[2]) void this.remove(this.panelFor, match[2]);
       });
       // The panel reports its height and open sessions through its title whenever a session is toggled.

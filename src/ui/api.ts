@@ -27,9 +27,6 @@ export interface AppContextValue {
   /** The theme in effect, for views that draw with canvas colours. */
   theme: string;
   refresh(): Promise<void>;
-  /** A session the user asked to answer by voice from the menu-bar pet. */
-  replyTo?: { profile: string; session: string };
-  clearReply(): void;
 }
 export const AppContext = createContext<AppContextValue | null>(null);
 export function useApp() {

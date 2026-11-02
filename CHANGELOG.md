@@ -4,7 +4,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## [Unreleased]
 
-- Pets speak: instead of the jingle, a pet reads a short summary of the session's last message when it needs you or finishes, one at a time (Settings → Pets speak). Reply by voice from the pet's panel or the Office page; the words go to the session as a reply.
+- Pets speak: instead of the jingle, a pet reads a short summary of the session's last message when it needs you or finishes, one at a time (Settings → Pets speak).
 
 ### Changed
 
