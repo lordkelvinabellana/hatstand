@@ -10,17 +10,40 @@ const text = process.argv[2] || 'North Studio needs your input on the Oak Media 
 
 let t = Date.now();
 const tts = new sherpa.OfflineTts({
-  model: { kokoro: { model: path.join(k, 'model.int8.onnx'), voices: path.join(k, 'voices.bin'), tokens: path.join(k, 'tokens.txt'), dataDir: path.join(k, 'espeak-ng-data') }, numThreads: 2, provider: 'cpu' },
+  model: {
+    kokoro: {
+      model: path.join(k, 'model.int8.onnx'),
+      voices: path.join(k, 'voices.bin'),
+      tokens: path.join(k, 'tokens.txt'),
+      dataDir: path.join(k, 'espeak-ng-data'),
+    },
+    numThreads: 2,
+    provider: 'cpu',
+  },
   maxNumSentences: 1,
 });
 const audio = tts.generate({ text, sid: 0, speed: 1.0 });
-console.log(`TTS ${((Date.now() - t) / 1000).toFixed(1)}s, ${(audio.samples.length / audio.sampleRate).toFixed(1)}s of audio, ${tts.numSpeakers} voices`);
+console.log(
+  `TTS ${((Date.now() - t) / 1000).toFixed(1)}s, ${(audio.samples.length / audio.sampleRate).toFixed(1)}s of audio, ${tts.numSpeakers} voices`,
+);
 sherpa.writeWave('/tmp/voice-spike.wav', audio);
 
 t = Date.now();
 const rec = new sherpa.OfflineRecognizer({
   featConfig: { sampleRate: 16000, featureDim: 80 },
-  modelConfig: { whisper: { encoder: path.join(w, 'base.en-encoder.int8.onnx'), decoder: path.join(w, 'base.en-decoder.int8.onnx'), language: 'en', task: 'transcribe', tailPaddings: -1 }, tokens: path.join(w, 'base.en-tokens.txt'), numThreads: 2, provider: 'cpu', debug: 0 },
+  modelConfig: {
+    whisper: {
+      encoder: path.join(w, 'base.en-encoder.int8.onnx'),
+      decoder: path.join(w, 'base.en-decoder.int8.onnx'),
+      language: 'en',
+      task: 'transcribe',
+      tailPaddings: -1,
+    },
+    tokens: path.join(w, 'base.en-tokens.txt'),
+    numThreads: 2,
+    provider: 'cpu',
+    debug: 0,
+  },
 });
 const stream = rec.createStream();
 stream.acceptWaveform({ sampleRate: audio.sampleRate, samples: audio.samples });
