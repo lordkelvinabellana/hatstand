@@ -232,7 +232,8 @@ async function checkNotes(vault) {
       JSON.stringify({ state, at: Date.now(), transcript }),
     );
   }
-  if (await notes.locator('.office-world canvas').count()) {
+  // Live sessions come from the menu-bar pets, which are macOS only.
+  if (mac && (await notes.locator('.office-world canvas').count())) {
     await new Promise((r) => setTimeout(r, 4000));
     await notes.locator('.office-popup').first().waitFor({ timeout: 15_000 });
     assert.equal(await notes.locator('.office-popup').count(), 2);
