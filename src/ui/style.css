@@ -1996,3 +1996,59 @@ small {
   background: var(--surface);
   transform: translateX(-50%) rotate(45deg);
 }
+
+/* Push-to-talk to Codex, at the foot of the Needs you column. */
+.voice-bar {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.voice-row {
+  display: flex;
+  gap: 8px;
+}
+.voice-talk {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+  user-select: none;
+}
+.voice-talk.listening {
+  border-color: #d04a3a;
+  background: #fbe9e6;
+  color: #8f2a1e;
+}
+.voice-line {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+.voice-line b {
+  margin-right: 6px;
+}
+.voice-error {
+  color: #b3392b;
+}
+.office-say {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-width: 320px;
+  padding: 7px 11px;
+  border: 2px solid #3b4650;
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 12px;
+  pointer-events: none;
+}

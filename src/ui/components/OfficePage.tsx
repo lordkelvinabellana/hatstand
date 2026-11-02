@@ -5,6 +5,7 @@ import type { Color } from '../../core/profiles.ts';
 import { drawPet, type Mood, speciesNames } from '../../core/sprites.ts';
 import { api, useApp } from '../api.ts';
 import { hasWebGL, OfficeWorld, type WorldZone } from './OfficeWorld.tsx';
+import { VoiceBar } from './VoiceBar.tsx';
 
 const stateLabels: Record<SessionView['state'], string> = {
   working: 'Working…',
@@ -116,6 +117,8 @@ export function OfficePage() {
   const profiles = data.profiles.filter((p) => !p.archived);
   const sessions = useAllSessions(profiles.map((p) => p.id));
   const [frame, setFrame] = useState(0);
+  // What Codex last said, shown in a bubble over its desk in the HQ.
+  const [say, setSay] = useState('');
   // When each character last changed spots, so it shows its walking bob until it arrives.
   const moved = useRef(new Map<string, { at: string; since: number }>());
   // The flat fallback animates by redrawing; the 3D world runs its own loop.
@@ -152,6 +155,7 @@ export function OfficePage() {
         <OfficeWorld
           zones={zones}
           theme={theme}
+          say={say}
           onOpen={(id, session) => fire('openSession', { id, session })}
           onLaunch={(id) => fire('launch', { id })}
         />
@@ -256,6 +260,7 @@ export function OfficePage() {
         ) : (
           <p className="n-hint">Nothing waiting on you.</p>
         )}
+        <VoiceBar onSay={setSay} />
       </aside>
     </section>
   );

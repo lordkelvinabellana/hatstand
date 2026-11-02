@@ -163,6 +163,8 @@ class World {
   private structure = '';
   private dark = false;
   private cols = 0;
+  private say = '';
+  private bubble?: HTMLElement;
   private extent = { width: 10, depth: 8 };
   /** How far the camera sits from what it looks at; only its direction matters (orthographic). */
   private offset = new Vector3(0, Math.sin(elevation), Math.cos(elevation)).multiplyScalar(60);
@@ -338,6 +340,11 @@ class World {
   private flyTo(room: Room) {
     this.atFit = false;
     this.view(new Vector3(room.origin.x, 0, room.origin.z), this.zoomFor(room.width, room.depth));
+  }
+
+  /** What Codex says, in a bubble over its HQ desk; empty hides it. */
+  setSay(text: string) {
+    this.say = text;
   }
 
   /** Rebuilds the set when the profiles change and just retargets the agents otherwise. */
@@ -727,6 +734,7 @@ class World {
       ).project(this.camera);
       label.style.transform = `translate(${((screen.x + 1) / 2) * w}px, ${((1 - screen.y) / 2) * h}px) translateY(-50%)`;
     }
+    this.sayBubble();
     this.renderer.render(this.scene, this.camera);
     this.raf = requestAnimationFrame(() => this.tick());
   }
@@ -782,6 +790,26 @@ class World {
     }
   }
 
+  private sayBubble() {
+    const codex = this.agents.get('hq/codex');
+    if (!this.say || !codex) {
+      this.bubble?.remove();
+      this.bubble = undefined;
+      return;
+    }
+    if (!this.bubble) {
+      this.bubble = document.createElement('div');
+      this.bubble.className = 'office-say';
+      this.overlay.append(this.bubble);
+    }
+    this.bubble.textContent = this.say;
+    const screen = codex.sprite.position
+      .clone()
+      .add(new Vector3(0, agentHeight + 0.3, 0))
+      .project(this.camera);
+    this.bubble.style.transform = `translate(${((screen.x + 1) / 2) * this.host.clientWidth}px, ${((1 - screen.y) / 2) * this.host.clientHeight}px) translate(-50%, -100%)`;
+  }
+
   private hover() {
     this.raycaster.setFromCamera(this.pointer, this.camera);
     const sprites = [...this.agents.values()].map((a) => a.sprite);
@@ -806,6 +834,7 @@ class World {
 export function OfficeWorld(props: {
   zones: WorldZone[];
   theme: string;
+  say?: string;
   onOpen(profile: string, host?: string): void;
   onLaunch(profile: string): void;
 }) {
@@ -826,5 +855,6 @@ export function OfficeWorld(props: {
     };
   }, []);
   useEffect(() => world.current?.setZones(props.zones, props.theme), [props.zones, props.theme]);
+  useEffect(() => world.current?.setSay(props.say ?? ''), [props.say]);
   return <div className="office-world" ref={host} />;
 }
