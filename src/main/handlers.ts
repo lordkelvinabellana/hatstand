@@ -729,6 +729,7 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
           command: process.execPath,
           args: [path.join(root, 'operator.cjs'), '--socket', path.join(root, 'operator.sock')],
           env: { ELECTRON_RUN_AS_NODE: '1' },
+          approve: ['list_profiles', 'list_sessions', 'start_session'],
         },
       });
       codexSession = result.sessionId ?? codexSession;

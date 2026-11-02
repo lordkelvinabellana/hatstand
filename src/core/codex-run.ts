@@ -8,7 +8,7 @@ import { createInterface } from 'node:readline';
 interface CodexOptions {
   prompt: string;
   outFile: string;
-  mcp?: { command: string; args: string[]; env?: Record<string, string> };
+  mcp?: { command: string; args: string[]; env?: Record<string, string>; approve?: string[] };
   resume?: string;
 }
 // JSON string escaping is also valid TOML basic-string escaping.
@@ -26,9 +26,13 @@ export function codexArgs(opts: CodexOptions): string[] {
           .map(([key, value]) => `${quote(key)} = ${quote(value)}`)
           .join(', ')} }`
       : '';
+    // `codex exec` cannot ask, so tools it may call unattended are approved up front.
+    const tools = m.approve?.length
+      ? `, tools = { ${m.approve.map((name) => `${quote(name)} = { approval_mode = "approve" }`).join(', ')} }`
+      : '';
     args.push(
       '-c',
-      `mcp_servers.hatstand={ command = ${quote(m.command)}, args = [${m.args.map(quote).join(', ')}]${env} }`,
+      `mcp_servers.hatstand={ command = ${quote(m.command)}, args = [${m.args.map(quote).join(', ')}]${env}${tools} }`,
     );
   }
   return [...args, '--', opts.prompt];

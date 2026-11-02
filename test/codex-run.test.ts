@@ -95,3 +95,8 @@ for (const code of [0, 1]) {
     await assert.rejects(fs.access(output), { code: 'ENOENT' });
   });
 }
+
+test('codexArgs approves the listed MCP tools up front', () => {
+  const args = codexArgs({ prompt: 'p', outFile: 'o', mcp: { command: 'c', args: [], approve: ['a'] } });
+  assert.match(args.join(' '), /tools = \{ "a" = \{ approval_mode = "approve" \} \}/);
+});
