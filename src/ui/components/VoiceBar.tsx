@@ -13,6 +13,8 @@ const labels: Record<Phase, string> = {
 };
 /** After Codex answers (or hears its name alone) the next phrase needs no “Hey Codex”. */
 const followUpMs = 10_000;
+/** How long a pause Codex waits through, after your last phrase, before it acts on what you said. */
+const commandWaitMs = 5000;
 const stored = (key: string) => {
   try {
     return localStorage.getItem(key) === '1';
@@ -54,6 +56,8 @@ export function VoiceBar(props: { onSay(text: string): void }) {
   const audio = useRef<HTMLAudioElement | undefined>(undefined);
   const busy = useRef(false);
   const armedUntil = useRef(0);
+  /** Words heard after “Hey Codex” that are still waiting for the pause to end. */
+  const pending = useRef({ text: '', timer: 0 });
   const mutedRef = useRef(muted);
   mutedRef.current = muted;
   const onSay = useRef(props.onSay);
@@ -90,6 +94,30 @@ export function VoiceBar(props: { onSay(text: string): void }) {
     });
   }
 
+  /** Sends the waiting request to Codex and speaks the answer. */
+  async function send() {
+    const text = pending.current.text;
+    if (!text) return;
+    // A phrase is still being transcribed: it may belong to this request, so look again shortly.
+    if (busy.current) {
+      pending.current.timer = window.setTimeout(() => void send(), 500);
+      return;
+    }
+    pending.current.text = '';
+    busy.current = true;
+    try {
+      setError('');
+      await respond(text);
+      arm(true);
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : 'Something went wrong.');
+      onSay.current('');
+    } finally {
+      setPhase('idle');
+      busy.current = false;
+    }
+  }
+
   /** Runs one turn end to end, keeping the mic closed to the always-listening loop meanwhile. */
   async function turn(samples: Float32Array, rate: number, needWake: boolean) {
     if (busy.current) return;
@@ -102,12 +130,20 @@ export function VoiceBar(props: { onSay(text: string): void }) {
       if (needWake) {
         const wake = parseWake(text);
         if (wake.woke) command = wake.command;
-        else if (Date.now() > armedUntil.current) return; // not meant for Codex: ignore silently
-        if (wake.woke && !command) return arm(true);
+        else if (!pending.current.text && Date.now() > armedUntil.current) return; // not meant for Codex: ignore silently
+        if (wake.woke && !command && !pending.current.text) return arm(true);
+        if (!command) return;
+        // Wait through a pause: more phrases join the same request until five quiet seconds pass.
+        const { current } = pending;
+        window.clearTimeout(current.timer);
+        current.text = `${current.text} ${command}`.trim();
+        setHeard(`${current.text} …`);
+        setPhase('idle');
+        current.timer = window.setTimeout(() => void send(), commandWaitMs);
+        return;
       }
       if (!command) return;
       await respond(command);
-      if (needWake) arm(true);
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'Something went wrong.');
       onSay.current('');
@@ -161,6 +197,8 @@ export function VoiceBar(props: { onSay(text: string): void }) {
     })();
     return () => {
       stopped = true;
+      window.clearTimeout(pending.current.timer);
+      pending.current.text = '';
       cleanup();
       arm(false);
     };
