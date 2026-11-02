@@ -11,7 +11,8 @@ await Promise.all([
     bundle: true,
     platform: 'node',
     target: 'node24',
-    external: ['electron'],
+    // The voice library is a native addon: it is shipped as files, not bundled.
+    external: ['electron', 'sherpa-onnx-node'],
     format: 'cjs',
   }),
   build({

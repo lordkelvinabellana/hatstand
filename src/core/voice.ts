@@ -6,7 +6,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { dataRoot } from './paths.ts';
 
-const require = createRequire(import.meta.url);
+// The bundled main process is CommonJS and has `require`; tests run as ESM and make one.
+const load: NodeJS.Require = typeof require === 'function' ? require : createRequire(import.meta.url);
 export function modelsDir(): string {
   const base =
     process.platform === 'darwin'
@@ -45,7 +46,7 @@ interface Recognizer {
 let recognizer: Recognizer | undefined;
 export async function transcribe(samples: Float32Array, sampleRate: number): Promise<string> {
   if (!recognizer) {
-    const sherpa = require('sherpa-onnx-node');
+    const sherpa = load('sherpa-onnx-node');
     const w = path.join(modelsDir(), 'sherpa-onnx-whisper-base.en');
     recognizer = new sherpa.OfflineRecognizer({
       featConfig: { sampleRate: 16000, featureDim: 80 },
@@ -122,7 +123,7 @@ export async function speak(
     await run(node, [
       '-e',
       ttsScript,
-      require.resolve('sherpa-onnx-node'),
+      load.resolve('sherpa-onnx-node'),
       path.join(modelsDir(), 'kokoro-int8-en-v0_19'),
       outFile,
       text,

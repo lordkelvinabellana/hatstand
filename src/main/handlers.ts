@@ -7,6 +7,8 @@ import { randomUUID } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { acceleratorKey } from '../core/accelerator.ts';
+import { runCodex } from '../core/codex-run.ts';
+import { speak, transcribe, voiceReady } from '../core/voice.ts';
 import { checksFor, isTestedVersion } from '../core/compat.ts';
 import type { Controller } from '../core/controller.ts';
 import { withFileLock, writeFileAtomic } from '../core/files.ts';
@@ -93,6 +95,11 @@ function buildCommit() {
     }
   return commit;
 }
+
+const codexPreamble =
+  "You are Codex, the operator of Hatstand, which runs one Claude account per client. Use the hatstand tools to list profiles, see each profile's live sessions, and start a new session in the right profile when asked. Answer in one to three short plain spoken sentences: no markdown, no lists, no file paths. Say what you did or what you need.";
+/** Codex's session id, so the next utterance continues the same conversation. */
+let codexSession: string | undefined;
 
 export function createHandlers(context: HandlerContext): Record<string, Handler> {
   const { root, store, controller } = context;
@@ -702,6 +709,41 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
       const id = readId(payload);
       await controller.getProfile(id);
       return context.sessions(id);
+    },
+    voiceStatus: voiceReady,
+    async voiceTranscribe(payload) {
+      const { samples, rate } = payload as { samples?: unknown; rate?: unknown };
+      if (!(samples instanceof Float32Array) || typeof rate !== 'number' || rate < 8000 || rate > 96000)
+        throw new Error('Invalid request.');
+      return transcribe(samples, rate);
+    },
+    async voiceAsk(payload) {
+      const text = (payload as { text?: unknown }).text;
+      if (typeof text !== 'string' || !text.trim() || text.length > 2000) throw new Error('Invalid request.');
+      if (!controller.settings.operator)
+        throw new Error('Turn on “Let an outside agent start sessions” in Settings first.');
+      const result = await runCodex({
+        prompt: `${codexPreamble}\n\nThe user said: ${text.trim()}`,
+        resume: codexSession,
+        mcp: {
+          command: process.execPath,
+          args: [path.join(root, 'operator.cjs'), '--socket', path.join(root, 'operator.sock')],
+          env: { ELECTRON_RUN_AS_NODE: '1' },
+        },
+      });
+      codexSession = result.sessionId ?? codexSession;
+      return result.text.trim();
+    },
+    async voiceSpeak(payload) {
+      const text = (payload as { text?: unknown }).text;
+      if (typeof text !== 'string' || !text.trim()) throw new Error('Invalid request.');
+      const file = path.join(os.tmpdir(), `hatstand-speech-${randomUUID()}.wav`);
+      try {
+        await speak(text.trim(), file);
+        return new Uint8Array(await fs.readFile(file));
+      } finally {
+        await fs.rm(file, { force: true });
+      }
     },
     async openSession(payload) {
       const id = readId(payload);
