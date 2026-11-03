@@ -4,6 +4,9 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## [Unreleased]
 
+
+- Pets speak: instead of the jingle, a pet reads a short summary of the session's last message when it needs you or finishes, one at a time (Settings → Pets speak). Each profile has its own voice (Edit profile → Voice).
+
 ### Changed
 
 - **Pets open their panel on click only.** Hovering no longer opens it: a panel that opened on hover could take a click meant for the app underneath and jump to a conversation. Click the pet again, or anywhere else, to close it.
@@ -13,6 +16,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ### Added
 
+- **Office page.** One building seen from above (three.js): a room per profile with its colour on the back wall and on its people's shirts, and a Codex HQ across the top. Every session is its own small pixel person: working ones sit at a desk, ones that need you stand on an amber mat with a popup over their head, finished ones rest on the couch, and an idle profile wanders (or sleeps when its Claude is closed). Drag to move, scroll to zoom, double-click a room or its name to fly in, **Show all** to zoom back out; session titles appear when you are close. A "Needs you" column lists every session that asked or finished; click a person, a popup or a card to open it in that profile's Claude. Nothing shakes or flickers. Falls back to a flat view without WebGL. macOS only for now, like the pets.
 - **Export and import notes.** Each vault card on the Second brain page has **Export notes…** (saves the vault as one `.hatstandnotes` file) and **Import notes…** (shows what would change, then adds it). Upload the file to Google Drive, or copy it, to bring your notes to Hatstand on another computer. Nothing is sent anywhere, nothing is deleted, and a note changed on both computers keeps your version and saves theirs next to it.
 - **Remove and Clear done** in a pet's panel: an × on each session takes it off the list, and Clear done removes every finished one.
 

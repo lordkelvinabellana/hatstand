@@ -49,6 +49,7 @@
     "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@types/three": "^0.186.0",
     "electron": "^44.7.2",
     "esbuild": "^0.28.2",
     "graphology-types": "^0.24.8",
@@ -69,7 +70,9 @@
     "minisearch": "^7.2.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "sigma": "^3.0.3"
+    "sherpa-onnx-node": "^1.13.8",
+    "sigma": "^3.0.3",
+    "three": "^0.186.1"
   },
   "overrides": {
     "tar": "^7.5.22",

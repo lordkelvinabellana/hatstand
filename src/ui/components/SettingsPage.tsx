@@ -11,6 +11,7 @@ const downloadUrl = 'https://claude.com/download';
 
 export function SettingsPage() {
   const { data, pending, run, fire } = useApp();
+  const [tab, setTab] = useState<'general' | 'agents' | 'sync' | 'data'>('general');
   const [settings, setSettings] = useState<Settings>({ ...data.settings });
   const [importPreview, setImportPreview] = useState<ProfileInput[] | null>(null);
   const [update, setUpdate] = useState<UpdateCheck | null>(null);
@@ -40,6 +41,27 @@ export function SettingsPage() {
           <p>Small preferences for everyday switching.</p>
         </div>
       </div>
+      <div className="tabs" role="tablist" aria-label="Settings groups">
+        {(
+          [
+            ['general', 'General'],
+            ['agents', 'Agents & voice'],
+            ['sync', 'Sync & backup'],
+            ['data', 'Updates & data'],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            type="button"
+            role="tab"
+            key={id}
+            aria-selected={tab === id}
+            className={tab === id ? 'tab on' : 'tab'}
+            onClick={() => setTab(id)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
       <form
         className="settings-form"
         onSubmit={(e) => {
@@ -47,7 +69,7 @@ export function SettingsPage() {
           fire('settings', settings, 'Settings saved.');
         }}
       >
-        <section className="setting-section">
+        <section className="setting-section" hidden={tab !== 'general'}>
           <h2>Appearance</h2>
           <div className="setting-row">
             <div>
@@ -70,8 +92,39 @@ export function SettingsPage() {
             </select>
           </div>
         </section>
+        <section className="setting-section" hidden={tab !== 'agents'}>
+          <h2>Codex & agents</h2>
+          <label className="setting-row">
+            <span>
+              Let an outside agent start sessions
+              <small>
+                Lets Codex (or any program you run) list your profiles and sessions and open a new Claude Code
+                session in a profile. Off by default. Uses a private socket only you can reach.
+              </small>
+            </span>
+            <input
+              type="checkbox"
+              checked={settings.operator}
+              onChange={(e) => setSettings({ ...settings, operator: e.target.checked })}
+            />
+          </label>
+          <label className="setting-row">
+            <span>
+              Save idle sessions to the vault
+              <small>
+                When a session has sat idle for an hour, Hatstand asks it to run your vault skill so its
+                context is saved before you pick it back up. Once per session. Off by default.
+              </small>
+            </span>
+            <input
+              type="checkbox"
+              checked={settings.vaultIdle}
+              onChange={(e) => setSettings({ ...settings, vaultIdle: e.target.checked })}
+            />
+          </label>
+        </section>
         {isMac && (
-          <section className="setting-section">
+          <section className="setting-section" hidden={tab !== 'agents'}>
             <h2>Menu-bar pets</h2>
             <label className="setting-row">
               <span>
@@ -82,6 +135,21 @@ export function SettingsPage() {
                 type="checkbox"
                 checked={settings.pets}
                 onChange={(e) => setSettings({ ...settings, pets: e.target.checked })}
+              />
+            </label>
+            <label className="setting-row">
+              <span>
+                Pets speak
+                <small>
+                  Instead of the jingle, a pet reads a short summary aloud when an account needs you or
+                  finishes, one at a time.
+                </small>
+              </span>
+              <input
+                type="checkbox"
+                checked={settings.petSpeech}
+                disabled={!settings.pets}
+                onChange={(e) => setSettings({ ...settings, petSpeech: e.target.checked })}
               />
             </label>
             <label className="setting-row">
@@ -98,7 +166,7 @@ export function SettingsPage() {
             </label>
           </section>
         )}
-        <section className="setting-section">
+        <section className="setting-section" hidden={tab !== 'general'}>
           <h2>Daily workflow</h2>
           <label className="setting-row">
             <span>
@@ -136,7 +204,7 @@ export function SettingsPage() {
             error={data.hotkeyError}
           />
         </section>
-        <section className="setting-section">
+        <section className="setting-section" hidden={tab !== 'general'}>
           <h2>Claude Desktop</h2>
           <p>
             {data.installation
@@ -187,7 +255,7 @@ export function SettingsPage() {
         </button>
       </form>
 
-      <section className="setting-section transfer">
+      <section className="setting-section transfer" hidden={tab !== 'data'}>
         <h2>Updates</h2>
         <p>Hatstand {data.version}. Checking contacts GitHub only when you ask.</p>
         <div className="button-row">
@@ -228,7 +296,7 @@ export function SettingsPage() {
         )}
       </section>
 
-      <section className="setting-section transfer">
+      <section className="setting-section transfer" hidden={tab !== 'sync'}>
         <h2>Sync profiles</h2>
         <p>
           Optional. Keeps profile names, labels, colors, pets, order and shortcuts in your own Supabase
@@ -354,7 +422,7 @@ export function SettingsPage() {
         )}
       </section>
 
-      <section className="setting-section transfer">
+      <section className="setting-section transfer" hidden={tab !== 'sync'}>
         <h2>Move profile labels</h2>
         <p>
           Export names, account labels, colors, and initials. Sign-ins, shortcuts, folders, and Claude session
@@ -408,7 +476,7 @@ export function SettingsPage() {
         )}
       </section>
 
-      <section className="setting-section transfer">
+      <section className="setting-section transfer" hidden={tab !== 'sync'}>
         <h2>Second brain backup</h2>
         <p>
           After every Claude reply, each vault is copied into its own folder here, for example a folder your
@@ -443,7 +511,7 @@ export function SettingsPage() {
         </div>
       </section>
 
-      <section className="setting-section transfer">
+      <section className="setting-section transfer" hidden={tab !== 'data'}>
         <h2>Local data</h2>
         <p>
           Profiles are stored in <span className="path-text inline">{data.dataFolder}</span>. Uninstalling

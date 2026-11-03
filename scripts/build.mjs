@@ -11,7 +11,8 @@ await Promise.all([
     bundle: true,
     platform: 'node',
     target: 'node24',
-    external: ['electron'],
+    // The voice library is a native addon: it is shipped as files, not bundled.
+    external: ['electron', 'sherpa-onnx-node'],
     format: 'cjs',
   }),
   build({
@@ -26,6 +27,14 @@ await Promise.all([
   build({
     entryPoints: ['src/brain/recall.ts'],
     outfile: 'dist/recall.cjs',
+    bundle: true,
+    platform: 'node',
+    target: 'node24',
+    format: 'cjs',
+  }),
+  build({
+    entryPoints: ['src/brain/operator.ts'],
+    outfile: 'dist/operator.cjs',
     bundle: true,
     platform: 'node',
     target: 'node24',

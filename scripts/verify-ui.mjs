@@ -201,6 +201,72 @@ async function checkNotes(vault) {
   await notes.locator('.profile-hero').waitFor();
   await notes.getByRole('heading', { name: 'Running tasks' }).waitFor();
   await notes.screenshot({ path: path.join(screenshotFolder, 'profile-page.png') });
+  if (await notes.getByRole('button', { name: 'Office', exact: true }).count()) {
+    // Office is switched off
+    // Office: a room per active profile and the "Needs you" column.
+    await notes.getByRole('button', { name: 'Office', exact: true }).click();
+    await notes.getByRole('complementary', { name: 'Needs you' }).waitFor();
+    // The lit 3D set where WebGL works (one label per active profile plus the Codex HQ), the flat rooms where it doesn't.
+    const active = (await readProfiles()).filter((p) => !p.archived).length;
+    await notes.locator('.office-world canvas, .office-room').first().waitFor();
+    if (await notes.locator('.office-world canvas').count())
+      assert.equal(await notes.locator('.office-zone').count(), active + 1); // + Codex HQ
+    else {
+      assert.equal(await notes.locator('.office-room').count(), active);
+      assert.equal(await notes.locator('.office-agent').count(), active); // one idle pet per room
+    }
+    // Live sessions: a working one, two that need you and a finished one, written the way the pet hook does.
+    const [first] = (await readProfiles()).filter((p) => !p.archived);
+    const petFolder = path.join(root, 'profiles', first.id, 'pet');
+    const code = path.join(root, 'profiles', first.id, 'code', 'projects', 'demo');
+    await fs.mkdir(petFolder, { recursive: true });
+    await fs.mkdir(code, { recursive: true });
+    for (const [name, state, title] of [
+      ['s1', 'working', 'Build the AVH dashboard'],
+      ['s2', 'ask', 'Kevin timesheet update'],
+      ['s3', 'ask', 'Reply to the Oak Media thread'],
+      ['s4', 'done', 'Weekly graph refresh'],
+    ]) {
+      const transcript = path.join(code, `${name}.jsonl`);
+      await fs.writeFile(transcript, `${JSON.stringify({ type: 'custom-title', customTitle: title })}\n`);
+      await fs.writeFile(
+        path.join(petFolder, `${name}.json`),
+        JSON.stringify({ state, at: Date.now(), transcript }),
+      );
+    }
+    // Live sessions come from the menu-bar pets, which are macOS only.
+    if (mac && (await notes.locator('.office-world canvas').count())) {
+      await new Promise((r) => setTimeout(r, 4000));
+      await notes.locator('.office-popup').first().waitFor({ timeout: 15_000 });
+      assert.equal(await notes.locator('.office-popup').count(), 2);
+      await new Promise((resolve) => setTimeout(resolve, 6000)); // let them walk to their places
+      await notes.screenshot({ path: path.join(screenshotFolder, 'office-busy.png') });
+      // A Needs you item opens inside Hatstand (summary, reply box), not in Claude, and can be cleared.
+      await notes.locator('.office-inbox .task').first().waitFor();
+      const before = await notes.locator('.office-inbox .task').count();
+      await notes.locator('.office-inbox .task').first().click();
+      await notes.locator('.session-panel').waitFor();
+      await notes.getByPlaceholder('Reply to this session…').waitFor();
+      await notes.screenshot({ path: path.join(screenshotFolder, 'office-session.png') });
+      await notes.getByRole('button', { name: 'Clear from list' }).click();
+      await notes.locator('.office-inbox .task').first().waitFor();
+      assert.equal(await notes.locator('.office-inbox .task').count(), before - 1);
+    }
+    // A long session prompt must be cut off inside its card, never widen the page.
+    await notes.evaluate(() => {
+      const item = document.createElement('li');
+      item.innerHTML = `<button class="task"><strong>${'t'.repeat(300)}</strong><span class="task-prompt">${'word '.repeat(120)}</span></button>`;
+      const list = document.createElement('ul');
+      list.append(item);
+      document.querySelector('.office-inbox h2').after(list);
+    });
+    assert.ok(
+      await notes.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+      'Office overflows',
+    );
+    await notes.screenshot({ path: path.join(screenshotFolder, 'office.png') });
+  }
+  await notes.getByRole('button', { name: 'Second brain', exact: true }).click();
   await editProfile(notes, 0);
   await instance.evaluate(({ dialog }) => {
     dialog.showMessageBox = globalThis.realMessageBox;
@@ -671,6 +737,7 @@ try {
   await page.getByRole('button', { name: 'Save preferences', exact: true }).click();
   await page.getByText('Settings saved.', { exact: true }).waitFor();
   // Sync refuses a secret key before anything is sent, and stays off by default.
+  await page.getByRole('tab', { name: 'Sync & backup' }).click();
   await page.getByLabel('Supabase project URL').fill('https://example.supabase.co');
   await page.getByLabel('Publishable key').fill('sb_secret_not_allowed');
   await page.getByLabel('Email', { exact: true }).fill('test@example.com');
@@ -681,6 +748,7 @@ try {
     .waitFor();
   await page.getByRole('heading', { name: 'Sync profiles' }).scrollIntoViewIfNeeded();
   await page.screenshot({ path: path.join(screenshotFolder, 'sync.png') });
+  await page.getByRole('tab', { name: 'Agents & voice' }).click();
   if (mac) {
     // Pets switch off (the Hatstand icon returns) and back on without a restart.
     for (const checked of [false, true]) {
@@ -689,6 +757,7 @@ try {
       await page.getByText('Settings saved.', { exact: true }).last().waitFor();
     }
   }
+  await page.getByRole('tab', { name: 'Sync & backup' }).click();
   await page.evaluate(() => window.scrollTo(0, 0));
   await scrubPaths(page);
   await instance.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1120, 780));
@@ -734,6 +803,7 @@ try {
     },
     imported.slice(3).map((p) => p.id),
   );
+  await page.getByRole('tab', { name: 'Updates & data' }).click();
   await page.getByRole('button', { name: 'Find leftover data', exact: true }).click();
   await page.getByText('1 belongs to removed profiles').waitFor();
   await page.getByRole('button', { name: mac ? 'Move to Trash…' : 'Move to Recycle Bin…' }).waitFor();

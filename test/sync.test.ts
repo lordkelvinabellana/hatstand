@@ -24,6 +24,7 @@ function profile(n: number, minute: number, extra: Partial<Profile> = {}): Profi
     color: 'teal',
     icon: 'C',
     pet: 'cat',
+    voice: 0,
     hotkey: '',
     workFolder: '',
     openAtStartup: false,

@@ -5,7 +5,7 @@ if (signedRelease && (!process.env.APPLE_SIGNING_IDENTITY || !process.env.APPLE_
 
 module.exports = {
   packagerConfig: {
-    asar: true,
+    asar: { unpack: '**/node_modules/sherpa-onnx*/**' },
     executableName: 'Hatstand',
     name: 'Hatstand',
     appBundleId: 'io.github.lordkelvinabellana.hatstand',
@@ -14,6 +14,8 @@ module.exports = {
       ? {
           extendInfo: {
             LSMinimumSystemVersion: '13.0',
+            NSMicrophoneUsageDescription:
+              'Hatstand listens while you hold the talk button, to turn your voice into text on this computer.',
             NSAppleEventsUsageDescription:
               'Hatstand opens a Claude Code session in the Claude window of the account it belongs to.',
           },
@@ -38,6 +40,8 @@ module.exports = {
       const relative = file.replaceAll('\\', '/');
       if (!relative) return false;
       if (relative === '/resources/bin' || relative.startsWith('/resources/bin/')) return true;
+      // The voice library and its per-platform binaries are the only modules shipped (everything else is bundled).
+      if (relative === '/node_modules' || relative.startsWith('/node_modules/sherpa-onnx')) return false;
       return !['/dist', '/resources', '/package.json', '/LICENSE'].some(
         (prefix) => relative === prefix || relative.startsWith(prefix + '/'),
       );

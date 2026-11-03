@@ -1,12 +1,17 @@
 // IPC request handlers. Every payload arrives from the renderer and is validated here.
 import { app, dialog, nativeTheme, net, shell } from 'electron';
 import type { BrowserWindow } from 'electron';
+import { execFile } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { acceleratorKey } from '../core/accelerator.ts';
+import { runClaude } from '../core/claude-run.ts';
+import { brief } from '../core/transcript.ts';
+import { speak } from '../core/voice.ts';
+import { voiceNames } from '../core/voices.ts';
 import { checksFor, isTestedVersion } from '../core/compat.ts';
 import type { Controller } from '../core/controller.ts';
 import { withFileLock, writeFileAtomic } from '../core/files.ts';
@@ -66,6 +71,12 @@ export interface HandlerContext {
   sessions(id: string): Promise<SessionView[]>;
   /** Brings up the profile's Claude at a desktop session (local_…), or just the app. */
   openSession(id: string, session?: string): void;
+  /** A session's latest messages and folder, and a way to stop tracking it. */
+  sessionDetail(
+    id: string,
+    session: string,
+  ): Promise<{ messages: { role: 'user' | 'assistant'; text: string }[]; cwd: string } | undefined>;
+  removeSession(id: string, session: string): Promise<void>;
 }
 type Handler = (payload: unknown) => Promise<unknown>;
 
@@ -92,6 +103,13 @@ function buildCommit() {
       commit = '';
     }
   return commit;
+}
+
+function sessionRef(payload: unknown) {
+  const { id, session } = (payload ?? {}) as { id?: unknown; session?: unknown };
+  if (typeof id !== 'string' || typeof session !== 'string' || !/^[A-Za-z0-9_-]{1,100}$/.test(session))
+    throw new Error('Invalid request.');
+  return { id, session };
 }
 
 export function createHandlers(context: HandlerContext): Record<string, Handler> {
@@ -702,6 +720,58 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
       const id = readId(payload);
       await controller.getProfile(id);
       return context.sessions(id);
+    },
+    async sessionDetail(payload) {
+      const { id, session } = sessionRef(payload);
+      await controller.getProfile(id);
+      return context.sessionDetail(id, session);
+    },
+    async sessionSummary(payload) {
+      const { id, session } = sessionRef(payload);
+      await controller.getProfile(id);
+      return brief((await context.sessionDetail(id, session))?.messages ?? []);
+    },
+    async sessionReply(payload) {
+      const { id, session } = sessionRef(payload);
+      const text = (payload as { text?: unknown }).text;
+      if (typeof text !== 'string' || !text.trim() || text.length > 8000) throw new Error('Invalid request.');
+      await controller.getProfile(id);
+      const detail = await context.sessionDetail(id, session);
+      const cwd = detail?.cwd && path.isAbsolute(detail.cwd) ? detail.cwd : os.homedir();
+      if (!(await fs.stat(cwd).catch(() => undefined))?.isDirectory())
+        throw new Error('The session’s folder is gone.');
+      const reply = await runClaude({
+        prompt: text.trim(),
+        resume: session,
+        cwd,
+        configDir: controller.directories(id).code,
+      });
+      context.notify();
+      return reply.text;
+    },
+    async sessionRemove(payload) {
+      const { id, session } = sessionRef(payload);
+      await controller.getProfile(id);
+      await context.removeSession(id, session);
+    },
+    /** Plays a short line in the chosen voice, so it can be picked by ear. */
+    async voicePreview(payload) {
+      const voice = (payload as { voice?: unknown }).voice;
+      if (!Number.isInteger(voice) || (voice as number) < 0 || (voice as number) >= voiceNames.length)
+        throw new Error('Invalid request.');
+      const file = path.join(os.tmpdir(), `hatstand-voice-${randomUUID()}.wav`);
+      try {
+        await speak(
+          `Hi, I'm ${voiceNames[voice as number]}. This is how I'll tell you a session is done.`,
+          file,
+          undefined,
+          undefined,
+          voice as number,
+        );
+        await new Promise<void>((resolve) => execFile('/usr/bin/afplay', [file], () => resolve()));
+      } finally {
+        await fs.rm(file, { force: true });
+      }
     },
     async openSession(payload) {
       const id = readId(payload);

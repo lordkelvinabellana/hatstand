@@ -24,8 +24,11 @@ export function askPrompt(question: string) {
 }
 
 /** A new Claude Code session in `folder` with the prompt filled in. Percent-encoded only, as the helper requires. */
+export function newSessionLink(prompt: string, folder: string) {
+  return `claude://code/new?q=${encodeURIComponent(prompt)}&folder=${encodeURIComponent(folder)}`;
+}
 export function askLink(question: string, folder: string) {
-  return `claude://code/new?q=${encodeURIComponent(askPrompt(question))}&folder=${encodeURIComponent(folder)}`;
+  return newSessionLink(askPrompt(question), folder);
 }
 
 /**

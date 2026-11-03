@@ -1,9 +1,13 @@
 import { execFile } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
+import os from 'node:os';
 import { type FSWatcher, watch } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import path from 'node:path';
 import { BrowserWindow, Menu, type MenuItemConstructorOptions, nativeImage, screen, Tray } from 'electron';
 import type { Controller } from '../core/controller.ts';
+import { brief, lastMessages } from '../core/transcript.ts';
+import { speak } from '../core/voice.ts';
 import { withFileLock, writeFileAtomic } from '../core/files.ts';
 import {
   type Badge,
@@ -52,6 +56,9 @@ export class Pets {
   private pets = new Map<string, Pet>();
   private frame = 0;
   private lastSound = 0;
+  /** Sessions waiting to be read aloud, one at a time. */
+  private spoken: { pet: Pet; id: string; state: 'ask' | 'done' }[] = [];
+  private speaking = false;
   private menu: MenuItemConstructorOptions[] = [];
   private timer: NodeJS.Timeout;
   private script: string;
@@ -186,12 +193,15 @@ export class Pets {
   private async scan(pet: Pet, quiet = false) {
     const sessions = [];
     let chime: 'ask' | 'done' | undefined;
+    const fresh: { id: string; state: 'ask' | 'done' }[] = [];
     const now = Date.now();
     for (const { id, session } of await this.read(pet, false)) {
       sessions.push(session);
       const key = `${session.state}@${session.at}`;
-      if (pet.seen.get(id) !== key && session.state !== 'working' && now - session.at < 60_000)
+      if (pet.seen.get(id) !== key && session.state !== 'working' && now - session.at < 60_000) {
         chime = chime === 'ask' ? 'ask' : session.state;
+        fresh.push({ id, state: session.state });
+      }
       pet.seen.set(id, key);
     }
     const mood = petMood(!!this.controller.owned(pet.profile.id), sessions, now);
@@ -207,7 +217,36 @@ export class Pets {
       this.draw(pet);
     }
     if (this.panelFor === pet && this.panel?.isVisible()) void this.showPanel(pet);
-    if (chime && !quiet) this.play(chime, pet.species);
+    if (chime && !quiet) {
+      if (this.controller.settings.petSpeech && this.controller.settings.petSounds) {
+        for (const item of fresh) this.spoken.push({ pet, ...item });
+        void this.drain();
+      } else this.play(chime, pet.species);
+    }
+  }
+
+  /** Reads the queue out one by one, so two sessions finishing together never talk over each other. */
+  private async drain() {
+    if (this.speaking) return;
+    this.speaking = true;
+    try {
+      for (let item = this.spoken.shift(); item; item = this.spoken.shift()) {
+        const { pet, id, state } = item;
+        const file = path.join(os.tmpdir(), `hatstand-pet-${randomUUID()}.wav`);
+        try {
+          const title = (await this.read(pet, true)).find((s) => s.id === id)?.summary?.title;
+          const text = `${pet.profile.name}: ${title || 'a session'} ${state === 'ask' ? 'needs you' : 'is done'}. ${brief((await this.detail(pet.profile.id, id))?.messages ?? [])}`;
+          await speak(text, file, undefined, undefined, pet.profile.voice);
+          await new Promise<void>((resolve) => execFile('/usr/bin/afplay', [file], () => resolve()));
+        } catch {
+          this.play(state, pet.species);
+        } finally {
+          await fs.rm(file, { force: true });
+        }
+      }
+    } finally {
+      this.speaking = false;
+    }
   }
 
   private play(kind: 'ask' | 'done', species: number) {
@@ -230,6 +269,35 @@ export class Pets {
       if (pet.mood !== 'sleep') this.draw(pet);
       if (this.frame % 130 === 0) void this.scan(pet);
     }
+  }
+
+  /** The transcript of one of this profile's sessions; the pet file is not trusted to point outside the profile. */
+  private async transcriptOf(pet: Pet, id: string) {
+    if (!/^[A-Za-z0-9_-]{1,100}$/.test(id)) throw new Error('Invalid request.');
+    const session = parseSession(
+      await fs.readFile(path.join(pet.folder, `${id}.json`), 'utf8').catch(() => ''),
+    );
+    const code = path.resolve(this.controller.directories(pet.profile.id).code);
+    const transcript = session?.transcript ? path.resolve(session.transcript) : '';
+    return transcript.startsWith(code + path.sep) && transcript.endsWith('.jsonl') ? transcript : '';
+  }
+
+  /** What the Needs you panel shows for a session: its latest messages and where it runs. */
+  async detail(profile: string, id: string) {
+    const pet = this.pets.get(profile);
+    if (!pet) return undefined;
+    const transcript = await this.transcriptOf(pet, id);
+    const text = transcript ? await fs.readFile(transcript, 'utf8').catch(() => '') : '';
+    return { messages: lastMessages(text, 6), cwd: summarizeTranscript(text).cwd };
+  }
+
+  /** Stops Hatstand tracking a session (its transcript stays). */
+  async forget(profile: string, id: string) {
+    const pet = this.pets.get(profile);
+    if (!pet || !/^[A-Za-z0-9_-]{1,100}$/.test(id)) throw new Error('Invalid request.');
+    await fs.rm(path.join(pet.folder, `${id}.json`), { force: true });
+    pet.seen.delete(id);
+    void this.scan(pet);
   }
 
   /** The profile's live sessions for its page in Hatstand; empty when it has no pet. */

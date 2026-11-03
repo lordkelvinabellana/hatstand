@@ -8,7 +8,7 @@ declare global {
 }
 export const api = window.hatstand;
 
-export type Page = 'profiles' | 'archive' | 'vault' | 'profile' | 'settings' | 'about';
+export type Page = 'profiles' | 'office' | 'archive' | 'vault' | 'profile' | 'settings' | 'about';
 
 export interface AppContextValue {
   data: Snapshot;
