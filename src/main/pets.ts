@@ -7,6 +7,7 @@ import path from 'node:path';
 import { BrowserWindow, Menu, type MenuItemConstructorOptions, nativeImage, screen, Tray } from 'electron';
 import type { Controller } from '../core/controller.ts';
 import { brief, lastMessages } from '../core/transcript.ts';
+import { micInUse } from '../core/mic.ts';
 import { speak } from '../core/voice.ts';
 import { withFileLock, writeFileAtomic } from '../core/files.ts';
 import {
@@ -232,6 +233,8 @@ export class Pets {
     try {
       for (let item = this.spoken.shift(); item; item = this.spoken.shift()) {
         const { pet, id, state } = item;
+        // Never talk over the user: wait while a microphone is live, and the queue keeps its order.
+        while (await micInUse()) await new Promise((resolve) => setTimeout(resolve, 2000));
         const file = path.join(os.tmpdir(), `hatstand-pet-${randomUUID()}.wav`);
         try {
           const title = (await this.read(pet, true)).find((s) => s.id === id)?.summary?.title;

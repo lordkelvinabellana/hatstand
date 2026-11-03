@@ -5,7 +5,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 ## [Unreleased]
 
 
-- Pets speak: instead of the jingle, a pet reads a short summary of the session's last message when it needs you or finishes, one at a time (Settings → Pets speak). Each profile has its own voice (Edit profile → Voice).
+- Pets speak: instead of the jingle, a pet reads a short summary of the session's last message when it needs you or finishes, one at a time (Settings → Pets speak). Each profile has its own voice (Edit profile → Voice). While a microphone is in use (dictating, a call), alerts wait in the queue and speak when it goes quiet (macOS).
 
 ### Changed
 
