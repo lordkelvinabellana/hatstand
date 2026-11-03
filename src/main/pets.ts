@@ -236,7 +236,7 @@ export class Pets {
         try {
           const title = (await this.read(pet, true)).find((s) => s.id === id)?.summary?.title;
           const text = `${pet.profile.name}: ${title || 'a session'} ${state === 'ask' ? 'needs you' : 'is done'}. ${brief((await this.detail(pet.profile.id, id))?.messages ?? [])}`;
-          await speak(text, file);
+          await speak(text, file, undefined, undefined, pet.profile.voice);
           await new Promise<void>((resolve) => execFile('/usr/bin/afplay', [file], () => resolve()));
         } catch {
           this.play(state, pet.species);

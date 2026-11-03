@@ -96,13 +96,14 @@ const tts = new sherpa.OfflineTts({
   model: { kokoro: { model: path.join(k, 'model.int8.onnx'), voices: path.join(k, 'voices.bin'), tokens: path.join(k, 'tokens.txt'), dataDir: path.join(k, 'espeak-ng-data') }, numThreads: 2, provider: 'cpu' },
   maxNumSentences: 1,
 });
-sherpa.writeWave(process.argv[3], tts.generate({ text: process.argv[4], sid: 0, speed: 1.0 }));
+sherpa.writeWave(process.argv[3], tts.generate({ text: process.argv[4], sid: Number(process.argv[5]) || 0, speed: 1.0 }));
 `;
 export async function speak(
   text: string,
   outFile: string,
   spawner: typeof defaultSpawn = defaultSpawn,
   nodeFinder: () => string | undefined = findNode,
+  voice = 0,
 ): Promise<string> {
   text = text.slice(0, 600);
   const run = (command: string, args: string[]) =>
@@ -127,6 +128,7 @@ export async function speak(
       path.join(modelsDir(), 'kokoro-int8-en-v0_19'),
       outFile,
       text,
+      String(voice),
     ]);
   } catch (error) {
     if (process.platform !== 'darwin') throw error;

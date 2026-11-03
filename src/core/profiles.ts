@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { acceleratorKey, normalizeAccelerator } from './accelerator.ts';
 import { speciesNames } from './sprites.ts';
+import { voiceNames } from './voices.ts';
 
 export const colors = ['teal', 'amber', 'violet', 'blue', 'rose', 'slate'] as const;
 export type Color = (typeof colors)[number];
@@ -13,6 +14,8 @@ export interface Profile {
   icon: string;
   /** Pixel pet used as the avatar and menu-bar pet; '' shows the initials. */
   pet: string;
+  /** Spoken-alert voice: a Kokoro speaker number, 0 to 10 (see `voiceNames`). */
+  voice: number;
   /** Global shortcut that launches or focuses this profile; '' when unset. */
   hotkey: string;
   /** Optional client work folder. Convenience only: it does not restrict Claude's file access. */
@@ -30,6 +33,7 @@ export interface ProfileInput {
   color?: Color;
   icon?: string;
   pet?: string;
+  voice?: number;
   hotkey?: string;
   workFolder?: string;
   openAtStartup?: boolean;
@@ -69,6 +73,9 @@ export function validateInput(input: unknown): Required<ProfileInput> {
   if (!colors.includes(color as Color)) throw new Error('Invalid profile color.');
   const pet = input.pet ?? '';
   if (pet !== '' && !speciesNames.includes(pet as string)) throw new Error('Invalid pet.');
+  const voice = input.voice ?? 0;
+  if (!Number.isInteger(voice) || (voice as number) < 0 || (voice as number) >= voiceNames.length)
+    throw new Error('Invalid voice.');
   const openAtStartup = input.openAtStartup ?? false;
   if (typeof openAtStartup !== 'boolean') throw new Error('Invalid startup preference.');
   return {
@@ -77,6 +84,7 @@ export function validateInput(input: unknown): Required<ProfileInput> {
     color: color as Color,
     icon: text(input.icon ?? 'C', 'icon', 8, true),
     pet: pet as string,
+    voice: voice as number,
     hotkey: normalizeAccelerator(input.hotkey ?? ''),
     workFolder: folder(input.workFolder ?? ''),
     openAtStartup,

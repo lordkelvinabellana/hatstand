@@ -31,7 +31,7 @@ function fakeSpawn(calls: { command: string; args: string[] }[], fail = false): 
 test('speak passes model, output and capped text as arguments to plain Node', async () => {
   const calls: { command: string; args: string[] }[] = [];
   assert.equal(
-    await speak('x'.repeat(601), '/tmp/voice.wav', fakeSpawn(calls), () => '/plain/node'),
+    await speak('x'.repeat(601), '/tmp/voice.wav', fakeSpawn(calls), () => '/plain/node', 5),
     '/tmp/voice.wav',
   );
   assert.equal(calls[0].command, '/plain/node');
@@ -39,7 +39,7 @@ test('speak passes model, output and capped text as arguments to plain Node', as
   assert.match(calls[0].args[1], /new sherpa.OfflineTts/);
   assert.match(calls[0].args[2], /sherpa-onnx-node/);
   assert.match(calls[0].args[3], /voice-models[\\/]kokoro-int8-en-v0_19$/);
-  assert.deepEqual(calls[0].args.slice(4), ['/tmp/voice.wav', 'x'.repeat(600)]);
+  assert.deepEqual(calls[0].args.slice(4), ['/tmp/voice.wav', 'x'.repeat(600), '5']);
 });
 
 for (const missing of [true, false]) {

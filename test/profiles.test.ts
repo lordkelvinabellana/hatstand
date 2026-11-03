@@ -135,3 +135,9 @@ test('metadata exported by the 0.0.1 preview (ClientDeck) still imports', async 
   });
   assert.equal(parseImport(legacy)[0].name, 'Client A');
 });
+
+test('voice defaults to 0 and must be a listed speaker', () => {
+  assert.equal(validateInput({ name: 'A' }).voice, 0);
+  assert.equal(validateInput({ name: 'A', voice: 10 }).voice, 10);
+  assert.throws(() => validateInput({ name: 'A', voice: 11 }));
+});

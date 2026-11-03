@@ -1,12 +1,19 @@
 import { execFile } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import path from 'node:path';
-import { BrowserWindow, clipboard, Notification } from 'electron';
+import { BrowserWindow, clipboard, Notification, systemPreferences } from 'electron';
 import { transcribe } from '../core/voice.ts';
 
 export const dictationKey = 'Control+Alt+Space';
 const sound = (name: string) =>
   execFile('/usr/bin/afplay', [`/System/Library/Sounds/${name}.aiff`], () => {});
+let logFile = '';
+const log = (line: string) =>
+  void fs.appendFile(logFile, `${new Date().toISOString()} ${line}\n`).catch(() => {});
+const tell = (body: string) => {
+  log(`tell: ${body}`);
+  new Notification({ title: 'Dictation', body }).show();
+};
 const recorderHtml = `<!doctype html><script>
 let stream, context, node, source, chunks = [];
 window.begin = async () => {
@@ -43,13 +50,18 @@ export class Dictation {
   private recording = false;
   private busy = false;
 
-  constructor(private root: string) {}
+  constructor(private root: string) {
+    logFile = path.join(root, 'dictation.log');
+  }
 
   async toggle() {
     if (this.busy) return;
     this.busy = true;
+    log(this.recording ? 'stop' : 'start');
     try {
       if (!this.recording) {
+        if (!(await systemPreferences.askForMediaAccess('microphone')))
+          return tell('Microphone is blocked. Allow Hatstand in System Settings → Privacy → Microphone.');
         const window = await this.recorder();
         await window.webContents.executeJavaScript('window.begin()');
         this.recording = true;
@@ -63,11 +75,19 @@ export class Dictation {
         };
         const bytes = Buffer.from(clip.data, 'base64');
         const samples = new Float32Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 4);
-        if (samples.length < clip.rate * 0.4) return;
+        if (samples.length < clip.rate * 0.4)
+          return tell('Too short, nothing heard. Talk, then press the shortcut.');
+        const peak = samples.reduce((m, v) => Math.max(m, Math.abs(v)), 0);
+        if (peak < 0.005)
+          return tell('The microphone gave silence. Check the input device and Microphone permission.');
+        log(`clip ${samples.length} samples at ${clip.rate} Hz, peak ${peak.toFixed(3)}`);
         const text = (await transcribe(samples, clip.rate)).trim();
-        if (text) await this.paste(text);
+        log(`text: ${text}`);
+        if (!text) return tell('Could not make out any words.');
+        await this.paste(text);
       }
     } catch (failure) {
+      log(`error: ${failure instanceof Error ? failure.message : failure}`);
       this.recording = false;
       sound('Basso');
       new Notification({
@@ -94,13 +114,18 @@ export class Dictation {
 
   /** Types the text where the cursor is, then puts the user's clipboard back. */
   private async paste(text: string) {
+    // Asks macOS to show the Accessibility prompt (and lists Hatstand there) the first time.
+    if (!systemPreferences.isTrustedAccessibilityClient(true)) log('accessibility: not trusted');
     const previous = await clipboard.readText();
     clipboard.writeText(text);
     const pasted = await new Promise<boolean>((resolve) =>
       execFile(
         '/usr/bin/osascript',
         ['-e', 'tell application "System Events" to keystroke "v" using command down'],
-        (error) => resolve(!error),
+        (error) => {
+          log(`paste: ${error ? error.message : 'ok'}`);
+          resolve(!error);
+        },
       ),
     );
     if (pasted) setTimeout(() => clipboard.writeText(previous), 700);

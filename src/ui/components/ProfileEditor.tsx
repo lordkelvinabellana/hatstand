@@ -2,6 +2,7 @@ import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { Check, FolderOpen, NotebookPen, X } from 'lucide-react';
 import type { Color, ProfileInput } from '../../core/profiles.ts';
+import { voiceNames } from '../../core/voices.ts';
 import { speciesNames } from '../../core/sprites.ts';
 import { api, useApp } from '../api.ts';
 import { PetAvatar } from './PetAvatar.tsx';
@@ -14,6 +15,7 @@ export const emptyProfile: Required<ProfileInput> = {
   color: 'teal',
   icon: 'C',
   pet: 'cat',
+  voice: 0,
   hotkey: '',
   workFolder: '',
   openAtStartup: false,
@@ -35,11 +37,16 @@ export function ProfileEditor(props: { editing: string; onClose(): void }) {
           color: existing.color,
           icon: existing.icon,
           pet: existing.pet,
+          voice: existing.voice,
           hotkey: existing.hotkey,
           workFolder: existing.workFolder,
           openAtStartup: existing.openAtStartup,
         }
-      : { ...emptyProfile, pet: speciesNames[data.profiles.length % speciesNames.length] },
+      : {
+          ...emptyProfile,
+          pet: speciesNames[data.profiles.length % speciesNames.length],
+          voice: data.profiles.length % voiceNames.length,
+        },
   );
   const [iconTouched, setIconTouched] = useState(!!existing);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -140,6 +147,17 @@ export function ProfileEditor(props: { editing: string; onClose(): void }) {
                 : 'Shown as this profile’s picture.'}
             </small>
           </fieldset>
+          <label>
+            Voice
+            <select value={form.voice} onChange={(e) => setForm({ ...form, voice: Number(e.target.value) })}>
+              {voiceNames.map((name, index) => (
+                <option key={name} value={index}>
+                  {name}
+                </option>
+              ))}
+            </select>
+            <small>Reads out when a session of this account is done or needs you.</small>
+          </label>
           {form.pet === '' && (
             <label>
               Initials

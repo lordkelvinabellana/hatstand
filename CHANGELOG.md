@@ -6,7 +6,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 - Dictation (macOS): press Ctrl+Option+Space, talk, press it again, and your words are typed where the cursor is, in Claude or any app. Transcribed on the Mac with the local Whisper model (Settings → Dictation).
 
-- Pets speak: instead of the jingle, a pet reads a short summary of the session's last message when it needs you or finishes, one at a time (Settings → Pets speak).
+- Pets speak: instead of the jingle, a pet reads a short summary of the session's last message when it needs you or finishes, one at a time (Settings → Pets speak). Each profile has its own voice (Edit profile → Voice).
 
 ### Changed
 
