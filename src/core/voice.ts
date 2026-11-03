@@ -124,7 +124,8 @@ export async function speak(
     await run(node, [
       '-e',
       ttsScript,
-      load.resolve('sherpa-onnx-node'),
+      // Plain Node can't read inside app.asar; the native addon is unpacked beside it.
+      load.resolve('sherpa-onnx-node').replace(/app\.asar(?=[\\/])/, 'app.asar.unpacked'),
       path.join(modelsDir(), 'kokoro-int8-en-v0_19'),
       outFile,
       text,
