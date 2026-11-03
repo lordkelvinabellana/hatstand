@@ -1,6 +1,7 @@
 // IPC request handlers. Every payload arrives from the renderer and is validated here.
 import { app, dialog, nativeTheme, net, shell } from 'electron';
 import type { BrowserWindow } from 'electron';
+import { execFile } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
@@ -9,7 +10,8 @@ import path from 'node:path';
 import { acceleratorKey } from '../core/accelerator.ts';
 import { runClaude } from '../core/claude-run.ts';
 import { brief } from '../core/transcript.ts';
-import { transcribe, voiceReady } from '../core/voice.ts';
+import { speak } from '../core/voice.ts';
+import { voiceNames } from '../core/voices.ts';
 import { checksFor, isTestedVersion } from '../core/compat.ts';
 import type { Controller } from '../core/controller.ts';
 import { withFileLock, writeFileAtomic } from '../core/files.ts';
@@ -752,12 +754,24 @@ export function createHandlers(context: HandlerContext): Record<string, Handler>
       await controller.getProfile(id);
       await context.removeSession(id, session);
     },
-    voiceStatus: voiceReady,
-    async voiceTranscribe(payload) {
-      const { samples, rate } = payload as { samples?: unknown; rate?: unknown };
-      if (!(samples instanceof Float32Array) || typeof rate !== 'number' || rate < 8000 || rate > 96000)
+    /** Plays a short line in the chosen voice, so it can be picked by ear. */
+    async voicePreview(payload) {
+      const voice = (payload as { voice?: unknown }).voice;
+      if (!Number.isInteger(voice) || (voice as number) < 0 || (voice as number) >= voiceNames.length)
         throw new Error('Invalid request.');
-      return transcribe(samples, rate);
+      const file = path.join(os.tmpdir(), `hatstand-voice-${randomUUID()}.wav`);
+      try {
+        await speak(
+          `Hi, I'm ${voiceNames[voice as number]}. This is how I'll tell you a session is done.`,
+          file,
+          undefined,
+          undefined,
+          voice as number,
+        );
+        await new Promise<void>((resolve) => execFile('/usr/bin/afplay', [file], () => resolve()));
+      } finally {
+        await fs.rm(file, { force: true });
+      }
     },
     async openSession(payload) {
       const id = readId(payload);

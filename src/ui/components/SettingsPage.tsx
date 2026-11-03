@@ -139,20 +139,6 @@ export function SettingsPage() {
             </label>
             <label className="setting-row">
               <span>
-                Dictation
-                <small>
-                  Press Ctrl+Option+Space, talk, press it again: your words are typed where your cursor is, in
-                  Claude or any app. Needs the microphone, and Accessibility to type.
-                </small>
-              </span>
-              <input
-                type="checkbox"
-                checked={settings.dictation}
-                onChange={(e) => setSettings({ ...settings, dictation: e.target.checked })}
-              />
-            </label>
-            <label className="setting-row">
-              <span>
                 Pets speak
                 <small>
                   Instead of the jingle, a pet reads a short summary aloud when an account needs you or

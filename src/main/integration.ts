@@ -1,5 +1,4 @@
 // Platform shell integration: login items, Dock/jump lists and global shortcuts.
-import { dictationKey } from './dictate.ts';
 import { app, globalShortcut, shell, Menu } from 'electron';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
@@ -93,7 +92,6 @@ export function registerHotkeys(
   profiles: Profile[],
   openManager: () => void,
   openProfile: (id: string) => void,
-  dictate?: () => void,
 ): HotkeyResult {
   globalShortcut.unregisterAll();
   const result: HotkeyResult = { managerError: '', profileErrors: new Map() };
@@ -106,7 +104,6 @@ export function registerHotkeys(
       return 'That shortcut is not valid.';
     }
   };
-  if (dictate && settings.dictation) register(dictationKey, dictate);
   if (settings.hotkey) result.managerError = register(settings.hotkey, openManager);
   const manager = settings.hotkey ? acceleratorKey(settings.hotkey) : '';
   for (const profile of profiles) {

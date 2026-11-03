@@ -156,6 +156,13 @@ export function ProfileEditor(props: { editing: string; onClose(): void }) {
                 </option>
               ))}
             </select>
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => fire('voicePreview', { voice: form.voice })}
+            >
+              Hear it
+            </button>
             <small>Reads out when a session of this account is done or needs you.</small>
           </label>
           {form.pet === '' && (
